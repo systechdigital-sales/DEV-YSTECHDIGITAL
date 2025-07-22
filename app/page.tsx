@@ -104,7 +104,10 @@ export default function OTTRedemptionPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Hero Section */}
         <div className="text-center mb-12">
-          <div className="inline-flex items-center bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-full mb-6">
+          <div
+            className="inline-flex items-center bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-full mb-6 cursor-pointer hover:from-blue-700 hover:to-indigo-700 transition-colors"
+            onClick={() => (window.location.href = "/ottclaim")}
+          >
             <Play className="w-5 h-5 mr-2" />
             <span className="font-semibold">🎉 Unlock Your Complimentary OTT Subscription!</span>
           </div>
