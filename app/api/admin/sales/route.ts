@@ -46,14 +46,7 @@ export async function GET() {
     const db = await getDatabase()
     const sales = await db.collection<SalesRecord>("sales").find({}).sort({ createdAt: -1 }).toArray()
 
-    // Convert MongoDB _id to string and ensure id field exists
-    const formattedSales = sales.map((sale) => ({
-      ...sale,
-      id: sale.id || sale._id?.toString() || "",
-      _id: undefined,
-    }))
-
-    return NextResponse.json(formattedSales)
+    return NextResponse.json(sales)
   } catch (error) {
     console.error("Error fetching sales:", error)
     return NextResponse.json({ error: "Failed to fetch sales" }, { status: 500 })

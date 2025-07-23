@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
+import { sendEmail, emailTemplates } from "@/lib/email"
 import type { ClaimResponse } from "@/lib/models"
 
 export async function POST(request: NextRequest) {
@@ -25,7 +26,9 @@ export async function POST(request: NextRequest) {
       invoiceNumber: (formData.get("invoiceNumber") as string) || "",
       sellerName: (formData.get("sellerName") as string) || "",
       paymentStatus: "pending",
+      paymentId: null,
       ottCodeStatus: "pending",
+      ottCode: null,
       claimSubmissionDate: new Date().toISOString().split("T")[0],
       createdAt: new Date().toISOString(),
     }
@@ -33,8 +36,6 @@ export async function POST(request: NextRequest) {
     // Handle file upload
     const billFile = formData.get("billFile") as File
     if (billFile) {
-      // In a real implementation, you would upload to cloud storage
-      // For now, just store the filename
       claimData.billFileName = `${claimData.id}_${billFile.name}`
     }
 
@@ -63,6 +64,22 @@ export async function POST(request: NextRequest) {
     // Save to database
     const db = await getDatabase()
     const result = await db.collection<ClaimResponse>("claims").insertOne(claimData as ClaimResponse)
+
+    // Send confirmation email
+    const fullName = `${claimData.firstName} ${claimData.lastName}`
+    const emailTemplate = emailTemplates.claimSubmitted(fullName, claimData.id!)
+
+    await sendEmail({
+      to: claimData.email!,
+      subject: emailTemplate.subject,
+      html: emailTemplate.html,
+    })
+
+    console.log("OTT Claim submitted and email sent:", {
+      id: claimData.id,
+      email: claimData.email,
+      activationCode: claimData.activationCode,
+    })
 
     return NextResponse.json({
       success: true,

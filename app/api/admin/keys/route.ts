@@ -61,14 +61,7 @@ export async function GET() {
     const db = await getDatabase()
     const keys = await db.collection<OTTKey>("ott_keys").find({}).sort({ createdAt: -1 }).toArray()
 
-    // Convert MongoDB _id to string and ensure id field exists
-    const formattedKeys = keys.map((key) => ({
-      ...key,
-      id: key.id || key._id?.toString() || "",
-      _id: undefined,
-    }))
-
-    return NextResponse.json(formattedKeys)
+    return NextResponse.json(keys)
   } catch (error) {
     console.error("Error fetching OTT keys:", error)
     return NextResponse.json({ error: "Failed to fetch OTT keys" }, { status: 500 })
