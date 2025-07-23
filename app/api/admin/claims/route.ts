@@ -1,105 +1,46 @@
 import { NextResponse } from "next/server"
-
-// Mock claims database with comprehensive data
-const mockClaimResponses = [
-  {
-    id: "1",
-    firstName: "John",
-    lastName: "Doe",
-    email: "john.doe@example.com",
-    phone: "+91-9876543210",
-    streetAddress: "123 Main Street",
-    addressLine2: "Apartment 4B",
-    city: "Mumbai",
-    state: "Maharashtra",
-    postalCode: "400001",
-    country: "India",
-    purchaseType: "hardware",
-    activationCode: "HW123456789",
-    purchaseDate: "2025-07-15",
-    claimSubmissionDate: "2025-07-20",
-    invoiceNumber: "INV-2025-001",
-    sellerName: "TechMart Electronics",
-    paymentStatus: "completed",
-    paymentId: "pay_123456789",
-    ottCodeStatus: "sent",
-    ottCode: "OTT-NETFLIX-001",
-    createdAt: "2025-07-20T10:30:00Z",
-    billFileName: "1_bill_receipt.pdf",
-  },
-  {
-    id: "2",
-    firstName: "Jane",
-    lastName: "Smith",
-    email: "jane.smith@example.com",
-    phone: "+91-9876543211",
-    streetAddress: "456 Oak Avenue",
-    addressLine2: "",
-    city: "Delhi",
-    state: "Delhi",
-    postalCode: "110001",
-    country: "India",
-    purchaseType: "software",
-    activationCode: "SW987654321",
-    purchaseDate: "2025-07-18",
-    claimSubmissionDate: "2025-07-22",
-    paymentStatus: "completed",
-    paymentId: "pay_987654321",
-    ottCodeStatus: "pending",
-    ottCode: null,
-    createdAt: "2025-07-22T14:15:00Z",
-    billFileName: "2_software_invoice.pdf",
-  },
-  {
-    id: "3",
-    firstName: "Mike",
-    lastName: "Johnson",
-    email: "mike.johnson@example.com",
-    phone: "+1-555-123-4567",
-    streetAddress: "789 Pine Road",
-    addressLine2: "Suite 200",
-    city: "New York",
-    state: "New York",
-    postalCode: "10001",
-    country: "United States",
-    purchaseType: "hardware",
-    activationCode: "HW555666777",
-    purchaseDate: "2025-07-10",
-    claimSubmissionDate: "2025-07-23",
-    invoiceNumber: "INV-US-2025-003",
-    sellerName: "Best Buy",
-    paymentStatus: "failed",
-    paymentId: "pay_failed_001",
-    ottCodeStatus: "pending",
-    ottCode: null,
-    createdAt: "2025-07-23T09:45:00Z",
-    billFileName: "3_hardware_receipt.jpg",
-  },
-  {
-    id: "4",
-    firstName: "Sarah",
-    lastName: "Wilson",
-    email: "sarah.wilson@example.com",
-    phone: "+44-20-1234-5678",
-    streetAddress: "321 Queen Street",
-    addressLine2: "",
-    city: "London",
-    state: "England",
-    postalCode: "SW1A 1AA",
-    country: "United Kingdom",
-    purchaseType: "software",
-    activationCode: "SW111222333",
-    purchaseDate: "2025-07-12",
-    claimSubmissionDate: "2025-07-24",
-    paymentStatus: "pending",
-    paymentId: null,
-    ottCodeStatus: "pending",
-    ottCode: null,
-    createdAt: "2025-07-24T16:20:00Z",
-    billFileName: "4_purchase_receipt.png",
-  },
-]
+import { getDatabase } from "@/lib/mongodb"
+import type { ClaimResponse } from "@/lib/models"
 
 export async function GET() {
-  return NextResponse.json(mockClaimResponses)
+  try {
+    const db = await getDatabase()
+    const claims = await db.collection<ClaimResponse>("claims").find({}).sort({ createdAt: -1 }).toArray()
+
+    // Convert MongoDB _id to string and ensure id field exists
+    const formattedClaims = claims.map((claim) => ({
+      ...claim,
+      id: claim.id || claim._id?.toString() || "",
+      _id: undefined,
+    }))
+
+    return NextResponse.json(formattedClaims)
+  } catch (error) {
+    console.error("Error fetching claims:", error)
+    return NextResponse.json({ error: "Failed to fetch claims" }, { status: 500 })
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const claimData = await request.json()
+    const db = await getDatabase()
+
+    const newClaim: ClaimResponse = {
+      id: `claim_${Date.now()}`,
+      ...claimData,
+      createdAt: new Date().toISOString(),
+    }
+
+    const result = await db.collection<ClaimResponse>("claims").insertOne(newClaim)
+
+    return NextResponse.json({
+      success: true,
+      id: result.insertedId,
+      message: "Claim saved successfully",
+    })
+  } catch (error) {
+    console.error("Error saving claim:", error)
+    return NextResponse.json({ success: false, error: "Failed to save claim" }, { status: 500 })
+  }
 }

@@ -97,13 +97,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // In a real implementation, save to database
-    // For now, we'll just return success
-    return NextResponse.json({
-      success: true,
-      count: keysData.length,
-      message: `Successfully uploaded ${keysData.length} OTT keys`,
+    // Save to database via the keys API
+    const saveResponse = await fetch(`${request.nextUrl.origin}/api/admin/keys`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(keysData),
     })
+
+    const saveResult = await saveResponse.json()
+
+    if (saveResult.success) {
+      return NextResponse.json({
+        success: true,
+        count: keysData.length,
+        message: `Successfully uploaded ${keysData.length} OTT keys`,
+      })
+    } else {
+      return NextResponse.json({ success: false, error: "Failed to save OTT keys" }, { status: 500 })
+    }
   } catch (error) {
     console.error("Error uploading OTT keys file:", error)
     return NextResponse.json(

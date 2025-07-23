@@ -104,13 +104,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // In a real implementation, save to database
-    // For now, we'll just return success
-    return NextResponse.json({
-      success: true,
-      count: salesData.length,
-      message: `Successfully uploaded ${salesData.length} sales records`,
+    // Save to database via the sales API
+    const saveResponse = await fetch(`${request.nextUrl.origin}/api/admin/sales`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(salesData),
     })
+
+    const saveResult = await saveResponse.json()
+
+    if (saveResult.success) {
+      return NextResponse.json({
+        success: true,
+        count: salesData.length,
+        message: `Successfully uploaded ${salesData.length} sales records`,
+      })
+    } else {
+      return NextResponse.json({ success: false, error: "Failed to save sales data" }, { status: 500 })
+    }
   } catch (error) {
     console.error("Error uploading sales file:", error)
     return NextResponse.json(
