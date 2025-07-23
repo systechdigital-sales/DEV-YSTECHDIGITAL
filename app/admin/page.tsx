@@ -19,14 +19,24 @@ interface ClaimResponse {
   lastName: string
   email: string
   phone: string
+  streetAddress: string
+  addressLine2: string
+  city: string
+  state: string
+  postalCode: string
   country: string
   purchaseType: string
   activationCode: string
   purchaseDate: string
   claimSubmissionDate: string
+  invoiceNumber?: string
+  sellerName?: string
   paymentStatus: string
+  paymentId?: string
   ottCodeStatus: string
+  ottCode?: string
   createdAt: string
+  billFileName?: string
 }
 
 interface SalesRecord {
@@ -54,7 +64,9 @@ export default function AdminDashboard() {
   const [ottKeys, setOTTKeys] = useState<OTTKey[]>([])
   const [loading, setLoading] = useState(false)
   const [uploadingSales, setUploadingSales] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploadingKeys, setUploadingKeys] = useState(false)
+  const salesFileInputRef = useRef<HTMLInputElement>(null)
+  const keysFileInputRef = useRef<HTMLInputElement>(null)
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
@@ -109,15 +121,47 @@ export default function AdminDashboard() {
         alert(`Successfully uploaded ${result.count} sales records`)
         fetchAllData()
       } else {
-        alert("Error uploading sales data")
+        alert("Error uploading sales data: " + result.error)
       }
     } catch (error) {
       console.error("Error uploading sales:", error)
       alert("Error uploading sales data")
     } finally {
       setUploadingSales(false)
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ""
+      if (salesFileInputRef.current) {
+        salesFileInputRef.current.value = ""
+      }
+    }
+  }
+
+  const handleKeysUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingKeys(true)
+    const formData = new FormData()
+    formData.append("file", file)
+
+    try {
+      const response = await fetch("/api/admin/upload-keys", {
+        method: "POST",
+        body: formData,
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        alert(`Successfully uploaded ${result.count} OTT keys`)
+        fetchAllData()
+      } else {
+        alert("Error uploading OTT keys: " + result.error)
+      }
+    } catch (error) {
+      console.error("Error uploading keys:", error)
+      alert("Error uploading OTT keys")
+    } finally {
+      setUploadingKeys(false)
+      if (keysFileInputRef.current) {
+        keysFileInputRef.current.value = ""
       }
     }
   }
@@ -125,6 +169,11 @@ export default function AdminDashboard() {
   const exportToExcel = async (type: string) => {
     try {
       const response = await fetch(`/api/admin/export?type=${type}`)
+
+      if (!response.ok) {
+        throw new Error("Export failed")
+      }
+
       const blob = await response.blob()
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement("a")
@@ -136,6 +185,7 @@ export default function AdminDashboard() {
       document.body.removeChild(a)
     } catch (error) {
       console.error("Error exporting data:", error)
+      alert("Error exporting data")
     }
   }
 
@@ -277,10 +327,14 @@ export default function AdminDashboard() {
                         <TableHead>Name</TableHead>
                         <TableHead>Email</TableHead>
                         <TableHead>Phone</TableHead>
+                        <TableHead>Address</TableHead>
                         <TableHead>Purchase Type</TableHead>
                         <TableHead>Activation Code</TableHead>
+                        <TableHead>Purchase Date</TableHead>
                         <TableHead>Payment Status</TableHead>
+                        <TableHead>Payment ID</TableHead>
                         <TableHead>OTT Status</TableHead>
+                        <TableHead>OTT Code</TableHead>
                         <TableHead>Submitted</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
@@ -294,21 +348,43 @@ export default function AdminDashboard() {
                           <TableCell>{claim.email}</TableCell>
                           <TableCell>{claim.phone}</TableCell>
                           <TableCell>
+                            <div className="text-sm">
+                              <div>{claim.streetAddress}</div>
+                              <div>
+                                {claim.city}, {claim.state}
+                              </div>
+                              <div>
+                                {claim.country} - {claim.postalCode}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
                             <Badge variant={claim.purchaseType === "hardware" ? "default" : "secondary"}>
                               {claim.purchaseType}
                             </Badge>
                           </TableCell>
                           <TableCell className="font-mono text-sm">{claim.activationCode}</TableCell>
+                          <TableCell>{claim.purchaseDate}</TableCell>
                           <TableCell>
-                            <Badge variant={claim.paymentStatus === "completed" ? "default" : "destructive"}>
+                            <Badge
+                              variant={
+                                claim.paymentStatus === "completed"
+                                  ? "default"
+                                  : claim.paymentStatus === "failed"
+                                    ? "destructive"
+                                    : "secondary"
+                              }
+                            >
                               {claim.paymentStatus}
                             </Badge>
                           </TableCell>
+                          <TableCell className="font-mono text-xs">{claim.paymentId || "-"}</TableCell>
                           <TableCell>
                             <Badge variant={claim.ottCodeStatus === "sent" ? "default" : "secondary"}>
                               {claim.ottCodeStatus}
                             </Badge>
                           </TableCell>
+                          <TableCell className="font-mono text-xs">{claim.ottCode || "-"}</TableCell>
                           <TableCell>{new Date(claim.createdAt).toLocaleDateString()}</TableCell>
                           <TableCell>
                             <Button size="sm" variant="outline">
@@ -331,14 +407,14 @@ export default function AdminDashboard() {
                   <CardTitle>All Sales Records</CardTitle>
                   <div className="flex space-x-2">
                     <input
-                      ref={fileInputRef}
+                      ref={salesFileInputRef}
                       type="file"
                       accept=".xlsx,.xls,.csv"
                       onChange={handleSalesUpload}
                       className="hidden"
                     />
                     <Button
-                      onClick={() => fileInputRef.current?.click()}
+                      onClick={() => salesFileInputRef.current?.click()}
                       disabled={uploadingSales}
                       className="bg-blue-600 hover:bg-blue-700"
                     >
@@ -404,6 +480,21 @@ export default function AdminDashboard() {
                 <div className="flex justify-between items-center">
                   <CardTitle>OTT Keys Management</CardTitle>
                   <div className="flex space-x-2">
+                    <input
+                      ref={keysFileInputRef}
+                      type="file"
+                      accept=".xlsx,.xls,.csv"
+                      onChange={handleKeysUpload}
+                      className="hidden"
+                    />
+                    <Button
+                      onClick={() => keysFileInputRef.current?.click()}
+                      disabled={uploadingKeys}
+                      className="bg-purple-600 hover:bg-purple-700"
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      {uploadingKeys ? "Uploading..." : "Upload OTT Keys"}
+                    </Button>
                     <Button onClick={() => exportToExcel("keys")} variant="outline">
                       <Download className="w-4 h-4 mr-2" />
                       Export Excel
@@ -416,6 +507,23 @@ export default function AdminDashboard() {
                 </div>
               </CardHeader>
               <CardContent>
+                <div className="mb-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
+                  <h4 className="font-semibold text-purple-900 mb-2">Upload Instructions:</h4>
+                  <p className="text-sm text-purple-800">
+                    Upload an Excel file (.xlsx, .xls) or CSV file with the following columns:
+                  </p>
+                  <ul className="text-sm text-purple-800 mt-2 ml-4 list-disc">
+                    <li>
+                      <strong>Product Sub Category</strong> - Category of the OTT service
+                    </li>
+                    <li>
+                      <strong>Product</strong> - OTT service name (Netflix, Prime, etc.)
+                    </li>
+                    <li>
+                      <strong>Activation Code</strong> - OTT subscription code
+                    </li>
+                  </ul>
+                </div>
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>

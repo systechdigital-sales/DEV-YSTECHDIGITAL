@@ -9,15 +9,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Textarea } from "@/components/ui/textarea"
-import { Calendar, Upload, FileText, Shield, Phone, Mail, MapPin } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Upload, CreditCard } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 
 const countries = [
-  "Åland Islands",
   "Afghanistan",
-  "Akrotiri",
   "Albania",
   "Algeria",
   "American Samoa",
@@ -29,14 +27,12 @@ const countries = [
   "Argentina",
   "Armenia",
   "Aruba",
-  "Ashmore and Cartier Islands",
   "Australia",
   "Austria",
   "Azerbaijan",
   "Bahrain",
   "Bangladesh",
   "Barbados",
-  "Bassas Da India",
   "Belarus",
   "Belgium",
   "Belize",
@@ -46,9 +42,7 @@ const countries = [
   "Bolivia",
   "Bosnia and Herzegovina",
   "Botswana",
-  "Bouvet Island",
   "Brazil",
-  "British Indian Ocean Territory",
   "British Virgin Islands",
   "Brunei",
   "Bulgaria",
@@ -59,29 +53,22 @@ const countries = [
   "Cameroon",
   "Canada",
   "Cape Verde",
-  "Caribbean Netherlands",
   "Cayman Islands",
   "Central African Republic",
   "Chad",
   "Chile",
   "China",
-  "Christmas Island",
-  "Clipperton Island",
-  "Cocos (Keeling) Islands",
   "Colombia",
   "Comoros",
   "Cook Islands",
-  "Coral Sea Islands",
   "Costa Rica",
   "Cote D'Ivoire",
   "Croatia",
   "Cuba",
-  "Curaçao",
   "Cyprus",
   "Czech Republic",
   "Democratic Republic of the Congo",
   "Denmark",
-  "Dhekelia",
   "Djibouti",
   "Dominica",
   "Dominican Republic",
@@ -92,23 +79,19 @@ const countries = [
   "Eritrea",
   "Estonia",
   "Ethiopia",
-  "Europa Island",
-  "Falkland Islands (Islas Malvinas)",
+  "Falkland Islands",
   "Faroe Islands",
-  "Federated States of Micronesia",
   "Fiji",
   "Finland",
   "France",
   "French Guiana",
   "French Polynesia",
-  "French Southern and Antarctic Lands",
   "Gabon",
   "Gaza Strip",
   "Georgia",
   "Germany",
   "Ghana",
   "Gibraltar",
-  "Glorioso Islands",
   "Greece",
   "Greenland",
   "Grenada",
@@ -120,8 +103,6 @@ const countries = [
   "Guinea-bissau",
   "Guyana",
   "Haiti",
-  "Heard Island and Mcdonald Islands",
-  "Holy See (Vatican City)",
   "Honduras",
   "Hong Kong",
   "Hungary",
@@ -135,11 +116,9 @@ const countries = [
   "Israel",
   "Italy",
   "Jamaica",
-  "Jan Mayen",
   "Japan",
   "Jersey",
   "Jordan",
-  "Juan De Nova Island",
   "Kazakhstan",
   "Kenya",
   "Kiribati",
@@ -179,9 +158,7 @@ const countries = [
   "Myanmar",
   "Namibia",
   "Nauru",
-  "Navassa Island",
   "Nepal",
-  "Netherlands Antilles",
   "Netherlands",
   "New Caledonia",
   "New Zealand",
@@ -199,7 +176,6 @@ const countries = [
   "Palestine",
   "Panama",
   "Papua New Guinea",
-  "Paracel Islands",
   "Paraguay",
   "Peru",
   "Philippines",
@@ -213,12 +189,8 @@ const countries = [
   "Romania",
   "Russia",
   "Rwanda",
-  "Saint BarthÃ©lemy",
-  "Saint Helena",
   "Saint Kitts and Nevis",
   "Saint Lucia",
-  "Saint Martin",
-  "Saint Pierre and Miquelon",
   "Saint Vincent and the Grenadines",
   "Samoa",
   "San Marino",
@@ -229,21 +201,17 @@ const countries = [
   "Seychelles",
   "Sierra Leone",
   "Singapore",
-  "Sint Maarten",
   "Slovakia",
   "Slovenia",
   "Solomon Islands",
   "Somalia",
   "South Africa",
-  "South Georgia and the South Sandwich Islands",
   "South Korea",
   "South Sudan",
   "Spain",
-  "Spratly Islands",
   "Sri Lanka",
   "Sudan",
   "Suriname",
-  "Svalbard",
   "Swaziland",
   "Sweden",
   "Switzerland",
@@ -259,7 +227,6 @@ const countries = [
   "Tokelau",
   "Tonga",
   "Trinidad and Tobago",
-  "Tromelin Island",
   "Tunisia",
   "Turkey",
   "Turkmenistan",
@@ -276,10 +243,6 @@ const countries = [
   "Venezuela",
   "Vietnam",
   "Virgin Islands",
-  "Wake Island",
-  "Wallis and Futuna",
-  "West Bank",
-  "Western Sahara",
   "Yemen",
   "Zambia",
   "Zimbabwe",
@@ -301,22 +264,23 @@ export default function OTTClaimPage() {
     purchaseType: "",
     activationCode: "",
     purchaseDate: "",
-    claimSubmissionDate: "",
+    claimSubmissionDate: new Date().toISOString().split("T")[0],
     invoiceNumber: "",
     sellerName: "",
     termsAccepted: false,
   })
 
   const [billFile, setBillFile] = useState<File | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setBillFile(e.target.files[0])
+    const file = e.target.files?.[0]
+    if (file) {
+      setBillFile(file)
     }
   }
 
@@ -328,7 +292,7 @@ export default function OTTClaimPage() {
       return
     }
 
-    setLoading(true)
+    setIsSubmitting(true)
 
     try {
       const submitFormData = new FormData()
@@ -351,16 +315,16 @@ export default function OTTClaimPage() {
       const result = await response.json()
 
       if (result.success) {
-        // Redirect to payment page
-        window.location.href = `/payment?claimId=${result.claimId}`
+        // Redirect to payment page with claim ID
+        window.location.href = `/payment?claimId=${result.claimId}&amount=99`
       } else {
-        alert("Error submitting form. Please try again.")
+        alert("Error submitting claim: " + result.error)
       }
     } catch (error) {
       console.error("Error submitting form:", error)
-      alert("Error submitting form. Please try again.")
+      alert("Error submitting claim. Please try again.")
     } finally {
-      setLoading(false)
+      setIsSubmitting(false)
     }
   }
 
@@ -377,14 +341,6 @@ export default function OTTClaimPage() {
                 <p className="text-sm text-red-200 mt-1">OTT Subscription Claim</p>
               </div>
             </Link>
-            <nav className="hidden md:flex space-x-8">
-              <Link href="/" className="text-white hover:text-red-200 transition-colors">
-                Home
-              </Link>
-              <Link href="/ottclaim" className="text-red-200 font-semibold">
-                OTT Claim
-              </Link>
-            </nav>
           </div>
         </div>
       </header>
@@ -392,169 +348,135 @@ export default function OTTClaimPage() {
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Card className="shadow-2xl border-0">
           <CardHeader className="bg-gradient-to-r from-red-600 to-black text-white rounded-t-lg">
-            <CardTitle className="text-2xl font-bold flex items-center">
-              <FileText className="w-6 h-6 mr-2" />
-              OTT Subscription Claim Form
-            </CardTitle>
-            <p className="text-red-100 mt-2">
-              Fill out this form to claim your complimentary OTT subscription. All fields marked with * are required.
+            <CardTitle className="text-2xl font-bold text-center">OTT Subscription Claim Form</CardTitle>
+            <p className="text-center text-red-100 mt-2">
+              Fill out the form below to claim your complimentary OTT subscription
             </p>
           </CardHeader>
+
           <CardContent className="p-8">
-            <form onSubmit={handleSubmit} className="space-y-8">
+            <form onSubmit={handleSubmit} className="space-y-6">
               {/* Personal Information */}
-              <div className="space-y-6">
-                <h3 className="text-xl font-semibold text-gray-900 border-b border-gray-200 pb-2">
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">
                   Personal Information
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="firstName" className="text-sm font-medium text-gray-700">
-                      First Name *
-                    </Label>
+                    <Label htmlFor="firstName">First Name *</Label>
                     <Input
                       id="firstName"
                       value={formData.firstName}
                       onChange={(e) => handleInputChange("firstName", e.target.value)}
-                      className="mt-1"
                       required
+                      className="mt-1"
                     />
                   </div>
+
                   <div>
-                    <Label htmlFor="lastName" className="text-sm font-medium text-gray-700">
-                      Last Name *
-                    </Label>
+                    <Label htmlFor="lastName">Last Name *</Label>
                     <Input
                       id="lastName"
                       value={formData.lastName}
                       onChange={(e) => handleInputChange("lastName", e.target.value)}
-                      className="mt-1"
                       required
+                      className="mt-1"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="email" className="text-sm font-medium text-gray-700 flex items-center">
-                      <Mail className="w-4 h-4 mr-1" />
-                      Email *
-                    </Label>
+                    <Label htmlFor="email">Email *</Label>
                     <Input
                       id="email"
                       type="email"
                       value={formData.email}
                       onChange={(e) => handleInputChange("email", e.target.value)}
-                      className="mt-1"
                       required
+                      className="mt-1"
                     />
                   </div>
+
                   <div>
-                    <Label htmlFor="phone" className="text-sm font-medium text-gray-700 flex items-center">
-                      <Phone className="w-4 h-4 mr-1" />
-                      Phone *
-                    </Label>
+                    <Label htmlFor="phone">Phone *</Label>
                     <Input
                       id="phone"
                       type="tel"
                       value={formData.phone}
                       onChange={(e) => handleInputChange("phone", e.target.value)}
-                      className="mt-1"
                       required
+                      className="mt-1"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Address Information */}
-              <div className="space-y-6">
-                <h3 className="text-xl font-semibold text-gray-900 border-b border-gray-200 pb-2 flex items-center">
-                  <MapPin className="w-5 h-5 mr-2" />
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">
                   Address Information
                 </h3>
+
                 <div>
-                  <Label htmlFor="address" className="text-sm font-medium text-gray-700">
-                    Address *
-                  </Label>
-                  <Textarea
-                    id="address"
-                    value={formData.address}
-                    onChange={(e) => handleInputChange("address", e.target.value)}
-                    className="mt-1"
-                    rows={3}
+                  <Label htmlFor="streetAddress">Street Address *</Label>
+                  <Input
+                    id="streetAddress"
+                    value={formData.streetAddress}
+                    onChange={(e) => handleInputChange("streetAddress", e.target.value)}
                     required
+                    className="mt-1"
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <Label htmlFor="streetAddress" className="text-sm font-medium text-gray-700">
-                      Street Address *
-                    </Label>
-                    <Input
-                      id="streetAddress"
-                      value={formData.streetAddress}
-                      onChange={(e) => handleInputChange("streetAddress", e.target.value)}
-                      className="mt-1"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="addressLine2" className="text-sm font-medium text-gray-700">
-                      Address Line 2
-                    </Label>
-                    <Input
-                      id="addressLine2"
-                      value={formData.addressLine2}
-                      onChange={(e) => handleInputChange("addressLine2", e.target.value)}
-                      className="mt-1"
-                    />
-                  </div>
+                <div>
+                  <Label htmlFor="addressLine2">Address Line 2</Label>
+                  <Input
+                    id="addressLine2"
+                    value={formData.addressLine2}
+                    onChange={(e) => handleInputChange("addressLine2", e.target.value)}
+                    className="mt-1"
+                  />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <Label htmlFor="city" className="text-sm font-medium text-gray-700">
-                      City *
-                    </Label>
+                    <Label htmlFor="city">City *</Label>
                     <Input
                       id="city"
                       value={formData.city}
                       onChange={(e) => handleInputChange("city", e.target.value)}
-                      className="mt-1"
                       required
+                      className="mt-1"
                     />
                   </div>
+
                   <div>
-                    <Label htmlFor="state" className="text-sm font-medium text-gray-700">
-                      State/Region/Province *
-                    </Label>
+                    <Label htmlFor="state">State/Region/Province *</Label>
                     <Input
                       id="state"
                       value={formData.state}
                       onChange={(e) => handleInputChange("state", e.target.value)}
-                      className="mt-1"
                       required
+                      className="mt-1"
                     />
                   </div>
+
                   <div>
-                    <Label htmlFor="postalCode" className="text-sm font-medium text-gray-700">
-                      Postal / Zip Code *
-                    </Label>
+                    <Label htmlFor="postalCode">Postal / Zip Code *</Label>
                     <Input
                       id="postalCode"
                       value={formData.postalCode}
                       onChange={(e) => handleInputChange("postalCode", e.target.value)}
-                      className="mt-1"
                       required
+                      className="mt-1"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <Label htmlFor="country" className="text-sm font-medium text-gray-700">
-                    Country *
-                  </Label>
+                  <Label htmlFor="country">Country *</Label>
                   <Select value={formData.country} onValueChange={(value) => handleInputChange("country", value)}>
                     <SelectTrigger className="mt-1">
                       <SelectValue placeholder="Select your country" />
@@ -571,12 +493,13 @@ export default function OTTClaimPage() {
               </div>
 
               {/* Purchase Information */}
-              <div className="space-y-6">
-                <h3 className="text-xl font-semibold text-gray-900 border-b border-gray-200 pb-2">
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">
                   Purchase Information
                 </h3>
+
                 <div>
-                  <Label className="text-sm font-medium text-gray-700">What did you Purchase? *</Label>
+                  <Label>What did you Purchase? *</Label>
                   <RadioGroup
                     value={formData.purchaseType}
                     onValueChange={(value) => handleInputChange("purchaseType", value)}
@@ -593,109 +516,96 @@ export default function OTTClaimPage() {
                   </RadioGroup>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="purchaseDate" className="text-sm font-medium text-gray-700 flex items-center">
-                      <Calendar className="w-4 h-4 mr-1" />
-                      Purchase Date *
-                    </Label>
+                    <Label htmlFor="purchaseDate">Purchase Date *</Label>
                     <Input
                       id="purchaseDate"
                       type="date"
                       value={formData.purchaseDate}
                       onChange={(e) => handleInputChange("purchaseDate", e.target.value)}
-                      className="mt-1"
                       required
+                      className="mt-1"
                     />
                   </div>
+
                   <div>
-                    <Label
-                      htmlFor="claimSubmissionDate"
-                      className="text-sm font-medium text-gray-700 flex items-center"
-                    >
-                      <Calendar className="w-4 h-4 mr-1" />
-                      Claim Submission Date *
-                    </Label>
+                    <Label htmlFor="claimSubmissionDate">Claim Submission Date *</Label>
                     <Input
                       id="claimSubmissionDate"
                       type="date"
                       value={formData.claimSubmissionDate}
                       onChange={(e) => handleInputChange("claimSubmissionDate", e.target.value)}
-                      className="mt-1"
                       required
+                      className="mt-1"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <Label htmlFor="activationCode" className="text-sm font-medium text-gray-700">
-                    Activation Code/ Serial No / IMEI Number *
-                  </Label>
+                  <Label htmlFor="activationCode">Activation Code/ Serial No / IMEI Number *</Label>
                   <Input
                     id="activationCode"
                     value={formData.activationCode}
                     onChange={(e) => handleInputChange("activationCode", e.target.value)}
-                    className="mt-1 font-mono"
-                    placeholder="Enter your activation code, serial number, or IMEI"
                     required
+                    className="mt-1"
+                    placeholder="Enter your product activation code"
                   />
                 </div>
 
                 {/* Conditional fields for hardware */}
                 {formData.purchaseType === "hardware" && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <>
                     <div>
-                      <Label htmlFor="invoiceNumber" className="text-sm font-medium text-gray-700">
-                        Invoice Number *
-                      </Label>
+                      <Label htmlFor="invoiceNumber">Invoice Number *</Label>
                       <Input
                         id="invoiceNumber"
                         value={formData.invoiceNumber}
                         onChange={(e) => handleInputChange("invoiceNumber", e.target.value)}
+                        required
                         className="mt-1"
-                        required={formData.purchaseType === "hardware"}
                       />
                     </div>
+
                     <div>
-                      <Label htmlFor="sellerName" className="text-sm font-medium text-gray-700">
-                        Seller Name *
-                      </Label>
+                      <Label htmlFor="sellerName">Seller Name *</Label>
                       <Input
                         id="sellerName"
                         value={formData.sellerName}
                         onChange={(e) => handleInputChange("sellerName", e.target.value)}
+                        required
                         className="mt-1"
-                        required={formData.purchaseType === "hardware"}
                       />
                     </div>
-                  </div>
+                  </>
                 )}
 
                 <div>
-                  <Label htmlFor="billFile" className="text-sm font-medium text-gray-700 flex items-center">
-                    <Upload className="w-4 h-4 mr-1" />
-                    Upload Bill *
-                  </Label>
-                  <Input
-                    id="billFile"
-                    type="file"
-                    onChange={handleFileChange}
-                    className="mt-1"
-                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                    required
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Accepted formats: PDF, JPG, PNG, DOC, DOCX (Max 5MB)</p>
+                  <Label htmlFor="billFile">Upload Bill *</Label>
+                  <div className="mt-1 flex items-center space-x-2">
+                    <Input
+                      id="billFile"
+                      type="file"
+                      onChange={handleFileChange}
+                      accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                      required
+                      className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100"
+                    />
+                    <Upload className="w-5 h-5 text-gray-400" />
+                  </div>
+                  <p className="text-sm text-gray-500 mt-1">Accepted formats: PDF, JPG, PNG, DOC, DOCX (Max 5MB)</p>
                 </div>
               </div>
 
               {/* Terms and Conditions */}
-              <div className="space-y-6">
-                <h3 className="text-xl font-semibold text-gray-900 border-b border-gray-200 pb-2 flex items-center">
-                  <Shield className="w-5 h-5 mr-2" />
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">
                   Terms and Conditions
                 </h3>
-                <div className="bg-gray-50 p-6 rounded-lg border">
-                  <ul className="space-y-2 text-sm text-gray-700">
+
+                <div className="bg-gray-50 p-4 rounded-lg text-sm text-gray-700">
+                  <ul className="space-y-2">
                     <li>
                       • OTT subscription offer is valid only for eligible product purchases between 1st July 2025 and
                       30th September 2025
@@ -708,20 +618,13 @@ export default function OTTClaimPage() {
                 </div>
 
                 <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     id="termsAccepted"
                     checked={formData.termsAccepted}
-                    onChange={(e) => handleInputChange("termsAccepted", e.target.checked)}
-                    className="rounded border-gray-300"
-                    required
+                    onCheckedChange={(checked) => handleInputChange("termsAccepted", checked as boolean)}
                   />
-                  <Label htmlFor="termsAccepted" className="text-sm text-gray-700">
-                    I accept the{" "}
-                    <Link href="/terms-and-conditions" className="text-red-600 hover:underline">
-                      Terms and Conditions
-                    </Link>
-                    . *
+                  <Label htmlFor="termsAccepted" className="text-sm">
+                    I accept the Terms and Conditions *
                   </Label>
                 </div>
               </div>
@@ -730,10 +633,17 @@ export default function OTTClaimPage() {
               <div className="pt-6">
                 <Button
                   type="submit"
-                  disabled={loading || !formData.termsAccepted}
+                  disabled={isSubmitting || !formData.termsAccepted}
                   className="w-full bg-gradient-to-r from-red-600 to-black hover:from-red-700 hover:to-gray-900 text-white py-3 text-lg font-semibold"
                 >
-                  {loading ? "Submitting..." : "Submit Claim & Proceed to Payment (₹99)"}
+                  {isSubmitting ? (
+                    "Submitting..."
+                  ) : (
+                    <>
+                      <CreditCard className="w-5 h-5 mr-2" />
+                      Submit Claim & Pay ₹99
+                    </>
+                  )}
                 </Button>
               </div>
             </form>

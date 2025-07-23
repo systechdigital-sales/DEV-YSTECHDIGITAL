@@ -1,17 +1,22 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { writeFile, mkdir } from "fs/promises"
+import { join } from "path"
+import { existsSync } from "fs"
+
+// In-memory storage for demo - replace with database in production
+const claimResponses: any[] = []
 
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
 
-    // Extract form fields
+    // Extract all form fields
     const claimData = {
       id: Date.now().toString(),
       firstName: formData.get("firstName") as string,
       lastName: formData.get("lastName") as string,
       email: formData.get("email") as string,
       phone: formData.get("phone") as string,
-      address: formData.get("address") as string,
       streetAddress: formData.get("streetAddress") as string,
       addressLine2: formData.get("addressLine2") as string,
       city: formData.get("city") as string,
@@ -26,21 +31,48 @@ export async function POST(request: NextRequest) {
       sellerName: formData.get("sellerName") as string,
       termsAccepted: formData.get("termsAccepted") === "true",
       paymentStatus: "pending",
+      paymentId: null,
       ottCodeStatus: "pending",
+      ottCode: null,
       createdAt: new Date().toISOString(),
+      billFileName: null,
     }
 
     // Handle file upload
     const billFile = formData.get("billFile") as File
     if (billFile) {
-      // In a real implementation, you would save the file to cloud storage
-      console.log("Bill file uploaded:", billFile.name, billFile.size)
+      try {
+        const bytes = await billFile.arrayBuffer()
+        const buffer = Buffer.from(bytes)
+
+        // Create uploads directory if it doesn't exist
+        const uploadsDir = join(process.cwd(), "uploads", "bills")
+        if (!existsSync(uploadsDir)) {
+          await mkdir(uploadsDir, { recursive: true })
+        }
+
+        // Save file with unique name
+        const fileName = `${claimData.id}_${billFile.name}`
+        const filePath = join(uploadsDir, fileName)
+        await writeFile(filePath, buffer)
+
+        claimData.billFileName = fileName
+      } catch (fileError) {
+        console.error("Error saving file:", fileError)
+        // Continue without file if there's an error
+      }
     }
 
-    // In a real implementation, you would save this to a database
-    console.log("OTT Claim submitted:", claimData)
+    // Store claim data
+    claimResponses.push(claimData)
 
-    // Return success with claim ID for payment processing
+    console.log("OTT Claim submitted:", {
+      id: claimData.id,
+      email: claimData.email,
+      activationCode: claimData.activationCode,
+      purchaseType: claimData.purchaseType,
+    })
+
     return NextResponse.json({
       success: true,
       claimId: claimData.id,
@@ -50,4 +82,8 @@ export async function POST(request: NextRequest) {
     console.error("Error submitting OTT claim:", error)
     return NextResponse.json({ success: false, error: "Failed to submit claim" }, { status: 500 })
   }
+}
+
+export async function GET() {
+  return NextResponse.json(claimResponses)
 }
