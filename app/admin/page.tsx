@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Eye, Download, RefreshCw } from "lucide-react"
+import { Eye, Download, RefreshCw, Upload, Play } from "lucide-react"
 import Image from "next/image"
 
 interface ClaimResponse {
@@ -31,10 +31,9 @@ interface ClaimResponse {
 
 interface SalesRecord {
   id: string
-  productCode: string
-  codeStatus: string
-  emailId: string
-  count: number
+  productSubCategory: string
+  product: string
+  activationCode: string
 }
 
 interface OTTKey {
@@ -54,6 +53,8 @@ export default function AdminDashboard() {
   const [salesRecords, setSalesRecords] = useState<SalesRecord[]>([])
   const [ottKeys, setOTTKeys] = useState<OTTKey[]>([])
   const [loading, setLoading] = useState(false)
+  const [uploadingSales, setUploadingSales] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
@@ -89,6 +90,38 @@ export default function AdminDashboard() {
     }
   }
 
+  const handleSalesUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingSales(true)
+    const formData = new FormData()
+    formData.append("file", file)
+
+    try {
+      const response = await fetch("/api/admin/upload-sales", {
+        method: "POST",
+        body: formData,
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        alert(`Successfully uploaded ${result.count} sales records`)
+        fetchAllData()
+      } else {
+        alert("Error uploading sales data")
+      }
+    } catch (error) {
+      console.error("Error uploading sales:", error)
+      alert("Error uploading sales data")
+    } finally {
+      setUploadingSales(false)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""
+      }
+    }
+  }
+
   const exportToExcel = async (type: string) => {
     try {
       const response = await fetch(`/api/admin/export?type=${type}`)
@@ -107,12 +140,27 @@ export default function AdminDashboard() {
   }
 
   const processAutomation = async () => {
+    if (
+      !confirm(
+        "Are you sure you want to start the automation process? This will check all pending claims and send OTT codes where applicable.",
+      )
+    ) {
+      return
+    }
+
     setLoading(true)
     try {
       const response = await fetch("/api/admin/process-automation", { method: "POST" })
       const result = await response.json()
-      alert(`Automation processed: ${result.processed} claims`)
-      fetchAllData()
+
+      if (result.success) {
+        alert(
+          `Automation completed successfully!\n\nProcessed: ${result.processed} claims\nOTT Codes Sent: ${result.ottCodesSent}\nWait Emails Sent: ${result.waitEmails}\nAlready Claimed: ${result.alreadyClaimed}`,
+        )
+        fetchAllData()
+      } else {
+        alert("Error processing automation: " + result.message)
+      }
     } catch (error) {
       console.error("Error processing automation:", error)
       alert("Error processing automation")
@@ -181,8 +229,8 @@ export default function AdminDashboard() {
             </div>
             <div className="flex items-center space-x-4">
               <Button onClick={processAutomation} disabled={loading} className="bg-green-600 hover:bg-green-700">
-                <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-                Process Automation
+                <Play className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+                Start Automation
               </Button>
               <Button
                 onClick={() => setIsAuthenticated(false)}
@@ -282,6 +330,21 @@ export default function AdminDashboard() {
                 <div className="flex justify-between items-center">
                   <CardTitle>All Sales Records</CardTitle>
                   <div className="flex space-x-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".xlsx,.xls,.csv"
+                      onChange={handleSalesUpload}
+                      className="hidden"
+                    />
+                    <Button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingSales}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      {uploadingSales ? "Uploading..." : "Upload Sales Data"}
+                    </Button>
                     <Button onClick={() => exportToExcel("sales")} variant="outline">
                       <Download className="w-4 h-4 mr-2" />
                       Export Excel
@@ -294,27 +357,38 @@ export default function AdminDashboard() {
                 </div>
               </CardHeader>
               <CardContent>
+                <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <h4 className="font-semibold text-blue-900 mb-2">Upload Instructions:</h4>
+                  <p className="text-sm text-blue-800">
+                    Upload an Excel file (.xlsx, .xls) or CSV file with the following columns:
+                  </p>
+                  <ul className="text-sm text-blue-800 mt-2 ml-4 list-disc">
+                    <li>
+                      <strong>Product Sub Category</strong> - Category of the product
+                    </li>
+                    <li>
+                      <strong>Product</strong> - Product name
+                    </li>
+                    <li>
+                      <strong>Activation Code/ Serial No / IMEI Number</strong> - Unique identifier
+                    </li>
+                  </ul>
+                </div>
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Count</TableHead>
-                        <TableHead>Product Code</TableHead>
-                        <TableHead>Code Status</TableHead>
-                        <TableHead>Email ID</TableHead>
+                        <TableHead>Product Sub Category</TableHead>
+                        <TableHead>Product</TableHead>
+                        <TableHead>Activation Code/ Serial No / IMEI Number</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {salesRecords.map((sale) => (
                         <TableRow key={sale.id}>
-                          <TableCell>{sale.count}</TableCell>
-                          <TableCell className="font-mono">{sale.productCode}</TableCell>
-                          <TableCell>
-                            <Badge variant={sale.codeStatus === "active" ? "default" : "secondary"}>
-                              {sale.codeStatus}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{sale.emailId}</TableCell>
+                          <TableCell>{sale.productSubCategory}</TableCell>
+                          <TableCell>{sale.product}</TableCell>
+                          <TableCell className="font-mono">{sale.activationCode}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

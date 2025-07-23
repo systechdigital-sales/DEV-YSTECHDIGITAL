@@ -1,18 +1,32 @@
 import { type NextRequest, NextResponse } from "next/server"
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url)
-  const type = searchParams.get("type")
-
   try {
-    // Mock Excel export - in production, use a library like xlsx
-    const mockExcelData = `Type,Data,Export\n${type},Mock,Data\nFor,Excel,Export`
+    const { searchParams } = new URL(request.url)
+    const type = searchParams.get("type")
 
-    const response = new NextResponse(mockExcelData)
-    response.headers.set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    response.headers.set("Content-Disposition", `attachment; filename="${type}_export.xlsx"`)
+    if (!type || !["claims", "sales", "keys"].includes(type)) {
+      return NextResponse.json({ error: "Invalid export type" }, { status: 400 })
+    }
 
-    return response
+    // In a real implementation, you would:
+    // 1. Fetch data from your database based on the type
+    // 2. Use a library like 'xlsx' to create Excel files
+    // 3. Return the file as a blob
+
+    // Mock Excel file creation
+    const mockExcelData = `${type.toUpperCase()} Export Data\nGenerated on: ${new Date().toISOString()}\n\nThis is mock data for ${type} export.`
+
+    const blob = new Blob([mockExcelData], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    })
+
+    return new NextResponse(blob, {
+      headers: {
+        "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Disposition": `attachment; filename="${type}_export_${new Date().toISOString().split("T")[0]}.xlsx"`,
+      },
+    })
   } catch (error) {
     console.error("Error exporting data:", error)
     return NextResponse.json({ error: "Failed to export data" }, { status: 500 })
