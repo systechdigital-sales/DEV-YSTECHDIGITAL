@@ -18,7 +18,7 @@ export interface ClaimResponse {
   billFileName?: string
   paymentStatus: "pending" | "completed" | "failed"
   paymentId?: string
-  ottCodeStatus: "pending" | "sent" | "not_found" | "already_claimed"
+  ottCodeStatus: "pending" | "assigned" | "delivered" | "failed"
   ottCode?: string
   createdAt: string
   updatedAt: string
@@ -26,19 +26,23 @@ export interface ClaimResponse {
 
 export interface SalesRecord {
   id: string
-  productSubCategory: string
-  product: string
+  customerName: string
+  email: string
+  phone: string
   activationCode: string
+  purchaseDate: string
+  productType: string
+  amount: number
+  status: "active" | "claimed" | "expired"
   createdAt: string
 }
 
 export interface OTTKey {
   id: string
-  productSubCategory: string
-  product: string
-  activationCode: string
-  status: "available" | "assigned"
-  assignedEmail?: string
+  platform: string
+  keyCode: string
+  status: "available" | "assigned" | "used"
+  assignedTo?: string
   assignedDate?: string
   createdAt: string
 }
@@ -50,8 +54,8 @@ export interface PaymentRecord {
   orderId: string
   amount: number
   currency: string
-  status: "created" | "completed" | "failed"
-  razorpaySignature?: string
+  status: "success" | "failed"
+  customerEmail: string
+  customerName: string
   createdAt: string
-  updatedAt: string
 }

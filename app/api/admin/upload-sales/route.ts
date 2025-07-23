@@ -12,101 +12,57 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "No file provided" }, { status: 400 })
     }
 
-    // Validate file type
-    const validTypes = [
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
-      "application/vnd.ms-excel", // .xls
-      "text/csv", // .csv
-    ]
-
-    if (!validTypes.includes(file.type) && !file.name.match(/\.(xlsx|xls|csv)$/i)) {
-      return NextResponse.json(
-        { success: false, error: "Invalid file type. Please upload Excel (.xlsx, .xls) or CSV files only." },
-        { status: 400 },
-      )
-    }
-
-    // Read file
-    const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
-
-    // Parse Excel/CSV file
-    const workbook = XLSX.read(buffer, { type: "buffer" })
+    // Read Excel file
+    const buffer = await file.arrayBuffer()
+    const workbook = XLSX.read(buffer, { type: "array" })
     const sheetName = workbook.SheetNames[0]
     const worksheet = workbook.Sheets[sheetName]
-    const jsonData = XLSX.utils.sheet_to_json(worksheet)
+    const data = XLSX.utils.sheet_to_json(worksheet)
 
-    if (jsonData.length === 0) {
-      return NextResponse.json({ success: false, error: "File is empty" }, { status: 400 })
+    console.log("Excel data parsed:", data.length, "rows")
+
+    const db = await getDatabase()
+    const salesRecords: SalesRecord[] = []
+
+    for (const row of data as any[]) {
+      // Flexible column mapping
+      const customerName = row["Customer Name"] || row["Name"] || row["customer_name"] || ""
+      const email = row["Email"] || row["email"] || row["Email Address"] || ""
+      const phone = row["Phone"] || row["phone"] || row["Phone Number"] || ""
+      const activationCode = row["Activation Code"] || row["Code"] || row["activation_code"] || ""
+      const purchaseDate = row["Purchase Date"] || row["Date"] || row["purchase_date"] || ""
+      const productType = row["Product Type"] || row["Product"] || row["product_type"] || "OTT Subscription"
+      const amount = Number.parseFloat(row["Amount"] || row["amount"] || "0")
+
+      if (customerName && email && activationCode) {
+        const salesRecord: SalesRecord = {
+          id: `sales_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          customerName,
+          email,
+          phone,
+          activationCode,
+          purchaseDate,
+          productType,
+          amount,
+          status: "active",
+          createdAt: new Date().toISOString(),
+        }
+        salesRecords.push(salesRecord)
+      }
     }
 
-    // Transform data to match our schema
-    const salesRecords: SalesRecord[] = jsonData.map((row: any, index: number) => {
-      // Flexible column mapping - try different possible column names
-      const getColumnValue = (possibleNames: string[]) => {
-        for (const name of possibleNames) {
-          if (row[name] !== undefined && row[name] !== null && row[name] !== "") {
-            return String(row[name]).trim()
-          }
-        }
-        return ""
-      }
-
-      const productSubCategory = getColumnValue([
-        "Product Sub Category",
-        "ProductSubCategory",
-        "product_sub_category",
-        "Category",
-        "Sub Category",
-      ])
-
-      const product = getColumnValue(["Product", "Product Name", "ProductName", "product_name", "Name"])
-
-      const activationCode = getColumnValue([
-        "Activation Code",
-        "ActivationCode",
-        "activation_code",
-        "Code",
-        "Serial",
-        "Key",
-      ])
-
-      // Validate required fields
-      if (!productSubCategory || !product || !activationCode) {
-        throw new Error(`Row ${index + 1}: Missing required fields (Product Sub Category, Product, Activation Code)`)
-      }
-
-      return {
-        id: `sales_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`,
-        productSubCategory,
-        product,
-        activationCode,
-        createdAt: new Date().toISOString(),
-      }
-    })
-
-    // Save to database
-    const db = await getDatabase()
-
-    // Clear existing sales data
-    await db.collection<SalesRecord>("sales").deleteMany({})
-
-    // Insert new data
-    const result = await db.collection<SalesRecord>("sales").insertMany(salesRecords)
+    if (salesRecords.length > 0) {
+      await db.collection<SalesRecord>("sales").insertMany(salesRecords)
+      console.log(`Inserted ${salesRecords.length} sales records`)
+    }
 
     return NextResponse.json({
       success: true,
-      message: `Successfully uploaded ${result.insertedCount} sales records`,
-      count: result.insertedCount,
+      message: `Successfully uploaded ${salesRecords.length} sales records`,
+      count: salesRecords.length,
     })
   } catch (error) {
-    console.error("Error uploading sales file:", error)
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "Failed to upload sales file",
-      },
-      { status: 500 },
-    )
+    console.error("Error uploading sales data:", error)
+    return NextResponse.json({ success: false, error: "Failed to upload sales data" }, { status: 500 })
   }
 }
