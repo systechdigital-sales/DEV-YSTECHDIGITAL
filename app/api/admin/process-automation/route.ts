@@ -1,26 +1,35 @@
 import { NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
-import { sendEmail, emailTemplates } from "@/lib/email"
+import { sendEmail } from "@/lib/email"
 import type { ClaimResponse, SalesRecord, OTTKey } from "@/lib/models"
 
 export async function POST() {
   try {
     const db = await getDatabase()
 
-    // Get all pending claims with completed payments
+    // Get all paid claims that haven't been processed yet
     const pendingClaims = await db
       .collection<ClaimResponse>("claims")
       .find({
         paymentStatus: "completed",
-        ottCodeStatus: { $in: ["pending", "payment_verified"] },
+        ottCodeStatus: "pending",
       })
       .toArray()
 
-    // Get all sales records
-    const salesRecords = await db.collection<SalesRecord>("sales").find({}).toArray()
+    if (pendingClaims.length === 0) {
+      return NextResponse.json({
+        success: true,
+        message: "No pending claims to process",
+        processed: 0,
+        ottCodesSent: 0,
+        waitEmails: 0,
+        alreadyClaimed: 0,
+      })
+    }
 
-    // Get available OTT keys
-    const availableKeys = await db.collection<OTTKey>("ott_keys").find({ status: "available" }).toArray()
+    // Get all sales records and OTT keys
+    const salesRecords = await db.collection<SalesRecord>("sales").find({}).toArray()
+    const ottKeys = await db.collection<OTTKey>("ott_keys").find({}).toArray()
 
     let processed = 0
     let ottCodesSent = 0
@@ -29,153 +38,156 @@ export async function POST() {
 
     for (const claim of pendingClaims) {
       processed++
-      const fullName = `${claim.firstName} ${claim.lastName}`
 
-      try {
-        // Check if activation code exists in sales records
-        const salesRecord = salesRecords.find((sale) => sale.activationCode === claim.activationCode)
+      // Check if activation code exists in sales records
+      const salesRecord = salesRecords.find(
+        (record) => record.activationCode.toLowerCase() === claim.activationCode.toLowerCase(),
+      )
 
-        if (!salesRecord) {
-          // Send wait email - activation code not found
-          waitEmails++
+      if (!salesRecord) {
+        // Activation code not found in sales - send wait email
+        try {
+          await sendEmail(
+            claim.email,
+            "OTT Claim Under Verification - Please Wait 48 Hours - SYSTECH DIGITAL",
+            "wait_48_hours",
+            claim,
+          )
 
-          const emailTemplate = emailTemplates.waitEmail(fullName, claim.activationCode)
-          await sendEmail({
-            to: claim.email,
-            subject: emailTemplate.subject,
-            html: emailTemplate.html,
-          })
-
+          // Update claim status
           await db.collection<ClaimResponse>("claims").updateOne(
-            { _id: claim._id },
+            { id: claim.id },
             {
               $set: {
-                ottCodeStatus: "wait_email_sent",
-                lastProcessed: new Date().toISOString(),
+                ottCodeStatus: "not_found",
+                updatedAt: new Date().toISOString(),
               },
             },
           )
-          continue
+
+          waitEmails++
+        } catch (emailError) {
+          console.error(`Failed to send wait email to ${claim.email}:`, emailError)
         }
+        continue
+      }
 
-        // Check if this activation code was already used
-        const existingClaim = await db.collection<ClaimResponse>("claims").findOne({
-          activationCode: claim.activationCode,
-          ottCodeStatus: "sent",
-          _id: { $ne: claim._id },
-        })
+      // Check if there's an available OTT key for this product
+      const availableKey = ottKeys.find(
+        (key) =>
+          key.status === "available" &&
+          key.productSubCategory.toLowerCase() === salesRecord.productSubCategory.toLowerCase(),
+      )
 
-        if (existingClaim) {
-          // Already claimed
-          alreadyClaimed++
-
-          const emailTemplate = emailTemplates.alreadyClaimed(fullName, claim.activationCode)
-          await sendEmail({
-            to: claim.email,
-            subject: emailTemplate.subject,
-            html: emailTemplate.html,
-          })
+      if (!availableKey) {
+        // No OTT key available - send wait email
+        try {
+          await sendEmail(
+            claim.email,
+            "OTT Code Processing - Please Wait 48 Hours - SYSTECH DIGITAL",
+            "wait_48_hours",
+            claim,
+          )
 
           await db.collection<ClaimResponse>("claims").updateOne(
-            { _id: claim._id },
+            { id: claim.id },
+            {
+              $set: {
+                ottCodeStatus: "not_found",
+                updatedAt: new Date().toISOString(),
+              },
+            },
+          )
+
+          waitEmails++
+        } catch (emailError) {
+          console.error(`Failed to send wait email to ${claim.email}:`, emailError)
+        }
+        continue
+      }
+
+      // Check if this activation code was already used for OTT claim
+      const existingClaim = await db.collection<ClaimResponse>("claims").findOne({
+        activationCode: claim.activationCode,
+        ottCodeStatus: "sent",
+        id: { $ne: claim.id },
+      })
+
+      if (existingClaim) {
+        // Already claimed - send already claimed email
+        try {
+          await sendEmail(
+            claim.email,
+            "OTT Code Already Claimed - Contact Support - SYSTECH DIGITAL",
+            "already_claimed",
+            claim,
+          )
+
+          await db.collection<ClaimResponse>("claims").updateOne(
+            { id: claim.id },
             {
               $set: {
                 ottCodeStatus: "already_claimed",
-                lastProcessed: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
               },
             },
           )
-          continue
+
+          alreadyClaimed++
+        } catch (emailError) {
+          console.error(`Failed to send already claimed email to ${claim.email}:`, emailError)
         }
+        continue
+      }
 
-        // Find an available OTT key
-        const availableKey = availableKeys.find((key) => key.status === "available")
-
-        if (availableKey) {
-          // Assign OTT key to user
-          ottCodesSent++
-
-          // Send OTT code email
-          const emailTemplate = emailTemplates.ottCodeSent(fullName, availableKey.activationCode, availableKey.product)
-          await sendEmail({
-            to: claim.email,
-            subject: emailTemplate.subject,
-            html: emailTemplate.html,
-          })
-
-          // Update claim with OTT code
-          await db.collection<ClaimResponse>("claims").updateOne(
-            { _id: claim._id },
-            {
-              $set: {
-                ottCodeStatus: "sent",
-                ottCode: availableKey.activationCode,
-                lastProcessed: new Date().toISOString(),
-              },
+      // All checks passed - assign OTT code and send success email
+      try {
+        // Update claim with OTT code
+        await db.collection<ClaimResponse>("claims").updateOne(
+          { id: claim.id },
+          {
+            $set: {
+              ottCodeStatus: "sent",
+              ottCode: availableKey.activationCode,
+              updatedAt: new Date().toISOString(),
             },
-          )
+          },
+        )
 
-          // Mark OTT key as used
-          await db.collection<OTTKey>("ott_keys").updateOne(
-            { _id: availableKey._id },
-            {
-              $set: {
-                status: "assigned",
-                assignedEmail: claim.email,
-                assignedDate: new Date().toISOString(),
-              },
+        // Mark OTT key as assigned
+        await db.collection<OTTKey>("ott_keys").updateOne(
+          { id: availableKey.id },
+          {
+            $set: {
+              status: "assigned",
+              assignedEmail: claim.email,
+              assignedDate: new Date().toISOString(),
             },
-          )
+          },
+        )
 
-          // Remove from available keys array
-          const keyIndex = availableKeys.findIndex((k) => k._id === availableKey._id)
-          if (keyIndex > -1) {
-            availableKeys.splice(keyIndex, 1)
-          }
-        } else {
-          // No OTT keys available - send wait email
-          waitEmails++
+        // Send success email with OTT code
+        await sendEmail(claim.email, "Your OTT Code is Ready! - SYSTECH DIGITAL", "ott_code_sent", {
+          ...claim,
+          ottCode: availableKey.activationCode,
+        })
 
-          const emailTemplate = emailTemplates.waitEmail(fullName, claim.activationCode)
-          await sendEmail({
-            to: claim.email,
-            subject: emailTemplate.subject,
-            html: emailTemplate.html,
-          })
-
-          await db.collection<ClaimResponse>("claims").updateOne(
-            { _id: claim._id },
-            {
-              $set: {
-                ottCodeStatus: "no_keys_available",
-                lastProcessed: new Date().toISOString(),
-              },
-            },
-          )
-        }
-      } catch (emailError) {
-        console.error(`Error processing claim ${claim.id}:`, emailError)
-        // Continue with next claim even if one fails
+        ottCodesSent++
+      } catch (error) {
+        console.error(`Failed to process claim ${claim.id}:`, error)
       }
     }
 
-    console.log("Automation completed:", {
-      processed,
-      ottCodesSent,
-      waitEmails,
-      alreadyClaimed,
-    })
-
     return NextResponse.json({
       success: true,
+      message: "Automation completed successfully",
       processed,
       ottCodesSent,
       waitEmails,
       alreadyClaimed,
-      message: "Automation completed successfully",
     })
   } catch (error) {
     console.error("Error processing automation:", error)
-    return NextResponse.json({ success: false, error: "Failed to process automation" }, { status: 500 })
+    return NextResponse.json({ success: false, error: "Automation processing failed" }, { status: 500 })
   }
 }

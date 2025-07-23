@@ -1,275 +1,198 @@
 import nodemailer from "nodemailer"
 
-// Create transporter for Gmail SMTP
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD, // Use App Password, not regular password
-  },
-})
-
-export interface EmailOptions {
-  to: string
-  subject: string
-  html: string
-  text?: string
+// Create transporter with Gmail SMTP
+const createTransporter = () => {
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_APP_PASSWORD,
+    },
+  })
 }
 
-export async function sendEmail({ to, subject, html, text }: EmailOptions) {
+// Email templates
+const getEmailTemplate = (type: string, data: any) => {
+  const baseStyle = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+      <div style="background: linear-gradient(135deg, #dc2626, #000000); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+        <h1 style="color: white; margin: 0; font-size: 28px;">SYSTECH DIGITAL</h1>
+        <p style="color: #fecaca; margin: 10px 0 0 0; font-size: 16px;">Your Technology Partner</p>
+      </div>
+      <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+  `
+
+  const baseFooter = `
+      </div>
+      <div style="text-align: center; padding: 20px; color: #666; font-size: 14px;">
+        <p>Contact us: sales.systechdigital@gmail.com | +91-7709803412</p>
+        <p>© 2025 SYSTECH DIGITAL. All rights reserved.</p>
+      </div>
+    </div>
+  `
+
+  switch (type) {
+    case "form_submitted":
+      return (
+        baseStyle +
+        `
+        <h2 style="color: #dc2626; margin-bottom: 20px;">OTT Claim Submitted Successfully!</h2>
+        <p>Dear ${data.firstName} ${data.lastName},</p>
+        <p>Thank you for submitting your OTT platform claim. We have received your request and it's being processed.</p>
+        <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #374151;">Next Steps:</h3>
+          <ol style="color: #374151;">
+            <li>Complete the payment of ₹99 processing fee</li>
+            <li>Your OTT Play key will be provided within 24 working hours</li>
+            <li>Check your email for updates</li>
+          </ol>
+        </div>
+        <p><strong>Activation Code:</strong> ${data.activationCode}</p>
+        <p>If you have any questions, please contact our support team.</p>
+        <p>Best regards,<br>SYSTECH DIGITAL Team</p>
+      ` +
+        baseFooter
+      )
+
+    case "payment_success":
+      return (
+        baseStyle +
+        `
+        <h2 style="color: #059669; margin-bottom: 20px;">Payment Successful!</h2>
+        <p>Dear ${data.firstName} ${data.lastName},</p>
+        <p>Your payment of ₹99 has been successfully processed.</p>
+        <div style="background: #ecfdf5; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #059669;">
+          <h3 style="margin-top: 0; color: #065f46;">Payment Details:</h3>
+          <p style="margin: 5px 0; color: #065f46;"><strong>Payment ID:</strong> ${data.paymentId}</p>
+          <p style="margin: 5px 0; color: #065f46;"><strong>Amount:</strong> ₹99</p>
+          <p style="margin: 5px 0; color: #065f46;"><strong>Status:</strong> Completed</p>
+        </div>
+        <p>Your OTT claim is now being processed. You will receive your OTT Play key within 24 working hours.</p>
+        <p>Best regards,<br>SYSTECH DIGITAL Team</p>
+      ` +
+        baseFooter
+      )
+
+    case "payment_failed":
+      return (
+        baseStyle +
+        `
+        <h2 style="color: #dc2626; margin-bottom: 20px;">Payment Failed</h2>
+        <p>Dear ${data.firstName} ${data.lastName},</p>
+        <p>Unfortunately, your payment could not be processed. Please check your payment details and try again.</p>
+        <div style="background: #fef2f2; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #dc2626;">
+          <h3 style="margin-top: 0; color: #991b1b;">What to do next:</h3>
+          <ol style="color: #991b1b;">
+            <li>Verify your payment information</li>
+            <li>Ensure sufficient balance in your account</li>
+            <li>Try the payment process again</li>
+            <li>Contact our support team if the issue persists</li>
+          </ol>
+        </div>
+        <p><a href="${process.env.NEXT_PUBLIC_BASE_URL}/payment?claimId=${data.claimId}" style="background: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Retry Payment</a></p>
+        <p>Best regards,<br>SYSTECH DIGITAL Team</p>
+      ` +
+        baseFooter
+      )
+
+    case "ott_code_sent":
+      return (
+        baseStyle +
+        `
+        <h2 style="color: #059669; margin-bottom: 20px;">Your OTT Code is Ready!</h2>
+        <p>Dear ${data.firstName} ${data.lastName},</p>
+        <p>Great news! Your OTT platform subscription code has been processed and is ready for use.</p>
+        <div style="background: #ecfdf5; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #059669;">
+          <h3 style="margin-top: 0; color: #065f46;">Your OTT Code:</h3>
+          <p style="font-size: 18px; font-weight: bold; color: #065f46; background: white; padding: 15px; border-radius: 6px; text-align: center; letter-spacing: 2px;">${data.ottCode}</p>
+        </div>
+        <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #374151;">How to Redeem:</h3>
+          <ol style="color: #374151;">
+            <li>Visit the OTT platform website or app</li>
+            <li>Go to the subscription or redeem section</li>
+            <li>Enter the code provided above</li>
+            <li>Enjoy your subscription!</li>
+          </ol>
+        </div>
+        <p>If you face any issues with redemption, please contact our support team.</p>
+        <p>Best regards,<br>SYSTECH DIGITAL Team</p>
+      ` +
+        baseFooter
+      )
+
+    case "wait_48_hours":
+      return (
+        baseStyle +
+        `
+        <h2 style="color: #d97706; margin-bottom: 20px;">Verification in Progress</h2>
+        <p>Dear ${data.firstName} ${data.lastName},</p>
+        <p>Thank you for your OTT claim submission. We are currently verifying your activation code with our records.</p>
+        <div style="background: #fffbeb; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #d97706;">
+          <h3 style="margin-top: 0; color: #92400e;">Please Wait 48 Hours</h3>
+          <p style="color: #92400e;">Your activation code is being verified. This process may take up to 48 working hours.</p>
+          <p style="color: #92400e;"><strong>Activation Code:</strong> ${data.activationCode}</p>
+        </div>
+        <p>We will send you another email once the verification is complete with your OTT code or further instructions.</p>
+        <p>Thank you for your patience.</p>
+        <p>Best regards,<br>SYSTECH DIGITAL Team</p>
+      ` +
+        baseFooter
+      )
+
+    case "already_claimed":
+      return (
+        baseStyle +
+        `
+        <h2 style="color: #dc2626; margin-bottom: 20px;">Code Already Used</h2>
+        <p>Dear ${data.firstName} ${data.lastName},</p>
+        <p>We found that the activation code you provided has already been used for an OTT claim.</p>
+        <div style="background: #fef2f2; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #dc2626;">
+          <h3 style="margin-top: 0; color: #991b1b;">Code Status:</h3>
+          <p style="color: #991b1b;"><strong>Activation Code:</strong> ${data.activationCode}</p>
+          <p style="color: #991b1b;"><strong>Status:</strong> Already Claimed</p>
+        </div>
+        <p>If you believe this is an error or if you have any questions, please contact our sales team immediately.</p>
+        <p><strong>Contact Information:</strong></p>
+        <ul>
+          <li>Email: sales.systechdigital@gmail.com</li>
+          <li>Phone: +91-7709803412</li>
+        </ul>
+        <p>Best regards,<br>SYSTECH DIGITAL Team</p>
+      ` +
+        baseFooter
+      )
+
+    default:
+      return (
+        baseStyle +
+        `
+        <h2>Thank you for contacting SYSTECH DIGITAL</h2>
+        <p>We have received your request and will get back to you soon.</p>
+        <p>Best regards,<br>SYSTECH DIGITAL Team</p>
+      ` +
+        baseFooter
+      )
+  }
+}
+
+// Send email function
+export const sendEmail = async (to: string, subject: string, type: string, data: any) => {
   try {
-    const info = await transporter.sendMail({
+    const transporter = createTransporter()
+
+    const mailOptions = {
       from: `"SYSTECH DIGITAL" <${process.env.GMAIL_USER}>`,
       to,
       subject,
-      html,
-      text: text || html.replace(/<[^>]*>/g, ""), // Strip HTML for text version
-    })
+      html: getEmailTemplate(type, data),
+    }
 
-    console.log("Email sent successfully:", info.messageId)
-    return { success: true, messageId: info.messageId }
+    const result = await transporter.sendMail(mailOptions)
+    console.log("Email sent successfully:", result.messageId)
+    return { success: true, messageId: result.messageId }
   } catch (error) {
     console.error("Error sending email:", error)
     return { success: false, error: error instanceof Error ? error.message : "Unknown error" }
   }
-}
-
-// Email templates
-export const emailTemplates = {
-  claimSubmitted: (name: string, claimId: string) => ({
-    subject: "OTT Claim Submitted Successfully - SYSTECH DIGITAL",
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
-        <div style="background: linear-gradient(135deg, #000000, #dc2626, #000000); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-          <h1 style="color: white; margin: 0; font-size: 28px;">SYSTECH DIGITAL</h1>
-          <p style="color: #fecaca; margin: 10px 0 0 0;">OTT Play Redemption</p>
-        </div>
-        
-        <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-          <h2 style="color: #333; margin-bottom: 20px;">Hello ${name},</h2>
-          
-          <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">
-            Thank you for submitting your OTT Play claim. We have received your request and it is currently being processed.
-          </p>
-          
-          <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p style="margin: 0; color: #374151;"><strong>Claim ID:</strong> ${claimId}</p>
-            <p style="margin: 10px 0 0 0; color: #374151;"><strong>Status:</strong> Payment Processing</p>
-          </div>
-          
-          <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">
-            <strong>Your OTT Play key will be provided to you within 24 working hours</strong> after successful payment verification.
-          </p>
-          
-          <p style="color: #666; line-height: 1.6; margin-bottom: 30px;">
-            If you have any questions, please contact us at:
-          </p>
-          
-          <div style="background: #fef2f2; border-left: 4px solid #dc2626; padding: 15px; margin: 20px 0;">
-            <p style="margin: 0; color: #991b1b;"><strong>Contact Information:</strong></p>
-            <p style="margin: 5px 0; color: #991b1b;">📧 sales.systechdigital@gmail.com</p>
-            <p style="margin: 5px 0; color: #991b1b;">📱 +91 9876543210</p>
-          </div>
-          
-          <p style="color: #666; line-height: 1.6; margin-top: 30px;">
-            Best regards,<br>
-            <strong>SYSTECH DIGITAL Team</strong>
-          </p>
-        </div>
-      </div>
-    `,
-  }),
-
-  paymentFailed: (name: string, claimId: string) => ({
-    subject: "Payment Failed - Please Try Again - SYSTECH DIGITAL",
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
-        <div style="background: linear-gradient(135deg, #000000, #dc2626, #000000); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-          <h1 style="color: white; margin: 0; font-size: 28px;">SYSTECH DIGITAL</h1>
-          <p style="color: #fecaca; margin: 10px 0 0 0;">Payment Failed</p>
-        </div>
-        
-        <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-          <h2 style="color: #333; margin-bottom: 20px;">Hello ${name},</h2>
-          
-          <div style="background: #fef2f2; border: 1px solid #fecaca; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="color: #dc2626; margin: 0 0 10px 0;">❌ Payment Failed</h3>
-            <p style="margin: 0; color: #991b1b;">Your payment for the OTT Play claim could not be processed.</p>
-          </div>
-          
-          <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p style="margin: 0; color: #374151;"><strong>Claim ID:</strong> ${claimId}</p>
-            <p style="margin: 10px 0 0 0; color: #374151;"><strong>Status:</strong> Payment Failed</p>
-          </div>
-          
-          <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">
-            <strong>Please fill the form correctly and try again.</strong> Make sure all information is accurate and your payment method is valid.
-          </p>
-          
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${process.env.NEXT_PUBLIC_BASE_URL}/ottclaim" 
-               style="background: linear-gradient(135deg, #dc2626, #991b1b); color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
-              Try Again
-            </a>
-          </div>
-          
-          <div style="background: #fef2f2; border-left: 4px solid #dc2626; padding: 15px; margin: 20px 0;">
-            <p style="margin: 0; color: #991b1b;"><strong>Need Help?</strong></p>
-            <p style="margin: 5px 0; color: #991b1b;">📧 sales.systechdigital@gmail.com</p>
-            <p style="margin: 5px 0; color: #991b1b;">📱 +91 9876543210</p>
-          </div>
-          
-          <p style="color: #666; line-height: 1.6; margin-top: 30px;">
-            Best regards,<br>
-            <strong>SYSTECH DIGITAL Team</strong>
-          </p>
-        </div>
-      </div>
-    `,
-  }),
-
-  ottCodeSent: (name: string, ottCode: string, productName: string) => ({
-    subject: "🎉 Your OTT Play Key is Ready! - SYSTECH DIGITAL",
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
-        <div style="background: linear-gradient(135deg, #000000, #dc2626, #000000); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-          <h1 style="color: white; margin: 0; font-size: 28px;">SYSTECH DIGITAL</h1>
-          <p style="color: #fecaca; margin: 10px 0 0 0;">OTT Play Key Delivered</p>
-        </div>
-        
-        <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-          <h2 style="color: #333; margin-bottom: 20px;">🎉 Congratulations ${name}!</h2>
-          
-          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="color: #16a34a; margin: 0 0 10px 0;">✅ Your OTT Play Key is Ready!</h3>
-            <p style="margin: 0; color: #15803d;">Your claim has been verified and processed successfully.</p>
-          </div>
-          
-          <div style="background: #1f2937; padding: 25px; border-radius: 8px; margin: 25px 0; text-align: center;">
-            <p style="color: #9ca3af; margin: 0 0 10px 0; font-size: 14px;">Your OTT Play Key for ${productName}</p>
-            <div style="background: #374151; padding: 15px; border-radius: 6px; margin: 10px 0;">
-              <code style="color: #fbbf24; font-size: 18px; font-weight: bold; letter-spacing: 2px;">${ottCode}</code>
-            </div>
-            <p style="color: #9ca3af; margin: 10px 0 0 0; font-size: 12px;">Copy this code to redeem your subscription</p>
-          </div>
-          
-          <div style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; margin: 20px 0;">
-            <h4 style="color: #1d4ed8; margin: 0 0 10px 0;">📋 How to Use Your Key:</h4>
-            <ol style="color: #1e40af; margin: 0; padding-left: 20px;">
-              <li>Visit the official website/app of your OTT service</li>
-              <li>Go to "Redeem Code" or "Gift Card" section</li>
-              <li>Enter the code provided above</li>
-              <li>Enjoy your subscription!</li>
-            </ol>
-          </div>
-          
-          <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">
-            <strong>Important:</strong> This code is valid for one-time use only. Please redeem it as soon as possible.
-          </p>
-          
-          <div style="background: #fef2f2; border-left: 4px solid #dc2626; padding: 15px; margin: 20px 0;">
-            <p style="margin: 0; color: #991b1b;"><strong>Support:</strong></p>
-            <p style="margin: 5px 0; color: #991b1b;">📧 sales.systechdigital@gmail.com</p>
-            <p style="margin: 5px 0; color: #991b1b;">📱 +91 9876543210</p>
-          </div>
-          
-          <p style="color: #666; line-height: 1.6; margin-top: 30px;">
-            Thank you for choosing SYSTECH DIGITAL!<br>
-            <strong>SYSTECH DIGITAL Team</strong>
-          </p>
-        </div>
-      </div>
-    `,
-  }),
-
-  waitEmail: (name: string, activationCode: string) => ({
-    subject: "OTT Claim Under Review - Please Wait - SYSTECH DIGITAL",
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
-        <div style="background: linear-gradient(135deg, #000000, #dc2626, #000000); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-          <h1 style="color: white; margin: 0; font-size: 28px;">SYSTECH DIGITAL</h1>
-          <p style="color: #fecaca; margin: 10px 0 0 0;">Claim Under Review</p>
-        </div>
-        
-        <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-          <h2 style="color: #333; margin-bottom: 20px;">Hello ${name},</h2>
-          
-          <div style="background: #fef3c7; border: 1px solid #fbbf24; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="color: #d97706; margin: 0 0 10px 0;">⏳ Claim Under Review</h3>
-            <p style="margin: 0; color: #92400e;">Your OTT claim is currently being reviewed by our team.</p>
-          </div>
-          
-          <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p style="margin: 0; color: #374151;"><strong>Activation Code:</strong> ${activationCode}</p>
-            <p style="margin: 10px 0 0 0; color: #374151;"><strong>Status:</strong> Under Review</p>
-          </div>
-          
-          <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">
-            We are currently verifying your activation code with our sales records. This process may take up to <strong>48 working hours</strong>.
-          </p>
-          
-          <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">
-            You will receive another email once the verification is complete with either your OTT key or further instructions.
-          </p>
-          
-          <div style="background: #fef2f2; border-left: 4px solid #dc2626; padding: 15px; margin: 20px 0;">
-            <p style="margin: 0; color: #991b1b;"><strong>Questions?</strong></p>
-            <p style="margin: 5px 0; color: #991b1b;">📧 sales.systechdigital@gmail.com</p>
-            <p style="margin: 5px 0; color: #991b1b;">📱 +91 9876543210</p>
-          </div>
-          
-          <p style="color: #666; line-height: 1.6; margin-top: 30px;">
-            Thank you for your patience,<br>
-            <strong>SYSTECH DIGITAL Team</strong>
-          </p>
-        </div>
-      </div>
-    `,
-  }),
-
-  alreadyClaimed: (name: string, activationCode: string) => ({
-    subject: "OTT Code Already Claimed - Contact Support - SYSTECH DIGITAL",
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
-        <div style="background: linear-gradient(135deg, #000000, #dc2626, #000000); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-          <h1 style="color: white; margin: 0; font-size: 28px;">SYSTECH DIGITAL</h1>
-          <p style="color: #fecaca; margin: 10px 0 0 0;">Code Already Claimed</p>
-        </div>
-        
-        <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-          <h2 style="color: #333; margin-bottom: 20px;">Hello ${name},</h2>
-          
-          <div style="background: #fef2f2; border: 1px solid #fecaca; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="color: #dc2626; margin: 0 0 10px 0;">⚠️ Code Already Claimed</h3>
-            <p style="margin: 0; color: #991b1b;">This activation code has already been used to claim an OTT subscription.</p>
-          </div>
-          
-          <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p style="margin: 0; color: #374151;"><strong>Activation Code:</strong> ${activationCode}</p>
-            <p style="margin: 10px 0 0 0; color: #374151;"><strong>Status:</strong> Already Claimed</p>
-          </div>
-          
-          <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">
-            The activation code you provided has already been used for an OTT claim. Each code can only be used once.
-          </p>
-          
-          <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">
-            If you believe this is an error or if you have any questions, please contact our sales team immediately.
-          </p>
-          
-          <div style="background: #fef2f2; border-left: 4px solid #dc2626; padding: 15px; margin: 20px 0;">
-            <p style="margin: 0; color: #991b1b;"><strong>Contact Sales Team:</strong></p>
-            <p style="margin: 5px 0; color: #991b1b;">📧 sales.systechdigital@gmail.com</p>
-            <p style="margin: 5px 0; color: #991b1b;">📱 +91 9876543210</p>
-            <p style="margin: 5px 0; color: #991b1b;">💬 Mention your activation code for faster resolution</p>
-          </div>
-          
-          <p style="color: #666; line-height: 1.6; margin-top: 30px;">
-            Best regards,<br>
-            <strong>SYSTECH DIGITAL Team</strong>
-          </p>
-        </div>
-      </div>
-    `,
-  }),
 }

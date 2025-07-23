@@ -13,3 +13,21 @@ export async function GET() {
     return NextResponse.json({ error: "Failed to fetch claims" }, { status: 500 })
   }
 }
+
+export async function POST(request: Request) {
+  try {
+    const claimData = await request.json()
+    const db = await getDatabase()
+
+    const result = await db.collection<ClaimResponse>("claims").insertOne({
+      ...claimData,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    })
+
+    return NextResponse.json({ success: true, id: result.insertedId })
+  } catch (error) {
+    console.error("Error saving claim:", error)
+    return NextResponse.json({ error: "Failed to save claim" }, { status: 500 })
+  }
+}

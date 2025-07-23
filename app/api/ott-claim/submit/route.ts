@@ -1,13 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
-import { sendEmail, emailTemplates } from "@/lib/email"
+import { sendEmail } from "@/lib/email"
 import type { ClaimResponse } from "@/lib/models"
 
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
 
-    // Extract form data
+    // Extract form fields
     const claimData: Partial<ClaimResponse> = {
       id: `claim_${Date.now()}`,
       firstName: formData.get("firstName") as string,
@@ -15,28 +15,28 @@ export async function POST(request: NextRequest) {
       email: formData.get("email") as string,
       phone: formData.get("phone") as string,
       streetAddress: formData.get("streetAddress") as string,
-      addressLine2: (formData.get("addressLine2") as string) || "",
+      addressLine2: (formData.get("addressLine2") as string) || undefined,
       city: formData.get("city") as string,
       state: formData.get("state") as string,
       postalCode: formData.get("postalCode") as string,
       country: formData.get("country") as string,
-      purchaseType: formData.get("purchaseType") as string,
+      purchaseType: formData.get("purchaseType") as "hardware" | "software",
       activationCode: formData.get("activationCode") as string,
       purchaseDate: formData.get("purchaseDate") as string,
-      invoiceNumber: (formData.get("invoiceNumber") as string) || "",
-      sellerName: (formData.get("sellerName") as string) || "",
+      invoiceNumber: (formData.get("invoiceNumber") as string) || undefined,
+      sellerName: (formData.get("sellerName") as string) || undefined,
       paymentStatus: "pending",
-      paymentId: null,
       ottCodeStatus: "pending",
-      ottCode: null,
-      claimSubmissionDate: new Date().toISOString().split("T")[0],
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     }
 
     // Handle file upload
     const billFile = formData.get("billFile") as File
     if (billFile) {
-      claimData.billFileName = `${claimData.id}_${billFile.name}`
+      claimData.billFileName = billFile.name
+      // In production, you would upload this to cloud storage (AWS S3, Cloudinary, etc.)
+      // For now, we just store the filename
     }
 
     // Validate required fields
@@ -63,23 +63,20 @@ export async function POST(request: NextRequest) {
 
     // Save to database
     const db = await getDatabase()
-    const result = await db.collection<ClaimResponse>("claims").insertOne(claimData as ClaimResponse)
+    await db.collection<ClaimResponse>("claims").insertOne(claimData as ClaimResponse)
 
     // Send confirmation email
-    const fullName = `${claimData.firstName} ${claimData.lastName}`
-    const emailTemplate = emailTemplates.claimSubmitted(fullName, claimData.id!)
-
-    await sendEmail({
-      to: claimData.email!,
-      subject: emailTemplate.subject,
-      html: emailTemplate.html,
-    })
-
-    console.log("OTT Claim submitted and email sent:", {
-      id: claimData.id,
-      email: claimData.email,
-      activationCode: claimData.activationCode,
-    })
+    try {
+      await sendEmail(
+        claimData.email!,
+        "OTT Claim Submitted Successfully - SYSTECH DIGITAL",
+        "form_submitted",
+        claimData,
+      )
+    } catch (emailError) {
+      console.error("Failed to send confirmation email:", emailError)
+      // Don't fail the entire request if email fails
+    }
 
     return NextResponse.json({
       success: true,

@@ -1,7 +1,7 @@
 import { MongoClient, type Db } from "mongodb"
 
 if (!process.env.MONGODB_URI) {
-  throw new Error('Invalid/Missing environment variable: "MONGODB_URI"')
+  throw new Error("Please add your MongoDB URI to .env.local")
 }
 
 const uri = process.env.MONGODB_URI
@@ -28,9 +28,9 @@ if (process.env.NODE_ENV === "development") {
   clientPromise = client.connect()
 }
 
-export default clientPromise
-
 export async function getDatabase(): Promise<Db> {
   const client = await clientPromise
   return client.db("ott_redemption")
 }
+
+export default clientPromise

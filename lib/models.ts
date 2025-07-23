@@ -1,5 +1,4 @@
 export interface ClaimResponse {
-  _id?: string
   id: string
   firstName: string
   lastName: string
@@ -11,37 +10,48 @@ export interface ClaimResponse {
   state: string
   postalCode: string
   country: string
-  purchaseType: string
+  purchaseType: "hardware" | "software"
   activationCode: string
   purchaseDate: string
-  claimSubmissionDate: string
   invoiceNumber?: string
   sellerName?: string
-  paymentStatus: string
+  billFileName?: string
+  paymentStatus: "pending" | "completed" | "failed"
   paymentId?: string
-  ottCodeStatus: string
+  ottCodeStatus: "pending" | "sent" | "not_found" | "already_claimed"
   ottCode?: string
   createdAt: string
-  billFileName?: string
+  updatedAt: string
 }
 
 export interface SalesRecord {
-  _id?: string
   id: string
   productSubCategory: string
   product: string
   activationCode: string
-  createdAt?: string
+  createdAt: string
 }
 
 export interface OTTKey {
-  _id?: string
   id: string
   productSubCategory: string
   product: string
   activationCode: string
-  status: string
+  status: "available" | "assigned"
   assignedEmail?: string
   assignedDate?: string
-  createdAt?: string
+  createdAt: string
+}
+
+export interface PaymentRecord {
+  id: string
+  claimId: string
+  paymentId: string
+  orderId: string
+  amount: number
+  currency: string
+  status: "created" | "completed" | "failed"
+  razorpaySignature?: string
+  createdAt: string
+  updatedAt: string
 }
