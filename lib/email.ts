@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer"
 
 // Create transporter
-const transporter = nodemailer.createTransporter({
+const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
     user: process.env.GMAIL_USER,
@@ -336,23 +336,18 @@ const emailTemplates = {
 }
 
 export async function sendEmail(to: string, subject: string, template: keyof typeof emailTemplates, data: any) {
-  try {
-    const emailTemplate = emailTemplates[template](data)
+  const emailTemplate = emailTemplates[template](data)
 
-    const mailOptions = {
-      from: `"SYSTECH DIGITAL" <${process.env.GMAIL_USER}>`,
-      to,
-      subject: emailTemplate.subject,
-      html: emailTemplate.html,
-    }
-
-    const result = await transporter.sendMail(mailOptions)
-    console.log("Email sent successfully:", { to, subject, messageId: result.messageId })
-    return result
-  } catch (error) {
-    console.error("Error sending email:", error)
-    throw error
+  const mailOptions = {
+    from: `"SYSTECH DIGITAL" <${process.env.GMAIL_USER}>`,
+    to,
+    subject: emailTemplate.subject,
+    html: emailTemplate.html,
   }
+
+  const result = await transporter.sendMail(mailOptions)
+  console.log("Email sent:", { to, subject, id: result.messageId })
+  return result
 }
 
 export { emailTemplates }
