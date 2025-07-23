@@ -435,6 +435,14 @@ export default function OTTRedemptionPage() {
                     Cookie Policy
                   </button>
                 </li>
+                <li>
+                  <button
+                    onClick={() => (window.location.href = "/privacy-policy")}
+                    className="text-red-200 hover:text-white transition-colors"
+                  >
+                    Privacy Policy
+                  </button>
+                </li>
               </ul>
             </div>
             <div>

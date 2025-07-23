@@ -1,11 +1,12 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { ArrowLeft, Cookie, Shield, Settings, Eye } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Cookie, Shield, Settings, Globe, Eye, Users } from "lucide-react"
+import Image from "next/image"
 
-export default function CookiePolicyPage() {
+export default function CookiePolicy() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Header */}
@@ -13,605 +14,571 @@ export default function CookiePolicyPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div className="cursor-pointer flex items-center" onClick={() => (window.location.href = "/")}>
-              <img
-                src="/favicon.png"
-                alt="SYSTECH DIGITAL Logo"
-                className="h-10 w-10 mr-3 rounded-full"
-                onError={(e) => {
-                  e.currentTarget.style.display = "none"
-                  e.currentTarget.nextElementSibling.style.display = "block"
-                }}
-              />
-              <div style={{ display: "none" }}>
+              <div className="relative h-10 w-10 mr-3">
+                <Image
+                  src="/logo.png"
+                  alt="SYSTECH DIGITAL Logo"
+                  width={40}
+                  height={40}
+                  className="rounded-full"
+                  priority
+                />
+              </div>
+              <div>
                 <h1 className="text-3xl font-bold text-white">SYSTECH DIGITAL</h1>
                 <p className="text-sm text-red-200 mt-1">Cookie Policy</p>
               </div>
             </div>
             <Badge variant="secondary" className="bg-red-100 text-red-800 px-4 py-2 border border-red-300">
               <Cookie className="w-4 h-4 mr-2" />
-              Cookie Policy
+              Privacy Policy
             </Badge>
           </div>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6">
-          <Button
-            variant="outline"
-            onClick={() => window.history.back()}
-            className="mb-4 border-red-300 text-red-700 hover:bg-red-50"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
-          </Button>
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Cookie Policy</h2>
-          <p className="text-gray-600">Last updated: January 23, 2025</p>
-        </div>
-
-        {/* Cookie Consent Notice */}
-        <Card className="mb-6 border-blue-200 bg-blue-50">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Introduction */}
+        <Card className="mb-8">
           <CardHeader>
-            <CardTitle className="flex items-center text-blue-800">
-              <Shield className="w-5 h-5 mr-2" />
-              Your Privacy Matters
+            <CardTitle className="flex items-center text-2xl">
+              <Cookie className="w-6 h-6 mr-3 text-blue-600" />
+              Cookie Policy
+            </CardTitle>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+              <p className="text-sm text-gray-700">
+                <strong>Last Updated:</strong> January 23, 2025 | <strong>Effective Date:</strong> January 1, 2025
+              </p>
+              <p className="text-sm text-gray-600 mt-2">
+                This Cookie Policy explains how Systech IT Solutions Limited uses cookies and similar technologies on
+                our website and services.
+              </p>
+            </div>
+          </CardHeader>
+        </Card>
+
+        {/* What are Cookies */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Eye className="w-5 h-5 mr-2 text-green-600" />
+              1. What are Cookies?
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-blue-700">
-              We use cookies to enhance your browsing experience, provide personalized content, and analyze our traffic.
-              By continuing to use our website, you consent to our use of cookies as described in this policy.
-            </p>
+          <CardContent className="space-y-4">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <h4 className="font-semibold text-green-900 mb-2">Definition</h4>
+              <p className="text-sm text-green-700 mb-2">
+                Cookies are small text files that are stored on your device (computer, tablet, or mobile) when you visit
+                our website. They help us provide you with a better browsing experience and enable certain website
+                functionalities.
+              </p>
+              <ul className="text-sm text-green-700 space-y-1">
+                <li>• Store user preferences and settings</li>
+                <li>• Remember login information</li>
+                <li>• Analyze website traffic and usage patterns</li>
+                <li>• Provide personalized content and advertisements</li>
+                <li>• Enable secure payment processing</li>
+              </ul>
+            </div>
           </CardContent>
         </Card>
 
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>1. What Are Cookies</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-gray-700 space-y-3">
-                <p>
-                  Cookies are small text files that are stored on your computer, tablet, or mobile device when you visit
-                  our website. They are widely used to make websites work more efficiently and provide a better user
-                  experience.
-                </p>
-                <p>
-                  Cookies contain information about your preferences and activities on our website, which helps us
-                  remember your settings and provide personalized services.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>2. How We Use Cookies</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-gray-700 space-y-3">
-                <p>SYSTECH IT SOLUTIONS LIMITED uses cookies for the following legitimate purposes:</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-green-800 mb-2">🔧 Essential Functions</h4>
-                    <ul className="list-disc ml-4 space-y-1 text-green-700 text-sm">
-                      <li>Website functionality and navigation</li>
-                      <li>User authentication and security</li>
-                      <li>Shopping cart and checkout process</li>
-                      <li>Form data retention</li>
-                    </ul>
-                  </div>
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-blue-800 mb-2">📊 Analytics & Performance</h4>
-                    <ul className="list-disc ml-4 space-y-1 text-blue-700 text-sm">
-                      <li>Website traffic analysis</li>
-                      <li>User behavior patterns</li>
-                      <li>Performance optimization</li>
-                      <li>Error tracking and debugging</li>
-                    </ul>
-                  </div>
-                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-purple-800 mb-2">🎯 Personalization</h4>
-                    <ul className="list-disc ml-4 space-y-1 text-purple-700 text-sm">
-                      <li>Remember user preferences</li>
-                      <li>Language and region settings</li>
-                      <li>Customized content delivery</li>
-                      <li>Product recommendations</li>
-                    </ul>
-                  </div>
-                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-orange-800 mb-2">🔒 Security & Fraud Prevention</h4>
-                    <ul className="list-disc ml-4 space-y-1 text-orange-700 text-sm">
-                      <li>Secure payment processing</li>
-                      <li>Fraud detection and prevention</li>
-                      <li>Account protection</li>
-                      <li>Suspicious activity monitoring</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>3. Types of Cookies We Use</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-gray-700 space-y-4">
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse border border-gray-300">
-                    <thead>
-                      <tr className="bg-gray-50">
-                        <th className="border border-gray-300 px-4 py-2 text-left">Cookie Type</th>
-                        <th className="border border-gray-300 px-4 py-2 text-left">Purpose</th>
-                        <th className="border border-gray-300 px-4 py-2 text-left">Duration</th>
-                        <th className="border border-gray-300 px-4 py-2 text-left">Can be Disabled?</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td className="border border-gray-300 px-4 py-2">
-                          <strong>Essential Cookies</strong>
-                        </td>
-                        <td className="border border-gray-300 px-4 py-2">
-                          Required for basic website functionality, security, and payment processing
-                        </td>
-                        <td className="border border-gray-300 px-4 py-2">Session/Persistent</td>
-                        <td className="border border-gray-300 px-4 py-2">
-                          <span className="text-red-600">❌ No</span>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="border border-gray-300 px-4 py-2">
-                          <strong>Performance Cookies</strong>
-                        </td>
-                        <td className="border border-gray-300 px-4 py-2">
-                          Collect anonymous data about website usage and performance
-                        </td>
-                        <td className="border border-gray-300 px-4 py-2">Up to 2 years</td>
-                        <td className="border border-gray-300 px-4 py-2">
-                          <span className="text-green-600">✅ Yes</span>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="border border-gray-300 px-4 py-2">
-                          <strong>Functionality Cookies</strong>
-                        </td>
-                        <td className="border border-gray-300 px-4 py-2">
-                          Remember user preferences and provide enhanced features
-                        </td>
-                        <td className="border border-gray-300 px-4 py-2">Up to 1 year</td>
-                        <td className="border border-gray-300 px-4 py-2">
-                          <span className="text-green-600">✅ Yes</span>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="border border-gray-300 px-4 py-2">
-                          <strong>Security Cookies</strong>
-                        </td>
-                        <td className="border border-gray-300 px-4 py-2">
-                          Protect against fraud and ensure secure transactions
-                        </td>
-                        <td className="border border-gray-300 px-4 py-2">Session/24 hours</td>
-                        <td className="border border-gray-300 px-4 py-2">
-                          <span className="text-red-600">❌ No</span>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>4. Third-Party Cookies & Services</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-gray-700 space-y-4">
-                <p>We work with trusted third-party services that may place cookies on your device:</p>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-blue-800 mb-2">💳 Payment Processing</h4>
-                    <ul className="list-disc ml-4 space-y-1 text-blue-700 text-sm">
-                      <li>
-                        <strong>Razorpay:</strong> Secure payment gateway for transaction processing
-                      </li>
-                      <li>
-                        <strong>Purpose:</strong> Payment security, fraud prevention, transaction completion
-                      </li>
-                      <li>
-                        <strong>Data Shared:</strong> Payment details, transaction amount, customer information
-                      </li>
-                      <li>
-                        <strong>Privacy Policy:</strong>{" "}
-                        <a href="https://razorpay.com/privacy/" className="underline">
-                          razorpay.com/privacy
-                        </a>
-                      </li>
-                    </ul>
-                  </div>
-
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-green-800 mb-2">📺 OTT Services</h4>
-                    <ul className="list-disc ml-4 space-y-1 text-green-700 text-sm">
-                      <li>
-                        <strong>OTTplay:</strong> Digital subscription service provider
-                      </li>
-                      <li>
-                        <strong>Purpose:</strong> Subscription activation, content delivery, user authentication
-                      </li>
-                      <li>
-                        <strong>Data Shared:</strong> User details, subscription preferences
-                      </li>
-                      <li>
-                        <strong>Privacy Policy:</strong> Available on OTTplay platform
-                      </li>
-                    </ul>
-                  </div>
-
-                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-purple-800 mb-2">📋 Form Management</h4>
-                    <ul className="list-disc ml-4 space-y-1 text-purple-700 text-sm">
-                      <li>
-                        <strong>Zoho Forms:</strong> Customer data collection and management
-                      </li>
-                      <li>
-                        <strong>Purpose:</strong> Form submissions, customer support, data processing
-                      </li>
-                      <li>
-                        <strong>Data Shared:</strong> Form responses, contact information
-                      </li>
-                      <li>
-                        <strong>Privacy Policy:</strong>{" "}
-                        <a href="https://www.zoho.com/privacy.html" className="underline">
-                          zoho.com/privacy
-                        </a>
-                      </li>
-                    </ul>
-                  </div>
-
-                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-orange-800 mb-2">📈 Analytics (Optional)</h4>
-                    <ul className="list-disc ml-4 space-y-1 text-orange-700 text-sm">
-                      <li>
-                        <strong>Google Analytics:</strong> Website traffic and user behavior analysis
-                      </li>
-                      <li>
-                        <strong>Purpose:</strong> Performance optimization, user experience improvement
-                      </li>
-                      <li>
-                        <strong>Data Shared:</strong> Anonymous usage statistics
-                      </li>
-                      <li>
-                        <strong>Opt-out:</strong>{" "}
-                        <a href="https://tools.google.com/dlpage/gaoptout" className="underline">
-                          Google Analytics Opt-out
-                        </a>
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <p className="text-yellow-800">
-                    <strong>Note:</strong> These third-party services have their own privacy policies and cookie
-                    practices. We recommend reviewing their policies for complete information about their data handling
-                    practices.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Settings className="w-5 h-5 mr-2" />
-                5. Managing Your Cookie Preferences
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-gray-700 space-y-4">
-                <h4 className="font-semibold text-lg">Browser Settings</h4>
-                <p>You can control cookies through your web browser settings:</p>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                    <h5 className="font-semibold text-gray-800 mb-2">🌐 Chrome/Edge</h5>
-                    <ul className="list-disc ml-4 space-y-1 text-gray-700 text-sm">
-                      <li>Settings → Privacy and Security → Cookies</li>
-                      <li>Choose "Block third-party cookies" or "Block all cookies"</li>
-                      <li>Manage exceptions for specific sites</li>
-                    </ul>
-                  </div>
-
-                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                    <h5 className="font-semibold text-gray-800 mb-2">🦊 Firefox</h5>
-                    <ul className="list-disc ml-4 space-y-1 text-gray-700 text-sm">
-                      <li>Settings → Privacy & Security → Cookies</li>
-                      <li>Select "Strict" or "Custom" protection</li>
-                      <li>Manage cookie exceptions</li>
-                    </ul>
-                  </div>
-
-                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                    <h5 className="font-semibold text-gray-800 mb-2">🍎 Safari</h5>
-                    <ul className="list-disc ml-4 space-y-1 text-gray-700 text-sm">
-                      <li>Preferences → Privacy → Cookies</li>
-                      <li>Choose "Block all cookies" or customize settings</li>
-                      <li>Manage website data</li>
-                    </ul>
-                  </div>
-
-                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                    <h5 className="font-semibold text-gray-800 mb-2">📱 Mobile Browsers</h5>
-                    <ul className="list-disc ml-4 space-y-1 text-gray-700 text-sm">
-                      <li>Access browser settings menu</li>
-                      <li>Navigate to Privacy/Security settings</li>
-                      <li>Adjust cookie preferences</li>
-                    </ul>
-                  </div>
-                </div>
-
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-red-800 mb-2">⚠️ Important Notice</h4>
-                  <p className="text-red-700">
-                    Disabling essential cookies may affect website functionality, including:
-                  </p>
-                  <ul className="list-disc ml-6 mt-2 space-y-1 text-red-700">
-                    <li>Payment processing and checkout</li>
-                    <li>User account access and authentication</li>
-                    <li>Shopping cart functionality</li>
-                    <li>Form submissions and data saving</li>
-                    <li>Security features and fraud protection</li>
-                  </ul>
-                </div>
-
-                <h4 className="font-semibold text-lg">Cookie Preference Center</h4>
-                <p>
-                  We provide a cookie preference center where you can manage your consent for different types of
-                  cookies. You can access this at any time by clicking the "Cookie Settings" link in our website footer.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>6. Cookie Retention & Expiration</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-gray-700 space-y-3">
-                <p>We retain cookies for different periods based on their purpose and type:</p>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse border border-gray-300">
-                    <thead>
-                      <tr className="bg-gray-50">
-                        <th className="border border-gray-300 px-4 py-2 text-left">Cookie Category</th>
-                        <th className="border border-gray-300 px-4 py-2 text-left">Retention Period</th>
-                        <th className="border border-gray-300 px-4 py-2 text-left">Automatic Deletion</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td className="border border-gray-300 px-4 py-2">Session Cookies</td>
-                        <td className="border border-gray-300 px-4 py-2">Until browser is closed</td>
-                        <td className="border border-gray-300 px-4 py-2">✅ Automatic</td>
-                      </tr>
-                      <tr>
-                        <td className="border border-gray-300 px-4 py-2">Authentication Cookies</td>
-                        <td className="border border-gray-300 px-4 py-2">30 days (or until logout)</td>
-                        <td className="border border-gray-300 px-4 py-2">✅ Automatic</td>
-                      </tr>
-                      <tr>
-                        <td className="border border-gray-300 px-4 py-2">Preference Cookies</td>
-                        <td className="border border-gray-300 px-4 py-2">1 year</td>
-                        <td className="border border-gray-300 px-4 py-2">✅ Automatic</td>
-                      </tr>
-                      <tr>
-                        <td className="border border-gray-300 px-4 py-2">Analytics Cookies</td>
-                        <td className="border border-gray-300 px-4 py-2">2 years</td>
-                        <td className="border border-gray-300 px-4 py-2">✅ Automatic</td>
-                      </tr>
-                      <tr>
-                        <td className="border border-gray-300 px-4 py-2">Security Cookies</td>
-                        <td className="border border-gray-300 px-4 py-2">24 hours - 30 days</td>
-                        <td className="border border-gray-300 px-4 py-2">✅ Automatic</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-blue-800 mb-2">🔄 Manual Cookie Clearing</h4>
-                  <p className="text-blue-700">
-                    You can manually clear cookies at any time through your browser settings. This will remove all
-                    stored cookies and may require you to re-enter preferences and login information.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>7. International Data Transfers</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-gray-700 space-y-3">
-                <p>
-                  Some of our third-party service providers may process cookie data outside of India. We ensure that:
-                </p>
-                <ul className="list-disc ml-6 space-y-1">
-                  <li>All international transfers comply with applicable data protection laws</li>
-                  <li>Adequate safeguards are in place to protect your data</li>
-                  <li>Service providers maintain appropriate security standards</li>
-                  <li>Data processing agreements include privacy protection clauses</li>
+        {/* Types of Cookies */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>2. Types of Cookies We Use</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-semibold text-blue-900 mb-2">🔧 Essential Cookies</h4>
+                <p className="text-sm text-blue-700 mb-2">Required for basic website functionality</p>
+                <ul className="text-sm text-blue-700 space-y-1">
+                  <li>• Session management</li>
+                  <li>• Security authentication</li>
+                  <li>• Form submission handling</li>
+                  <li>• Shopping cart functionality</li>
                 </ul>
+                <Badge variant="outline" className="mt-2 text-blue-700 border-blue-300">
+                  Cannot be disabled
+                </Badge>
+              </div>
 
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-gray-800 mb-2">🌍 Countries Where Data May Be Processed</h4>
-                  <ul className="list-disc ml-4 space-y-1 text-gray-700 text-sm">
-                    <li>
-                      <strong>India:</strong> Primary data processing location
-                    </li>
-                    <li>
-                      <strong>United States:</strong> Cloud services and analytics (with Privacy Shield/adequacy
-                      protections)
-                    </li>
-                    <li>
-                      <strong>European Union:</strong> GDPR-compliant processing for EU visitors
-                    </li>
-                    <li>
-                      <strong>Singapore:</strong> Regional data centers for performance optimization
-                    </li>
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <h4 className="font-semibold text-purple-900 mb-2">📊 Analytics Cookies</h4>
+                <p className="text-sm text-purple-700 mb-2">Help us understand website usage</p>
+                <ul className="text-sm text-purple-700 space-y-1">
+                  <li>• Page view tracking</li>
+                  <li>• User behavior analysis</li>
+                  <li>• Performance monitoring</li>
+                  <li>• Error reporting</li>
+                </ul>
+                <Badge variant="outline" className="mt-2 text-purple-700 border-purple-300">
+                  Can be disabled
+                </Badge>
+              </div>
+
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                <h4 className="font-semibold text-orange-900 mb-2">⚙️ Functional Cookies</h4>
+                <p className="text-sm text-orange-700 mb-2">Enhance user experience</p>
+                <ul className="text-sm text-orange-700 space-y-1">
+                  <li>• Language preferences</li>
+                  <li>• Theme settings</li>
+                  <li>• Location data</li>
+                  <li>• Accessibility options</li>
+                </ul>
+                <Badge variant="outline" className="mt-2 text-orange-700 border-orange-300">
+                  Can be disabled
+                </Badge>
+              </div>
+
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <h4 className="font-semibold text-red-900 mb-2">🎯 Marketing Cookies</h4>
+                <p className="text-sm text-red-700 mb-2">Used for advertising and marketing</p>
+                <ul className="text-sm text-red-700 space-y-1">
+                  <li>• Targeted advertisements</li>
+                  <li>• Social media integration</li>
+                  <li>• Campaign tracking</li>
+                  <li>• Retargeting pixels</li>
+                </ul>
+                <Badge variant="outline" className="mt-2 text-red-700 border-red-300">
+                  Can be disabled
+                </Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Cookie Details Table */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>3. Detailed Cookie Information</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Cookie Name</TableHead>
+                    <TableHead>Purpose</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Duration</TableHead>
+                    <TableHead>Provider</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow>
+                    <TableCell className="font-mono text-sm">session_id</TableCell>
+                    <TableCell>User session management</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-blue-700">
+                        Essential
+                      </Badge>
+                    </TableCell>
+                    <TableCell>Session</TableCell>
+                    <TableCell>Systech Digital</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-mono text-sm">csrf_token</TableCell>
+                    <TableCell>Security protection</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-blue-700">
+                        Essential
+                      </Badge>
+                    </TableCell>
+                    <TableCell>Session</TableCell>
+                    <TableCell>Systech Digital</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-mono text-sm">razorpay_checkout</TableCell>
+                    <TableCell>Payment processing</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-blue-700">
+                        Essential
+                      </Badge>
+                    </TableCell>
+                    <TableCell>Session</TableCell>
+                    <TableCell>Razorpay</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-mono text-sm">_ga</TableCell>
+                    <TableCell>Google Analytics tracking</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-purple-700">
+                        Analytics
+                      </Badge>
+                    </TableCell>
+                    <TableCell>2 years</TableCell>
+                    <TableCell>Google</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-mono text-sm">_gid</TableCell>
+                    <TableCell>Google Analytics session</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-purple-700">
+                        Analytics
+                      </Badge>
+                    </TableCell>
+                    <TableCell>24 hours</TableCell>
+                    <TableCell>Google</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-mono text-sm">user_preferences</TableCell>
+                    <TableCell>Store user settings</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-orange-700">
+                        Functional
+                      </Badge>
+                    </TableCell>
+                    <TableCell>1 year</TableCell>
+                    <TableCell>Systech Digital</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-mono text-sm">zoho_form_session</TableCell>
+                    <TableCell>Form submission tracking</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-orange-700">
+                        Functional
+                      </Badge>
+                    </TableCell>
+                    <TableCell>Session</TableCell>
+                    <TableCell>Zoho</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Third-Party Cookies */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Globe className="w-5 h-5 mr-2 text-blue-600" />
+              4. Third-Party Cookies & Integrations
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-semibold text-blue-900 mb-2">💳 Razorpay</h4>
+                <p className="text-sm text-blue-700 mb-2">Payment gateway integration</p>
+                <ul className="text-sm text-blue-700 space-y-1">
+                  <li>• Secure payment processing</li>
+                  <li>• Fraud detection</li>
+                  <li>• Transaction analytics</li>
+                  <li>• Payment method preferences</li>
+                </ul>
+                <p className="text-xs text-blue-600 mt-2">
+                  <strong>Privacy Policy:</strong>{" "}
+                  <a href="https://razorpay.com/privacy" target="_blank" rel="noopener noreferrer">
+                    razorpay.com/privacy
+                  </a>
+                </p>
+              </div>
+
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <h4 className="font-semibold text-green-900 mb-2">📋 Zoho Forms</h4>
+                <p className="text-sm text-green-700 mb-2">Form management and data collection</p>
+                <ul className="text-sm text-green-700 space-y-1">
+                  <li>• Form submission tracking</li>
+                  <li>• Data validation</li>
+                  <li>• User session management</li>
+                  <li>• Anti-spam protection</li>
+                </ul>
+                <p className="text-xs text-green-600 mt-2">
+                  <strong>Privacy Policy:</strong>{" "}
+                  <a href="https://zoho.com/privacy.html" target="_blank" rel="noopener noreferrer">
+                    zoho.com/privacy.html
+                  </a>
+                </p>
+              </div>
+
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <h4 className="font-semibold text-purple-900 mb-2">🎬 OTTplay</h4>
+                <p className="text-sm text-purple-700 mb-2">OTT subscription service provider</p>
+                <ul className="text-sm text-purple-700 space-y-1">
+                  <li>• Subscription management</li>
+                  <li>• Content preferences</li>
+                  <li>• Usage analytics</li>
+                  <li>• Device tracking</li>
+                </ul>
+                <p className="text-xs text-purple-600 mt-2">
+                  <strong>Privacy Policy:</strong>{" "}
+                  <a href="https://ottplay.com/privacy" target="_blank" rel="noopener noreferrer">
+                    ottplay.com/privacy
+                  </a>
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
+              <h4 className="font-semibold text-yellow-900 mb-2">⚠️ Third-Party Data Processing</h4>
+              <p className="text-sm text-yellow-700 mb-2">
+                When you interact with third-party services integrated into our website, your data may be processed by
+                these providers according to their own privacy policies:
+              </p>
+              <ul className="text-sm text-yellow-700 space-y-1">
+                <li>• Data may be transferred to servers outside India</li>
+                <li>• Each provider has their own data retention policies</li>
+                <li>• You can opt-out of non-essential third-party cookies</li>
+                <li>• Some services may require cookies for basic functionality</li>
+              </ul>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Cookie Consent & Control */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Settings className="w-5 h-5 mr-2 text-orange-600" />
+              5. Your Cookie Choices & Controls
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+              <h4 className="font-semibold text-orange-900 mb-2">🎛️ Cookie Preferences</h4>
+              <p className="text-sm text-orange-700 mb-2">
+                You have control over which cookies you accept. You can manage your preferences through:
+              </p>
+              <ul className="text-sm text-orange-700 space-y-1">
+                <li>• Our cookie consent banner (appears on first visit)</li>
+                <li>• Browser settings and preferences</li>
+                <li>• Third-party opt-out tools</li>
+                <li>• Account settings (for registered users)</li>
+              </ul>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <h4 className="font-semibold text-gray-900 mb-2">Browser Controls</h4>
+                <div className="space-y-2 text-sm text-gray-700">
+                  <div className="bg-gray-50 p-3 rounded">
+                    <strong>Chrome:</strong> Settings → Privacy and Security → Cookies and other site data
+                  </div>
+                  <div className="bg-gray-50 p-3 rounded">
+                    <strong>Firefox:</strong> Options → Privacy & Security → Cookies and Site Data
+                  </div>
+                  <div className="bg-gray-50 p-3 rounded">
+                    <strong>Safari:</strong> Preferences → Privacy → Manage Website Data
+                  </div>
+                  <div className="bg-gray-50 p-3 rounded">
+                    <strong>Edge:</strong> Settings → Cookies and site permissions → Cookies and site data
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h4 className="font-semibold text-gray-900 mb-2">Impact of Disabling Cookies</h4>
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <ul className="text-sm text-red-700 space-y-1">
+                    <li>• Some website features may not work properly</li>
+                    <li>• Payment processing may be affected</li>
+                    <li>• User preferences will not be saved</li>
+                    <li>• Login sessions may not persist</li>
+                    <li>• Analytics and improvements will be limited</li>
                   </ul>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </CardContent>
+        </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>8. Updates to This Cookie Policy</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-gray-700 space-y-3">
-                <p>
-                  We may update this Cookie Policy from time to time to reflect changes in our practices, technology,
-                  legal requirements, or other operational factors.
-                </p>
-
-                <h4 className="font-semibold">How We Notify You of Changes</h4>
-                <ul className="list-disc ml-6 space-y-1">
-                  <li>Email notification to registered users (for material changes)</li>
-                  <li>Website banner notification for 30 days</li>
-                  <li>Updated "Last Modified" date at the top of this policy</li>
-                  <li>Social media announcements for significant updates</li>
+        {/* Data Retention */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Shield className="w-5 h-5 mr-2 text-green-600" />
+              6. Data Retention & Security
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <h4 className="font-semibold text-green-900 mb-2">🔒 Security Measures</h4>
+                <ul className="text-sm text-green-700 space-y-1">
+                  <li>• Encrypted cookie transmission</li>
+                  <li>• Secure cookie flags (HttpOnly, Secure)</li>
+                  <li>• Regular security audits</li>
+                  <li>• Access controls and monitoring</li>
+                  <li>• Data minimization practices</li>
                 </ul>
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-semibold text-blue-900 mb-2">⏰ Retention Periods</h4>
+                <ul className="text-sm text-blue-700 space-y-1">
+                  <li>• Session cookies: Until browser closes</li>
+                  <li>• Functional cookies: Up to 1 year</li>
+                  <li>• Analytics cookies: Up to 2 years</li>
+                  <li>• Marketing cookies: Up to 1 year</li>
+                  <li>• Security cookies: As needed for protection</li>
+                </ul>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-green-800 mb-2">📧 Stay Informed</h4>
-                  <p className="text-green-700">
-                    Subscribe to our newsletter or follow our social media channels to receive notifications about
-                    policy updates and other important announcements.
-                  </p>
+        {/* International Data Transfers */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Globe className="w-5 h-5 mr-2 text-purple-600" />
+              7. International Data Transfers
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+              <h4 className="font-semibold text-purple-900 mb-2">🌍 Cross-Border Data Processing</h4>
+              <p className="text-sm text-purple-700 mb-2">
+                Some of our third-party service providers may process your cookie data outside of India:
+              </p>
+              <ul className="text-sm text-purple-700 space-y-1">
+                <li>• Google Analytics: Data processed in USA and other countries</li>
+                <li>• Razorpay: Data primarily processed in India</li>
+                <li>• Zoho: Data processed in India and USA</li>
+                <li>• OTTplay: Data processed in India</li>
+              </ul>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-semibold text-blue-900 mb-2">🛡️ Transfer Safeguards</h4>
+              <p className="text-sm text-blue-700 mb-2">
+                We ensure appropriate safeguards are in place for international transfers:
+              </p>
+              <ul className="text-sm text-blue-700 space-y-1">
+                <li>• Standard Contractual Clauses (SCCs)</li>
+                <li>• Adequacy decisions where applicable</li>
+                <li>• Privacy Shield frameworks (where available)</li>
+                <li>• Binding Corporate Rules (BCRs)</li>
+              </ul>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Your Rights */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Users className="w-5 h-5 mr-2 text-indigo-600" />
+              8. Your Rights & Choices
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+              <h4 className="font-semibold text-indigo-900 mb-2">📋 Your Data Rights</h4>
+              <p className="text-sm text-indigo-700 mb-2">
+                Under applicable data protection laws, you have the following rights regarding cookies and personal
+                data:
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                <ul className="text-sm text-indigo-700 space-y-1">
+                  <li>• Right to be informed about cookie usage</li>
+                  <li>• Right to access your cookie data</li>
+                  <li>• Right to rectify inaccurate information</li>
+                  <li>• Right to erase personal data</li>
+                </ul>
+                <ul className="text-sm text-indigo-700 space-y-1">
+                  <li>• Right to restrict processing</li>
+                  <li>• Right to data portability</li>
+                  <li>• Right to object to processing</li>
+                  <li>• Right to withdraw consent</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="bg-teal-50 border border-teal-200 rounded-lg p-4">
+              <h4 className="font-semibold text-teal-900 mb-2">✉️ Exercising Your Rights</h4>
+              <p className="text-sm text-teal-700 mb-2">To exercise any of these rights, please contact us at:</p>
+              <ul className="text-sm text-teal-700 space-y-1">
+                <li>• Email: sales.systechdigital@gmail.com</li>
+                <li>• Phone: +91 7709803412</li>
+                <li>• Include "Cookie Rights Request" in your subject line</li>
+                <li>• We will respond within 30 days of receiving your request</li>
+              </ul>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Updates & Changes */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>9. Policy Updates & Changes</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <h4 className="font-semibold text-yellow-900 mb-2">📝 Policy Modifications</h4>
+              <p className="text-sm text-yellow-700 mb-2">
+                We may update this Cookie Policy from time to time to reflect changes in our practices or legal
+                requirements:
+              </p>
+              <ul className="text-sm text-yellow-700 space-y-1">
+                <li>• Material changes will be notified via email or website banner</li>
+                <li>• Minor updates will be posted with updated "Last Modified" date</li>
+                <li>• Continued use of our website constitutes acceptance of changes</li>
+                <li>• Previous versions available upon request</li>
+              </ul>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Contact Information */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>10. Contact Us</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
+              <h4 className="font-semibold text-blue-900 mb-4">📞 Get in Touch</h4>
+              <p className="text-sm text-blue-700 mb-4">
+                If you have any questions about this Cookie Policy or our use of cookies, please contact us:
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h5 className="font-medium text-blue-800 mb-2">Contact Information</h5>
+                  <ul className="text-sm text-blue-700 space-y-1">
+                    <li>
+                      📧 <strong>Email:</strong> sales.systechdigital@gmail.com
+                    </li>
+                    <li>
+                      📞 <strong>Phone:</strong> +91 7709803412
+                    </li>
+                    <li>
+                      🌐 <strong>Website:</strong> www.systechdigital.co.in
+                    </li>
+                    <li>
+                      ⏰ <strong>Hours:</strong> Mon-Sat, 9 AM - 6 PM IST
+                    </li>
+                  </ul>
+                </div>
+                <div>
+                  <h5 className="font-medium text-blue-800 mb-2">Postal Address</h5>
+                  <div className="text-sm text-blue-700">
+                    <p>Systech IT Solutions Limited</p>
+                    <p>Unit NO H-04, 4th Floor, SOLUS No 2</p>
+                    <p>JC Road, Bangalore South</p>
+                    <p>Karnataka, India - 560027</p>
+                  </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Eye className="w-5 h-5 mr-2" />
-                9. Your Rights & Choices
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-gray-700 space-y-3">
-                <p>
-                  Under applicable privacy laws, you have the following rights regarding cookies and your personal data:
-                </p>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-blue-800 mb-2">🔍 Right to Information</h4>
-                    <ul className="list-disc ml-4 space-y-1 text-blue-700 text-sm">
-                      <li>Know what cookies we use and why</li>
-                      <li>Understand how your data is processed</li>
-                      <li>Access this cookie policy at any time</li>
-                    </ul>
-                  </div>
-
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-green-800 mb-2">⚙️ Right to Control</h4>
-                    <ul className="list-disc ml-4 space-y-1 text-green-700 text-sm">
-                      <li>Accept or reject non-essential cookies</li>
-                      <li>Change your preferences at any time</li>
-                      <li>Delete cookies from your browser</li>
-                    </ul>
-                  </div>
-
-                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-purple-800 mb-2">🗑️ Right to Deletion</h4>
-                    <ul className="list-disc ml-4 space-y-1 text-purple-700 text-sm">
-                      <li>Request deletion of your cookie data</li>
-                      <li>Clear browser cookies manually</li>
-                      <li>Opt-out of analytics tracking</li>
-                    </ul>
-                  </div>
-
-                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                    <h4 className="font-semibold text-orange-800 mb-2">📞 Right to Support</h4>
-                    <ul className="list-disc ml-4 space-y-1 text-orange-700 text-sm">
-                      <li>Contact us with cookie-related questions</li>
-                      <li>Request technical assistance</li>
-                      <li>File complaints about cookie practices</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>10. Contact Information</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-gray-700">
-                <p className="mb-3">
-                  If you have any questions about our use of cookies or this policy, please contact us:
-                </p>
-                <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-                  <p>
-                    <strong>Data Protection Officer:</strong> Available during business hours
-                  </p>
-                  <p>
-                    <strong>Email:</strong> sales.systechdigital@gmail.com
-                  </p>
-                  <p>
-                    <strong>Phone:</strong> +91 7709803412
-                  </p>
-                  <p>
-                    <strong>Address:</strong> Unit NO H-04, 4th Floor, SOLUS No 2, JC Road, Bangalore South, Karnataka -
-                    560027
-                  </p>
-                  <p>
-                    <strong>Business Hours:</strong> Monday to Saturday, 9:00 AM to 6:00 PM IST
-                  </p>
-                  <p>
-                    <strong>Response Time:</strong> We aim to respond to all cookie-related inquiries within 48 hours
-                  </p>
-                </div>
-
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
-                  <h4 className="font-semibold text-blue-800 mb-2">🛡️ Privacy Complaints</h4>
-                  <p className="text-blue-700 text-sm">
-                    If you're not satisfied with our response to your privacy concerns, you may file a complaint with
-                    the relevant data protection authority in your jurisdiction.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
       </main>
 
       {/* Footer */}
-      <footer className="bg-gradient-to-r from-black via-red-900 to-black text-white py-8 border-t border-red-200 mt-8">
+      <footer className="bg-gradient-to-r from-black via-red-900 to-black text-white py-8 border-t border-red-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div>
-              <h3 className="text-xl font-bold mb-4 text-white">SYSTECH DIGITAL</h3>
-              <p className="text-red-200 text-sm">Your trusted partner for IT Solutions & Mobile Technology</p>
+            <div className="flex items-center md:items-start">
+              <div className="relative h-10 w-10 mr-3 hidden md:block">
+                <Image src="/logo.png" alt="SYSTECH DIGITAL Logo" width={40} height={40} className="rounded-full" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold mb-2 text-white">SYSTECH DIGITAL</h3>
+                <p className="text-red-200 text-sm">Your trusted partner for IT Solutions & Mobile Technology</p>
+              </div>
             </div>
             <div>
               <h4 className="font-semibold mb-3 text-white">Quick Links</h4>
@@ -626,16 +593,16 @@ export default function CookiePolicyPage() {
                 </li>
                 <li>
                   <button
-                    onClick={() => (window.location.href = "/ottclaim")}
+                    onClick={() => (window.location.href = "/ott")}
                     className="text-red-200 hover:text-white transition-colors"
                   >
-                    OTT Claim
+                    OTT Claim Form
                   </button>
                 </li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-3 text-white">Policies</h4>
+              <h4 className="font-semibold mb-3 text-white">Legal</h4>
               <ul className="space-y-2 text-sm">
                 <li>
                   <button
