@@ -1,36 +1,36 @@
 import { NextResponse } from "next/server"
 
 // Mock sales database
-const mockSalesRecords = [
+let mockSalesRecords = [
   {
     id: "1",
-    productSubCategory: "Antivirus Software",
-    product: "SYSTECH Antivirus Pro 2025",
-    activationCode: "SW987654321",
+    productSubCategory: "Smartphone",
+    product: "Galaxy S25",
+    activationCode: "SM-S25-12345678",
   },
   {
     id: "2",
-    productSubCategory: "Security Hardware",
-    product: "SYSTECH Security Device Model X1",
-    activationCode: "HW123456789",
+    productSubCategory: "Tablet",
+    product: "iPad Pro 2025",
+    activationCode: "IP-PRO-87654321",
   },
   {
     id: "3",
-    productSubCategory: "Network Security",
-    product: "SYSTECH Firewall Enterprise",
-    activationCode: "HW555666777",
+    productSubCategory: "Laptop",
+    product: "MacBook Air M4",
+    activationCode: "MBA-M4-11223344",
   },
   {
     id: "4",
-    productSubCategory: "Mobile Security",
-    product: "SYSTECH Mobile Guard Premium",
-    activationCode: "SW111222333",
+    productSubCategory: "Smart TV",
+    product: "Sony Bravia XR",
+    activationCode: "SONY-XR-55667788",
   },
   {
     id: "5",
-    productSubCategory: "Cloud Security",
-    product: "SYSTECH Cloud Shield Business",
-    activationCode: "SW444555666",
+    productSubCategory: "Software",
+    product: "Adobe Creative Cloud",
+    activationCode: "ADOBE-CC-99887766",
   },
 ]
 
@@ -40,25 +40,25 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const salesData = await request.json()
+    const newRecords = await request.json()
 
-    // Add new sales records
-    const newRecords = salesData.map((record: any, index: number) => ({
-      id: (mockSalesRecords.length + index + 1).toString(),
-      productSubCategory: record.productSubCategory,
-      product: record.product,
-      activationCode: record.activationCode,
+    if (!Array.isArray(newRecords)) {
+      return NextResponse.json({ success: false, error: "Invalid data format" }, { status: 400 })
+    }
+
+    // Add IDs to new records
+    const recordsWithIds = newRecords.map((record, index) => ({
+      id: `new-${Date.now()}-${index}`,
+      ...record,
     }))
 
-    mockSalesRecords.push(...newRecords)
+    // In a real implementation, you would save to a database
+    // For this mock, we'll just add to our array
+    mockSalesRecords = [...mockSalesRecords, ...recordsWithIds]
 
-    return NextResponse.json({
-      success: true,
-      count: newRecords.length,
-      message: "Sales records added successfully",
-    })
+    return NextResponse.json({ success: true, count: recordsWithIds.length })
   } catch (error) {
-    console.error("Error adding sales records:", error)
-    return NextResponse.json({ success: false, error: "Failed to add sales records" }, { status: 500 })
+    console.error("Error saving sales records:", error)
+    return NextResponse.json({ success: false, error: "Failed to save sales records" }, { status: 500 })
   }
 }

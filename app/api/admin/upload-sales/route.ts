@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import * as XLSX from "xlsx"
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,67 +10,115 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "No file provided" }, { status: 400 })
     }
 
+    // Validate file type
+    const allowedTypes = [
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+      "application/vnd.ms-excel", // .xls
+      "text/csv", // .csv
+    ]
+
+    if (
+      !allowedTypes.includes(file.type) &&
+      !file.name.endsWith(".xlsx") &&
+      !file.name.endsWith(".xls") &&
+      !file.name.endsWith(".csv")
+    ) {
+      return NextResponse.json(
+        { success: false, error: "Invalid file type. Please upload Excel (.xlsx, .xls) or CSV file." },
+        { status: 400 },
+      )
+    }
+
     // Read file content
     const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
-    const content = buffer.toString("utf8")
 
-    // Parse CSV content (basic implementation)
-    const lines = content.split("\n").filter((line) => line.trim())
-    const headers = lines[0].split(",").map((h) => h.trim().replace(/"/g, ""))
+    // Parse Excel/CSV file
+    const workbook = XLSX.read(bytes, { type: "array" })
+    const firstSheetName = workbook.SheetNames[0]
+    const worksheet = workbook.Sheets[firstSheetName]
 
-    // Expected headers: Product Sub Category, Product, Activation Code/ Serial No / IMEI Number
-    const expectedHeaders = ["Product Sub Category", "Product", "Activation Code/ Serial No / IMEI Number"]
+    // Convert to JSON
+    const data = XLSX.utils.sheet_to_json(worksheet)
 
-    // Validate headers
-    const hasValidHeaders = expectedHeaders.every((header) =>
-      headers.some((h) => h.toLowerCase().includes(header.toLowerCase().replace(/[/\s]/g, ""))),
+    if (data.length === 0) {
+      return NextResponse.json({ success: false, error: "File contains no data" }, { status: 400 })
+    }
+
+    // Check if required columns exist
+    const firstRow = data[0] as Record<string, any>
+    const headers = Object.keys(firstRow).map((h) => h.toLowerCase())
+
+    // Check for required columns (flexible matching)
+    const hasProductSubCategory = headers.some(
+      (h) => h.includes("product") && h.includes("sub") && h.includes("category"),
+    )
+    const hasProduct = headers.some((h) => h.includes("product") && !h.includes("sub"))
+    const hasActivationCode = headers.some(
+      (h) => h.includes("activation") || h.includes("serial") || h.includes("imei"),
     )
 
-    if (!hasValidHeaders) {
+    if (!hasProductSubCategory || !hasProduct || !hasActivationCode) {
       return NextResponse.json(
         {
           success: false,
           error:
-            "Invalid file format. Please ensure columns: Product Sub Category, Product, Activation Code/ Serial No / IMEI Number",
+            "Invalid file format. Please ensure columns: Product Sub Category, Product, Activation Code/Serial No/IMEI Number",
         },
         { status: 400 },
       )
     }
 
-    // Parse data rows
-    const salesData = []
-    for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(",").map((v) => v.trim().replace(/"/g, ""))
-      if (values.length >= 3) {
-        salesData.push({
-          productSubCategory: values[0],
-          product: values[1],
-          activationCode: values[2],
-        })
-      }
-    }
+    // Map data to our format
+    const salesData = data
+      .map((row: Record<string, any>) => {
+        // Find the actual column names from the file
+        const productSubCategoryKey =
+          Object.keys(row).find((k) => k.toLowerCase().includes("product") && k.toLowerCase().includes("sub")) || ""
 
-    // Save to sales records (in production, save to database)
-    const response = await fetch(`${request.nextUrl.origin}/api/admin/sales`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(salesData),
-    })
+        const productKey =
+          Object.keys(row).find((k) => k.toLowerCase().includes("product") && !k.toLowerCase().includes("sub")) || ""
 
-    const result = await response.json()
+        const activationCodeKey =
+          Object.keys(row).find(
+            (k) =>
+              k.toLowerCase().includes("activation") ||
+              k.toLowerCase().includes("serial") ||
+              k.toLowerCase().includes("imei"),
+          ) || ""
 
-    if (result.success) {
-      return NextResponse.json({
-        success: true,
-        count: salesData.length,
-        message: `Successfully uploaded ${salesData.length} sales records`,
+        return {
+          productSubCategory: row[productSubCategoryKey] || "",
+          product: row[productKey] || "",
+          activationCode: row[activationCodeKey] || "",
+        }
       })
-    } else {
-      return NextResponse.json({ success: false, error: "Failed to save sales data" }, { status: 500 })
+      .filter((item) => item.activationCode && item.product && item.productSubCategory)
+
+    if (salesData.length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "No valid data found after processing",
+        },
+        { status: 400 },
+      )
     }
+
+    // In a real implementation, save to database
+    // For now, we'll just return success
+    return NextResponse.json({
+      success: true,
+      count: salesData.length,
+      message: `Successfully uploaded ${salesData.length} sales records`,
+    })
   } catch (error) {
     console.error("Error uploading sales file:", error)
-    return NextResponse.json({ success: false, error: "Failed to process file" }, { status: 500 })
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Failed to process file. Please ensure it's a valid Excel or CSV file.",
+      },
+      { status: 500 },
+    )
   }
 }

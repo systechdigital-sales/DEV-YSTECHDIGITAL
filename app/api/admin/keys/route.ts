@@ -1,60 +1,51 @@
 import { NextResponse } from "next/server"
 
 // Mock OTT keys database
-const mockOTTKeys = [
+let mockOTTKeys = [
   {
     id: "1",
-    productSubCategory: "Premium Streaming",
-    product: "Netflix Premium",
-    activationCode: "OTT-NETFLIX-001",
+    productSubCategory: "Streaming",
+    product: "Netflix",
+    activationCode: "NFLX-PREM-12345",
     status: "available",
     assignedEmail: null,
     assignedDate: null,
   },
   {
     id: "2",
-    productSubCategory: "Premium Streaming",
-    product: "Amazon Prime Video",
-    activationCode: "OTT-PRIME-002",
-    status: "used",
+    productSubCategory: "Streaming",
+    product: "Amazon Prime",
+    activationCode: "AMZN-PRIME-67890",
+    status: "assigned",
     assignedEmail: "john.doe@example.com",
-    assignedDate: "2025-07-20T10:30:00Z",
+    assignedDate: "2025-07-20T10:35:00Z",
   },
   {
     id: "3",
-    productSubCategory: "Sports & Entertainment",
-    product: "Disney+ Hotstar",
-    activationCode: "OTT-HOTSTAR-003",
+    productSubCategory: "Streaming",
+    product: "Disney+",
+    activationCode: "DSNY-PLUS-54321",
     status: "available",
     assignedEmail: null,
     assignedDate: null,
   },
   {
     id: "4",
-    productSubCategory: "Regional Content",
-    product: "ZEE5 Premium",
-    activationCode: "OTT-ZEE5-004",
+    productSubCategory: "Music",
+    product: "Spotify Premium",
+    activationCode: "SPTFY-PREM-98765",
     status: "available",
     assignedEmail: null,
     assignedDate: null,
   },
   {
     id: "5",
-    productSubCategory: "Entertainment",
-    product: "Sony LIV Premium",
-    activationCode: "OTT-SONY-005",
-    status: "available",
-    assignedEmail: null,
-    assignedDate: null,
-  },
-  {
-    id: "6",
-    productSubCategory: "Music & Entertainment",
-    product: "Spotify Premium",
-    activationCode: "OTT-SPOTIFY-006",
-    status: "available",
-    assignedEmail: null,
-    assignedDate: null,
+    productSubCategory: "Gaming",
+    product: "Xbox Game Pass",
+    activationCode: "XBOX-PASS-13579",
+    status: "assigned",
+    assignedEmail: "jane.smith@example.com",
+    assignedDate: "2025-07-22T14:20:00Z",
   },
 ]
 
@@ -64,28 +55,28 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const keysData = await request.json()
+    const newKeys = await request.json()
 
-    // Add new OTT keys
-    const newKeys = keysData.map((key: any, index: number) => ({
-      id: (mockOTTKeys.length + index + 1).toString(),
-      productSubCategory: key.productSubCategory,
-      product: key.product,
-      activationCode: key.activationCode,
-      status: "available",
-      assignedEmail: null,
-      assignedDate: null,
+    if (!Array.isArray(newKeys)) {
+      return NextResponse.json({ success: false, error: "Invalid data format" }, { status: 400 })
+    }
+
+    // Add IDs and default status to new keys
+    const keysWithIds = newKeys.map((key, index) => ({
+      id: `new-${Date.now()}-${index}`,
+      ...key,
+      status: key.status || "available",
+      assignedEmail: key.assignedEmail || null,
+      assignedDate: key.assignedDate || null,
     }))
 
-    mockOTTKeys.push(...newKeys)
+    // In a real implementation, you would save to a database
+    // For this mock, we'll just add to our array
+    mockOTTKeys = [...mockOTTKeys, ...keysWithIds]
 
-    return NextResponse.json({
-      success: true,
-      count: newKeys.length,
-      message: "OTT keys added successfully",
-    })
+    return NextResponse.json({ success: true, count: keysWithIds.length })
   } catch (error) {
-    console.error("Error adding OTT keys:", error)
-    return NextResponse.json({ success: false, error: "Failed to add OTT keys" }, { status: 500 })
+    console.error("Error saving OTT keys:", error)
+    return NextResponse.json({ success: false, error: "Failed to save OTT keys" }, { status: 500 })
   }
 }

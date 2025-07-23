@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import * as XLSX from "xlsx"
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,7 +10,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Invalid export type" }, { status: 400 })
     }
 
-    let csvContent = ""
+    let data: any[] = []
     let filename = ""
 
     switch (type) {
@@ -18,15 +19,34 @@ export async function GET(request: NextRequest) {
         const claimsResponse = await fetch(`${request.nextUrl.origin}/api/admin/claims`)
         const claimsData = await claimsResponse.json()
 
-        // Create CSV headers
-        csvContent =
-          "ID,First Name,Last Name,Email,Phone,Street Address,Address Line 2,City,State,Postal Code,Country,Purchase Type,Activation Code,Purchase Date,Claim Submission Date,Invoice Number,Seller Name,Payment Status,Payment ID,OTT Code Status,OTT Code,Created At,Bill File Name\n"
+        // Format data for Excel
+        data = claimsData.map((claim: any) => ({
+          ID: claim.id,
+          "First Name": claim.firstName,
+          "Last Name": claim.lastName,
+          Email: claim.email,
+          Phone: claim.phone,
+          "Street Address": claim.streetAddress,
+          "Address Line 2": claim.addressLine2 || "",
+          City: claim.city,
+          State: claim.state,
+          "Postal Code": claim.postalCode,
+          Country: claim.country,
+          "Purchase Type": claim.purchaseType,
+          "Activation Code": claim.activationCode,
+          "Purchase Date": claim.purchaseDate,
+          "Claim Submission Date": claim.claimSubmissionDate,
+          "Invoice Number": claim.invoiceNumber || "",
+          "Seller Name": claim.sellerName || "",
+          "Payment Status": claim.paymentStatus,
+          "Payment ID": claim.paymentId || "",
+          "OTT Code Status": claim.ottCodeStatus,
+          "OTT Code": claim.ottCode || "",
+          "Created At": claim.createdAt,
+          "Bill File Name": claim.billFileName || "",
+        }))
 
-        // Add data rows
-        claimsData.forEach((claim: any) => {
-          csvContent += `"${claim.id}","${claim.firstName}","${claim.lastName}","${claim.email}","${claim.phone}","${claim.streetAddress}","${claim.addressLine2 || ""}","${claim.city}","${claim.state}","${claim.postalCode}","${claim.country}","${claim.purchaseType}","${claim.activationCode}","${claim.purchaseDate}","${claim.claimSubmissionDate}","${claim.invoiceNumber || ""}","${claim.sellerName || ""}","${claim.paymentStatus}","${claim.paymentId || ""}","${claim.ottCodeStatus}","${claim.ottCode || ""}","${claim.createdAt}","${claim.billFileName || ""}"\n`
-        })
-        filename = `ott_claims_export_${new Date().toISOString().split("T")[0]}.csv`
+        filename = `ott_claims_export_${new Date().toISOString().split("T")[0]}.xlsx`
         break
 
       case "sales":
@@ -34,14 +54,15 @@ export async function GET(request: NextRequest) {
         const salesResponse = await fetch(`${request.nextUrl.origin}/api/admin/sales`)
         const salesData = await salesResponse.json()
 
-        // Create CSV headers
-        csvContent = "ID,Product Sub Category,Product,Activation Code/ Serial No / IMEI Number\n"
+        // Format data for Excel
+        data = salesData.map((sale: any) => ({
+          ID: sale.id,
+          "Product Sub Category": sale.productSubCategory,
+          Product: sale.product,
+          "Activation Code/ Serial No / IMEI Number": sale.activationCode,
+        }))
 
-        // Add data rows
-        salesData.forEach((sale: any) => {
-          csvContent += `"${sale.id}","${sale.productSubCategory}","${sale.product}","${sale.activationCode}"\n`
-        })
-        filename = `sales_records_export_${new Date().toISOString().split("T")[0]}.csv`
+        filename = `sales_records_export_${new Date().toISOString().split("T")[0]}.xlsx`
         break
 
       case "keys":
@@ -49,26 +70,40 @@ export async function GET(request: NextRequest) {
         const keysResponse = await fetch(`${request.nextUrl.origin}/api/admin/keys`)
         const keysData = await keysResponse.json()
 
-        // Create CSV headers
-        csvContent = "ID,Product Sub Category,Product,Activation Code,Status,Assigned Email,Assigned Date\n"
+        // Format data for Excel
+        data = keysData.map((key: any) => ({
+          ID: key.id,
+          "Product Sub Category": key.productSubCategory,
+          Product: key.product,
+          "Activation Code": key.activationCode,
+          Status: key.status,
+          "Assigned Email": key.assignedEmail || "",
+          "Assigned Date": key.assignedDate || "",
+        }))
 
-        // Add data rows
-        keysData.forEach((key: any) => {
-          csvContent += `"${key.id}","${key.productSubCategory}","${key.product}","${key.activationCode}","${key.status}","${key.assignedEmail || ""}","${key.assignedDate || ""}"\n`
-        })
-        filename = `ott_keys_export_${new Date().toISOString().split("T")[0]}.csv`
+        filename = `ott_keys_export_${new Date().toISOString().split("T")[0]}.xlsx`
         break
 
       default:
         return NextResponse.json({ error: "Invalid export type" }, { status: 400 })
     }
 
-    // Create and return CSV file
-    const blob = new Blob([csvContent], { type: "text/csv" })
+    // Create Excel workbook
+    const worksheet = XLSX.utils.json_to_sheet(data)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Data")
+
+    // Generate Excel file
+    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" })
+
+    // Create and return Excel file
+    const blob = new Blob([excelBuffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    })
 
     return new NextResponse(blob, {
       headers: {
-        "Content-Type": "text/csv",
+        "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "Content-Disposition": `attachment; filename="${filename}"`,
       },
     })
