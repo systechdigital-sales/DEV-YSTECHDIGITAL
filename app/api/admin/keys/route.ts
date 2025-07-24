@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
 import type { OTTKey } from "@/lib/models"
+import { getFallbackOTTKeys, withFallback } from "@/lib/fallback-data"
 
 export async function GET() {
   try {
-    const db = await getDatabase()
-    const keys = await db.collection<OTTKey>("ottKeys").find({}).sort({ createdAt: -1 }).toArray()
+    const keys = await withFallback(
+      async () => {
+        const db = await getDatabase()
+        return db.collection<OTTKey>("ottKeys").find({}).sort({ createdAt: -1 }).toArray()
+      },
+      getFallbackOTTKeys(),
+      "Error fetching OTT keys"
+    )
 
     return NextResponse.json({ success: true, data: keys })
   } catch (error) {

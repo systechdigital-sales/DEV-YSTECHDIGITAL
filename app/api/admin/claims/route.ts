@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
 import type { ClaimResponse } from "@/lib/models"
+import { getFallbackClaims, withFallback } from "@/lib/fallback-data"
 
 export async function GET() {
   try {
-    const db = await getDatabase()
-    const claims = await db.collection<ClaimResponse>("claims").find({}).sort({ createdAt: -1 }).toArray()
+    const claims = await withFallback(
+      async () => {
+        const db = await getDatabase()
+        return db.collection<ClaimResponse>("claims").find({}).sort({ createdAt: -1 }).toArray()
+      },
+      getFallbackClaims(),
+      "Error fetching claims"
+    )
 
     return NextResponse.json({ success: true, data: claims })
   } catch (error) {
