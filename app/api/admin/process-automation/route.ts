@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
 import { sendEmail } from "@/lib/email"
 
-export async function POST() {
+export async function POST(request) {
   try {
     const db = await getDatabase()
 
@@ -18,7 +18,7 @@ export async function POST() {
     let processed = 0
     let ottCodesSent = 0
     let waitEmails = 0
-    const alreadyClaimed = 0
+    let alreadyClaimed = 0
 
     for (const claim of pendingClaims) {
       try {
@@ -28,8 +28,13 @@ export async function POST() {
         })
 
         if (!salesRecord) {
-          // Send wait email - activation code not found in sales
-          await sendEmail(claim.email, "OTT Claim Processing - Please Wait", "automation_wait", claim)
+          // Send wait email - activation code not found
+          await sendEmail(
+            claim.email,
+            "OTT Claim Processing - Please Wait",
+            "automation_wait",
+            claim
+          )
           waitEmails++
           processed++
           continue
@@ -43,7 +48,12 @@ export async function POST() {
 
         if (!availableKey) {
           // Send wait email - no available keys
-          await sendEmail(claim.email, "OTT Claim Processing - Please Wait", "automation_wait", claim)
+          await sendEmail(
+            claim.email,
+            "OTT Claim Processing - Please Wait",
+            "automation_wait",
+            claim
+          )
           waitEmails++
           processed++
           continue
@@ -58,7 +68,7 @@ export async function POST() {
               assignedEmail: claim.email,
               assignedDate: new Date().toISOString(),
             },
-          },
+          }
         )
 
         // Update claim with OTT code
@@ -70,21 +80,26 @@ export async function POST() {
               ottCode: availableKey.activationCode,
               updatedAt: new Date().toISOString(),
             },
-          },
+          }
         )
 
         // Send success email with OTT code
-        await sendEmail(claim.email, "Your OTT Platform Access Code - SYSTECH DIGITAL", "automation_success", {
-          ...claim,
-          ottCode: availableKey.activationCode,
-          platform: availableKey.product,
-        })
+        await sendEmail(
+          claim.email,
+          "Your OTT Platform Access Code - SYSTECH DIGITAL",
+          "automation_success",
+          {
+            ...claim,
+            ottCode: availableKey.activationCode,
+            platform: availableKey.product,
+          }
+        )
 
         ottCodesSent++
         processed++
       } catch (error) {
         console.error(`Error processing claim ${claim.id}:`, error)
-        // Continue with next claim
+        // continue with next claim
       }
     }
 
@@ -98,6 +113,9 @@ export async function POST() {
     })
   } catch (error) {
     console.error("Error in automation process:", error)
-    return NextResponse.json({ success: false, error: "Automation process failed" }, { status: 500 })
+    return NextResponse.json(
+      { success: false, error: "Automation process failed" },
+      { status: 500 }
+    )
   }
 }
