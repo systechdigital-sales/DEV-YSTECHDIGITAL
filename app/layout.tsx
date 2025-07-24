@@ -6,6 +6,7 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://www.systechdigital.co.in'),
   title: "SYSTECH DIGITAL - IT Solutions & Mobile Technology",
   description:
     "Your trusted partner for IT Solutions & Mobile Technology. Get free OTT subscriptions with eligible purchases. Secure payment processing with Razorpay.",
