@@ -51,6 +51,25 @@ export default function PaymentClient({ publicKey }: PaymentClientProps) {
     }))
   }, [searchParams])
 
+  // Load Razorpay script
+  useEffect(() => {
+    const loadRazorpayScript = () => {
+      return new Promise((resolve) => {
+        const script = document.createElement('script')
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js'
+        script.onload = () => {
+          resolve(true)
+        }
+        script.onerror = () => {
+          resolve(false)
+        }
+        document.body.appendChild(script)
+      })
+    }
+
+    loadRazorpayScript()
+  }, [])
+
   const handleChange = (k: string, v: string | number) => setOrderData((p) => ({ ...p, [k]: v }))
 
   const createOrder = async () => {
@@ -349,7 +368,6 @@ export default function PaymentClient({ publicKey }: PaymentClientProps) {
         </div>
       </footer>
 
-      <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     </div>
   )
 }
