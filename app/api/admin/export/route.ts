@@ -8,11 +8,7 @@ export const dynamic = "force-dynamic"
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const type = searchParams.get("type")
-
-    if (!type || !["claims", "sales", "keys"].includes(type)) {
-      return NextResponse.json({ success: false, error: "Invalid export type" }, { status: 400 })
-    }
+    const type = searchParams.get("type") || "claims"
 
     const db = await getDatabase()
     let data: any[] = []
@@ -21,33 +17,28 @@ export async function GET(request: NextRequest) {
     switch (type) {
       case "claims":
         data = await db.collection("claims").find({}).toArray()
-        filename = "ott_claims_export.xlsx"
+        filename = "ott_claims.xlsx"
         break
       case "sales":
         data = await db.collection("sales").find({}).toArray()
-        filename = "sales_records_export.xlsx"
+        filename = "sales_records.xlsx"
         break
       case "keys":
-        data = await db.collection("ottKeys").find({}).toArray()
-        filename = "ott_keys_export.xlsx"
+        data = await db.collection("ott_keys").find({}).toArray()
+        filename = "ott_keys.xlsx"
         break
+      default:
+        return NextResponse.json({ success: false, error: "Invalid export type" }, { status: 400 })
     }
 
-    if (data.length === 0) {
-      return NextResponse.json({ success: false, error: "No data found" }, { status: 404 })
-    }
-
-    // Create workbook and worksheet
-    const workbook = XLSX.utils.book_new()
+    // Convert to Excel
     const worksheet = XLSX.utils.json_to_sheet(data)
-
-    // Add worksheet to workbook
-    XLSX.utils.book_append_sheet(workbook, worksheet, type.charAt(0).toUpperCase() + type.slice(1))
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, type)
 
     // Generate buffer
     const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" })
 
-    // Return file
     return new NextResponse(buffer, {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -55,7 +46,7 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error("Error exporting data:", error)
+    console.error("Export error:", error)
     return NextResponse.json({ success: false, error: "Export failed" }, { status: 500 })
   }
 }

@@ -1,19 +1,29 @@
 "use client"
 
-import type React from "react"
-
-import { useState, useRef } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Eye, Download, RefreshCw, Upload, Play } from "lucide-react"
-import Image from "next/image"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { Progress } from "@/components/ui/progress"
+import { Upload, Download, Play, RefreshCw, Users, Key, CreditCard } from "lucide-react"
+import { toast } from "@/hooks/use-toast"
 
-// Force dynamic rendering to prevent build-time database connections
+// Force dynamic rendering
 export const dynamic = "force-dynamic"
 
 interface ClaimResponse {
@@ -22,286 +32,229 @@ interface ClaimResponse {
   lastName: string
   email: string
   phone: string
-  streetAddress: string
-  addressLine2: string
-  city: string
-  state: string
-  postalCode: string
-  country: string
-  purchaseType: string
   activationCode: string
-  purchaseDate: string
-  claimSubmissionDate: string
-  invoiceNumber?: string
-  sellerName?: string
+  purchaseType: string
   paymentStatus: string
-  paymentId?: string
   ottCodeStatus: string
-  ottCode?: string
   createdAt: string
-  billFileName?: string
 }
 
 interface SalesRecord {
   id: string
-  productSubCategory: string
-  product: string
+  customerName: string
+  email: string
   activationCode: string
+  status: string
+  createdAt: string
 }
 
 interface OTTKey {
   id: string
-  productSubCategory: string
-  product: string
-  activationCode: string
+  platform: string
+  keyCode: string
   status: string
-  assignedEmail?: string
-  assignedDate?: string
+  createdAt: string
 }
 
 export default function AdminDashboard() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [loginData, setLoginData] = useState({ email: "", password: "" })
-  const [claimResponses, setClaimResponses] = useState<ClaimResponse[]>([])
-  const [salesRecords, setSalesRecords] = useState<SalesRecord[]>([])
-  const [ottKeys, setOTTKeys] = useState<OTTKey[]>([])
-  const [loading, setLoading] = useState(false)
-  const [uploadingSales, setUploadingSales] = useState(false)
-  const [uploadingKeys, setUploadingKeys] = useState(false)
-  const salesFileInputRef = useRef<HTMLInputElement>(null)
-  const keysFileInputRef = useRef<HTMLInputElement>(null)
+  const [claims, setClaims] = useState<ClaimResponse[]>([])
+  const [sales, setSales] = useState<SalesRecord[]>([])
+  const [ottKeys, setOttKeys] = useState<OTTKey[]>([])
+  const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState(false)
+  const [automating, setAutomating] = useState(false)
+  const [automationProgress, setAutomationProgress] = useState(0)
+  const [automationResults, setAutomationResults] = useState<any>(null)
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (loginData.email === "sales.systechdigital@gmail.com" && loginData.password === "Admin@12345") {
-      setIsAuthenticated(true)
-      fetchAllData()
-    } else {
-      alert("Invalid credentials")
-    }
-  }
+  useEffect(() => {
+    fetchData()
+  }, [])
 
-  const fetchAllData = async () => {
+  const fetchData = async () => {
     setLoading(true)
     try {
-      // Fetch claim responses
-      const claimsResponse = await fetch("/api/admin/claims")
-      if (claimsResponse.ok) {
-        const claimsData = await claimsResponse.json()
-        setClaimResponses(claimsData.claims || [])
+      const [claimsRes, salesRes, keysRes] = await Promise.all([
+        fetch("/api/admin/claims"),
+        fetch("/api/admin/sales"),
+        fetch("/api/admin/keys"),
+      ])
+
+      if (claimsRes.ok) {
+        const claimsData = await claimsRes.json()
+        setClaims(claimsData.claims || [])
       }
 
-      // Fetch sales records
-      const salesResponse = await fetch("/api/admin/sales")
-      if (salesResponse.ok) {
-        const salesData = await salesResponse.json()
-        setSalesRecords(salesData.sales || [])
+      if (salesRes.ok) {
+        const salesData = await salesRes.json()
+        setSales(salesData.sales || [])
       }
 
-      // Fetch OTT keys
-      const keysResponse = await fetch("/api/admin/keys")
-      if (keysResponse.ok) {
-        const keysData = await keysResponse.json()
-        setOTTKeys(keysData.keys || [])
+      if (keysRes.ok) {
+        const keysData = await keysRes.json()
+        setOttKeys(keysData.keys || [])
       }
     } catch (error) {
       console.error("Error fetching data:", error)
+      toast({
+        title: "Error",
+        description: "Failed to fetch dashboard data",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }
   }
 
-  const handleSalesUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+  const handleFileUpload = async (file: File, type: string) => {
     if (!file) return
 
-    setUploadingSales(true)
+    setUploading(true)
     const formData = new FormData()
     formData.append("file", file)
 
     try {
-      const response = await fetch("/api/admin/upload-sales", {
+      const endpoint = type === "sales" ? "/api/admin/upload-sales" : "/api/admin/upload-keys"
+      const response = await fetch(endpoint, {
         method: "POST",
         body: formData,
       })
 
       const result = await response.json()
+
       if (result.success) {
-        alert(`Successfully uploaded ${result.count} sales records`)
-        fetchAllData()
+        toast({
+          title: "Success",
+          description: `${type === "sales" ? "Sales records" : "OTT keys"} uploaded successfully`,
+        })
+        fetchData() // Refresh data
       } else {
-        alert("Error uploading sales data: " + result.error)
+        toast({
+          title: "Error",
+          description: result.error || "Upload failed",
+          variant: "destructive",
+        })
       }
     } catch (error) {
-      console.error("Error uploading sales:", error)
-      alert("Error uploading sales data")
+      console.error("Upload error:", error)
+      toast({
+        title: "Error",
+        description: "Upload failed",
+        variant: "destructive",
+      })
     } finally {
-      setUploadingSales(false)
-      if (salesFileInputRef.current) {
-        salesFileInputRef.current.value = ""
-      }
+      setUploading(false)
     }
   }
 
-  const handleKeysUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    setUploadingKeys(true)
-    const formData = new FormData()
-    formData.append("file", file)
+  const handleAutomation = async () => {
+    setAutomating(true)
+    setAutomationProgress(0)
+    setAutomationResults(null)
 
     try {
-      const response = await fetch("/api/admin/upload-keys", {
+      const response = await fetch("/api/admin/process-automation", {
         method: "POST",
-        body: formData,
       })
 
       const result = await response.json()
+
       if (result.success) {
-        alert(`Successfully uploaded ${result.count} OTT keys`)
-        fetchAllData()
+        setAutomationResults(result.results)
+        toast({
+          title: "Automation Complete",
+          description: `Processed ${result.results.processed} claims successfully`,
+        })
+        fetchData() // Refresh data
       } else {
-        alert("Error uploading OTT keys: " + result.error)
+        toast({
+          title: "Automation Failed",
+          description: result.error || "Automation process failed",
+          variant: "destructive",
+        })
       }
     } catch (error) {
-      console.error("Error uploading keys:", error)
-      alert("Error uploading OTT keys")
+      console.error("Automation error:", error)
+      toast({
+        title: "Error",
+        description: "Automation process failed",
+        variant: "destructive",
+      })
     } finally {
-      setUploadingKeys(false)
-      if (keysFileInputRef.current) {
-        keysFileInputRef.current.value = ""
-      }
+      setAutomating(false)
+      setAutomationProgress(100)
     }
   }
 
-  const exportToExcel = async (type: string) => {
+  const handleExport = async (type: string) => {
     try {
       const response = await fetch(`/api/admin/export?type=${type}`)
 
-      if (!response.ok) {
+      if (response.ok) {
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        a.href = url
+        a.download = `${type}_export.xlsx`
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+
+        toast({
+          title: "Success",
+          description: `${type} data exported successfully`,
+        })
+      } else {
         throw new Error("Export failed")
       }
-
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = `${type}_export_${new Date().toISOString().split("T")[0]}.xlsx`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
     } catch (error) {
-      console.error("Error exporting data:", error)
-      alert("Error exporting data")
+      console.error("Export error:", error)
+      toast({
+        title: "Error",
+        description: "Export failed",
+        variant: "destructive",
+      })
     }
   }
 
-  const processAutomation = async () => {
-    if (
-      !confirm(
-        "Are you sure you want to start the automation process? This will check all pending claims and send OTT codes where applicable.",
-      )
-    ) {
-      return
+  const getStatusBadge = (status: string) => {
+    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+      pending: "outline",
+      completed: "default",
+      failed: "destructive",
+      success: "default",
+      available: "secondary",
+      assigned: "default",
+      used: "destructive",
     }
-
-    setLoading(true)
-    try {
-      const response = await fetch("/api/admin/process-automation", { method: "POST" })
-      const result = await response.json()
-
-      if (result.success) {
-        alert(
-          `Automation completed successfully!
-
-Processed: ${result.processed} claims
-OTT Codes Sent: ${result.ottCodesSent}
-Wait Emails Sent: ${result.waitEmails}
-Already Claimed: ${result.alreadyClaimed}`,
-        )
-        fetchAllData()
-      } else {
-        alert("Error processing automation: " + result.message)
-      }
-    } catch (error) {
-      console.error("Error processing automation:", error)
-      alert("Error processing automation")
-    } finally {
-      setLoading(false)
-    }
+    return <Badge variant={variants[status] || "outline"}>{status}</Badge>
   }
 
-  if (!isAuthenticated) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <Image src="/logo.png" alt="SYSTECH DIGITAL Logo" width={60} height={60} className="rounded-full" />
-            </div>
-            <CardTitle className="text-2xl">Admin Login</CardTitle>
-            <p className="text-gray-600">SYSTECH DIGITAL Admin Dashboard</p>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={loginData.email}
-                  onChange={(e) => setLoginData((prev) => ({ ...prev, email: e.target.value }))}
-                  placeholder="sales.systechdigital@gmail.com"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={loginData.password}
-                  onChange={(e) => setLoginData((prev) => ({ ...prev, password: e.target.value }))}
-                  placeholder="Admin@12345"
-                  required
-                />
-              </div>
-              <Button type="submit" className="w-full">
-                Login
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p>Loading dashboard...</p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-gradient-to-r from-black via-red-900 to-black shadow-lg border-b border-red-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <header className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <Image src="/logo.png" alt="SYSTECH DIGITAL Logo" width={40} height={40} className="rounded-full mr-3" />
-              <div>
-                <h1 className="text-3xl font-bold text-white">SYSTECH DIGITAL</h1>
-                <p className="text-sm text-red-200 mt-1">Admin Dashboard</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Button onClick={processAutomation} disabled={loading} className="bg-green-600 hover:bg-green-700">
-                <Play className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-                Start Automation
+            <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+            <div className="flex space-x-4">
+              <Button onClick={() => (window.location.href = "/")} variant="outline">
+                Back to Home
               </Button>
-              <Button
-                onClick={() => setIsAuthenticated(false)}
-                variant="outline"
-                className="text-white border-white hover:bg-white hover:text-black"
-              >
-                Logout
+              <Button onClick={fetchData} variant="outline">
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
               </Button>
             </div>
           </div>
@@ -309,28 +262,115 @@ Already Claimed: ${result.alreadyClaimed}`,
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Tabs defaultValue="claims" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="claims">OTT Claim Responses ({claimResponses.length})</TabsTrigger>
-            <TabsTrigger value="sales">All Sales ({salesRecords.length})</TabsTrigger>
-            <TabsTrigger value="keys">OTT Keys ({ottKeys.length})</TabsTrigger>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Claims</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{claims.length}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Sales Records</CardTitle>
+              <CreditCard className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{sales.length}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">OTT Keys</CardTitle>
+              <Key className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{ottKeys.length}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Available Keys</CardTitle>
+              <Key className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{ottKeys.filter((k) => k.status === "available").length}</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Automation Section */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Automation Control</CardTitle>
+            <CardDescription>Process paid claims and assign OTT keys automatically</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center space-x-4">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button disabled={automating}>
+                    <Play className="h-4 w-4 mr-2" />
+                    {automating ? "Processing..." : "Run Automation"}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Run Automation Process</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will process all paid claims, match them with sales records, and assign available OTT keys.
+                      Email notifications will be sent to customers.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleAutomation}>Continue</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              {automating && (
+                <div className="flex-1">
+                  <Progress value={automationProgress} className="w-full" />
+                </div>
+              )}
+            </div>
+
+            {automationResults && (
+              <div className="mt-4 p-4 bg-green-50 rounded-lg">
+                <h4 className="font-semibold text-green-800">Automation Results</h4>
+                <p className="text-green-700">
+                  Processed: {automationResults.processed} | Success: {automationResults.success} | Failed:{" "}
+                  {automationResults.failed}
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Data Management Tabs */}
+        <Tabs defaultValue="claims" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="claims">OTT Claims</TabsTrigger>
+            <TabsTrigger value="sales">Sales Records</TabsTrigger>
+            <TabsTrigger value="keys">OTT Keys</TabsTrigger>
           </TabsList>
 
           <TabsContent value="claims">
             <Card>
               <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle>OTT Claim Responses</CardTitle>
-                  <div className="flex space-x-2">
-                    <Button onClick={() => exportToExcel("claims")} variant="outline">
-                      <Download className="w-4 h-4 mr-2" />
-                      Export Excel
-                    </Button>
-                    <Button onClick={fetchAllData} variant="outline">
-                      <RefreshCw className="w-4 h-4 mr-2" />
-                      Refresh
-                    </Button>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>OTT Claim Responses</CardTitle>
+                    <CardDescription>Manage customer OTT platform claims</CardDescription>
                   </div>
+                  <Button onClick={() => handleExport("claims")} variant="outline">
+                    <Download className="h-4 w-4 mr-2" />
+                    Export
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
@@ -341,70 +381,24 @@ Already Claimed: ${result.alreadyClaimed}`,
                         <TableHead>Name</TableHead>
                         <TableHead>Email</TableHead>
                         <TableHead>Phone</TableHead>
-                        <TableHead>Address</TableHead>
-                        <TableHead>Purchase Type</TableHead>
                         <TableHead>Activation Code</TableHead>
-                        <TableHead>Purchase Date</TableHead>
+                        <TableHead>Purchase Type</TableHead>
                         <TableHead>Payment Status</TableHead>
-                        <TableHead>Payment ID</TableHead>
                         <TableHead>OTT Status</TableHead>
-                        <TableHead>OTT Code</TableHead>
-                        <TableHead>Submitted</TableHead>
-                        <TableHead>Actions</TableHead>
+                        <TableHead>Date</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {claimResponses.map((claim) => (
+                      {claims.map((claim) => (
                         <TableRow key={claim.id}>
-                          <TableCell>
-                            {claim.firstName} {claim.lastName}
-                          </TableCell>
+                          <TableCell>{`${claim.firstName} ${claim.lastName}`}</TableCell>
                           <TableCell>{claim.email}</TableCell>
                           <TableCell>{claim.phone}</TableCell>
-                          <TableCell>
-                            <div className="text-sm">
-                              <div>{claim.streetAddress}</div>
-                              <div>
-                                {claim.city}, {claim.state}
-                              </div>
-                              <div>
-                                {claim.country} - {claim.postalCode}
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={claim.purchaseType === "hardware" ? "default" : "secondary"}>
-                              {claim.purchaseType}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="font-mono text-sm">{claim.activationCode}</TableCell>
-                          <TableCell>{claim.purchaseDate}</TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                claim.paymentStatus === "completed"
-                                  ? "default"
-                                  : claim.paymentStatus === "failed"
-                                    ? "destructive"
-                                    : "secondary"
-                              }
-                            >
-                              {claim.paymentStatus}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="font-mono text-xs">{claim.paymentId || "-"}</TableCell>
-                          <TableCell>
-                            <Badge variant={claim.ottCodeStatus === "sent" ? "default" : "secondary"}>
-                              {claim.ottCodeStatus}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="font-mono text-xs">{claim.ottCode || "-"}</TableCell>
+                          <TableCell>{claim.activationCode}</TableCell>
+                          <TableCell>{claim.purchaseType}</TableCell>
+                          <TableCell>{getStatusBadge(claim.paymentStatus)}</TableCell>
+                          <TableCell>{getStatusBadge(claim.ottCodeStatus)}</TableCell>
                           <TableCell>{new Date(claim.createdAt).toLocaleDateString()}</TableCell>
-                          <TableCell>
-                            <Button size="sm" variant="outline">
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -417,68 +411,55 @@ Already Claimed: ${result.alreadyClaimed}`,
           <TabsContent value="sales">
             <Card>
               <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle>All Sales Records</CardTitle>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>All Sales Records</CardTitle>
+                    <CardDescription>Upload and manage sales data</CardDescription>
+                  </div>
                   <div className="flex space-x-2">
-                    <input
-                      ref={salesFileInputRef}
+                    <Input
                       type="file"
-                      accept=".xlsx,.xls,.csv"
-                      onChange={handleSalesUpload}
+                      accept=".xlsx,.xls"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) handleFileUpload(file, "sales")
+                      }}
                       className="hidden"
+                      id="sales-upload"
                     />
-                    <Button
-                      onClick={() => salesFileInputRef.current?.click()}
-                      disabled={uploadingSales}
-                      className="bg-blue-600 hover:bg-blue-700"
-                    >
-                      <Upload className="w-4 h-4 mr-2" />
-                      {uploadingSales ? "Uploading..." : "Upload Sales Data"}
-                    </Button>
-                    <Button onClick={() => exportToExcel("sales")} variant="outline">
-                      <Download className="w-4 h-4 mr-2" />
-                      Export Excel
-                    </Button>
-                    <Button onClick={fetchAllData} variant="outline">
-                      <RefreshCw className="w-4 h-4 mr-2" />
-                      Refresh
+                    <Label htmlFor="sales-upload" className="cursor-pointer">
+                      <Button variant="outline" disabled={uploading}>
+                        <Upload className="h-4 w-4 mr-2" />
+                        Upload Excel
+                      </Button>
+                    </Label>
+                    <Button onClick={() => handleExport("sales")} variant="outline">
+                      <Download className="h-4 w-4 mr-2" />
+                      Export
                     </Button>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <h4 className="font-semibold text-blue-900 mb-2">Upload Instructions:</h4>
-                  <p className="text-sm text-blue-800">
-                    Upload an Excel file (.xlsx, .xls) or CSV file with the following columns:
-                  </p>
-                  <ul className="text-sm text-blue-800 mt-2 ml-4 list-disc">
-                    <li>
-                      <strong>Product Sub Category</strong> - Category of the product
-                    </li>
-                    <li>
-                      <strong>Product</strong> - Product name
-                    </li>
-                    <li>
-                      <strong>Activation Code/ Serial No / IMEI Number</strong> - Unique identifier
-                    </li>
-                  </ul>
-                </div>
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Product Sub Category</TableHead>
-                        <TableHead>Product</TableHead>
-                        <TableHead>Activation Code/ Serial No / IMEI Number</TableHead>
+                        <TableHead>Customer Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Activation Code</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Date</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {salesRecords.map((sale) => (
+                      {sales.map((sale) => (
                         <TableRow key={sale.id}>
-                          <TableCell>{sale.productSubCategory}</TableCell>
-                          <TableCell>{sale.product}</TableCell>
-                          <TableCell className="font-mono">{sale.activationCode}</TableCell>
+                          <TableCell>{sale.customerName}</TableCell>
+                          <TableCell>{sale.email}</TableCell>
+                          <TableCell>{sale.activationCode}</TableCell>
+                          <TableCell>{getStatusBadge(sale.status)}</TableCell>
+                          <TableCell>{new Date(sale.createdAt).toLocaleDateString()}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -491,78 +472,53 @@ Already Claimed: ${result.alreadyClaimed}`,
           <TabsContent value="keys">
             <Card>
               <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle>OTT Keys Management</CardTitle>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>OTT Keys</CardTitle>
+                    <CardDescription>Manage available OTT platform keys</CardDescription>
+                  </div>
                   <div className="flex space-x-2">
-                    <input
-                      ref={keysFileInputRef}
+                    <Input
                       type="file"
-                      accept=".xlsx,.xls,.csv"
-                      onChange={handleKeysUpload}
+                      accept=".xlsx,.xls"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) handleFileUpload(file, "keys")
+                      }}
                       className="hidden"
+                      id="keys-upload"
                     />
-                    <Button
-                      onClick={() => keysFileInputRef.current?.click()}
-                      disabled={uploadingKeys}
-                      className="bg-purple-600 hover:bg-purple-700"
-                    >
-                      <Upload className="w-4 h-4 mr-2" />
-                      {uploadingKeys ? "Uploading..." : "Upload OTT Keys"}
-                    </Button>
-                    <Button onClick={() => exportToExcel("keys")} variant="outline">
-                      <Download className="w-4 h-4 mr-2" />
-                      Export Excel
-                    </Button>
-                    <Button onClick={fetchAllData} variant="outline">
-                      <RefreshCw className="w-4 h-4 mr-2" />
-                      Refresh
+                    <Label htmlFor="keys-upload" className="cursor-pointer">
+                      <Button variant="outline" disabled={uploading}>
+                        <Upload className="h-4 w-4 mr-2" />
+                        Upload Excel
+                      </Button>
+                    </Label>
+                    <Button onClick={() => handleExport("keys")} variant="outline">
+                      <Download className="h-4 w-4 mr-2" />
+                      Export
                     </Button>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="mb-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
-                  <h4 className="font-semibold text-purple-900 mb-2">Upload Instructions:</h4>
-                  <p className="text-sm text-purple-800">
-                    Upload an Excel file (.xlsx, .xls) or CSV file with the following columns:
-                  </p>
-                  <ul className="text-sm text-purple-800 mt-2 ml-4 list-disc">
-                    <li>
-                      <strong>Product Sub Category</strong> - Category of the OTT service
-                    </li>
-                    <li>
-                      <strong>Product</strong> - OTT service name (Netflix, Prime, etc.)
-                    </li>
-                    <li>
-                      <strong>Activation Code</strong> - OTT subscription code
-                    </li>
-                  </ul>
-                </div>
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Product Sub Category</TableHead>
-                        <TableHead>Product</TableHead>
-                        <TableHead>Activation Code</TableHead>
+                        <TableHead>Platform</TableHead>
+                        <TableHead>Key Code</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead>Assigned Email</TableHead>
-                        <TableHead>Assigned Date</TableHead>
+                        <TableHead>Date</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {ottKeys.map((key) => (
                         <TableRow key={key.id}>
-                          <TableCell>{key.productSubCategory}</TableCell>
-                          <TableCell>{key.product}</TableCell>
-                          <TableCell className="font-mono text-sm">{key.activationCode}</TableCell>
-                          <TableCell>
-                            <Badge variant={key.status === "available" ? "default" : "destructive"}>{key.status}</Badge>
-                          </TableCell>
-                          <TableCell>{key.assignedEmail || "-"}</TableCell>
-                          <TableCell>
-                            {key.assignedDate ? new Date(key.assignedDate).toLocaleDateString() : "-"}
-                          </TableCell>
+                          <TableCell>{key.platform}</TableCell>
+                          <TableCell>{key.keyCode}</TableCell>
+                          <TableCell>{getStatusBadge(key.status)}</TableCell>
+                          <TableCell>{new Date(key.createdAt).toLocaleDateString()}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
