@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
     const db = await getDatabase()
     console.log("Database connected, inserting claim...")
 
-    const result = await db.collection<ClaimResponse>("claims").insertOne(claimData)
+    const result = await db.collection("claims").insertOne(claimData)
     console.log("Claim inserted:", result.insertedId)
 
     if (!result.insertedId) {

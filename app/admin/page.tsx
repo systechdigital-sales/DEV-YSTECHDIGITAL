@@ -13,6 +13,9 @@ import { Badge } from "@/components/ui/badge"
 import { Eye, Download, RefreshCw, Upload, Play } from "lucide-react"
 import Image from "next/image"
 
+// Force dynamic rendering to prevent build-time database connections
+export const dynamic = "force-dynamic"
+
 interface ClaimResponse {
   id: string
   firstName: string
@@ -83,18 +86,24 @@ export default function AdminDashboard() {
     try {
       // Fetch claim responses
       const claimsResponse = await fetch("/api/admin/claims")
-      const claimsData = await claimsResponse.json()
-      setClaimResponses(claimsData)
+      if (claimsResponse.ok) {
+        const claimsData = await claimsResponse.json()
+        setClaimResponses(claimsData.claims || [])
+      }
 
       // Fetch sales records
       const salesResponse = await fetch("/api/admin/sales")
-      const salesData = await salesResponse.json()
-      setSalesRecords(salesData)
+      if (salesResponse.ok) {
+        const salesData = await salesResponse.json()
+        setSalesRecords(salesData.sales || [])
+      }
 
       // Fetch OTT keys
       const keysResponse = await fetch("/api/admin/keys")
-      const keysData = await keysResponse.json()
-      setOTTKeys(keysData)
+      if (keysResponse.ok) {
+        const keysData = await keysResponse.json()
+        setOTTKeys(keysData.keys || [])
+      }
     } catch (error) {
       console.error("Error fetching data:", error)
     } finally {
@@ -205,7 +214,12 @@ export default function AdminDashboard() {
 
       if (result.success) {
         alert(
-          `Automation completed successfully!\n\nProcessed: ${result.processed} claims\nOTT Codes Sent: ${result.ottCodesSent}\nWait Emails Sent: ${result.waitEmails}\nAlready Claimed: ${result.alreadyClaimed}`,
+          `Automation completed successfully!
+
+Processed: ${result.processed} claims
+OTT Codes Sent: ${result.ottCodesSent}
+Wait Emails Sent: ${result.waitEmails}
+Already Claimed: ${result.alreadyClaimed}`,
         )
         fetchAllData()
       } else {

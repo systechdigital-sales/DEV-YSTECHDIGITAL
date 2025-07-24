@@ -1,34 +1,43 @@
 import { type NextRequest, NextResponse } from "next/server"
 import Razorpay from "razorpay"
 
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID!,
+  key_secret: process.env.RAZORPAY_KEY_SECRET!,
+})
+
 export async function POST(request: NextRequest) {
   try {
-    // Ensure the env vars exist at runtime
-    const { RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET } = process.env
-    if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
-      return NextResponse.json({ error: "Razorpay environment variables are not configured" }, { status: 500 })
+    const { amount, claimId, customerName, customerEmail, customerPhone } = await request.json()
+
+    if (!amount || !claimId) {
+      return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 })
     }
 
-    // Create the client at request time (avoids build-time crashes)
-    const razorpay = new Razorpay({
-      key_id: RAZORPAY_KEY_ID,
-      key_secret: RAZORPAY_KEY_SECRET,
+    const options = {
+      amount: amount, // amount in paise
+      currency: "INR",
+      receipt: `receipt_${claimId}`,
+      notes: {
+        claimId,
+        customerName,
+        customerEmail,
+        customerPhone,
+      },
+    }
+
+    const order = await razorpay.orders.create(options)
+
+    return NextResponse.json({
+      success: true,
+      order: {
+        id: order.id,
+        amount: order.amount,
+        currency: order.currency,
+      },
     })
-
-    const body = await request.json()
-    const { amount, currency = "INR", receipt, notes } = body
-
-    const order = await razorpay.orders.create({
-      amount,
-      currency,
-      receipt,
-      notes,
-      payment_capture: 1,
-    })
-
-    return NextResponse.json(order)
   } catch (error) {
     console.error("Error creating Razorpay order:", error)
-    return NextResponse.json({ error: "Failed to create order" }, { status: 500 })
+    return NextResponse.json({ success: false, error: "Failed to create payment order" }, { status: 500 })
   }
 }

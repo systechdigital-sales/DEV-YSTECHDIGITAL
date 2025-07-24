@@ -30,7 +30,7 @@ if (process.env.NODE_ENV === "development") {
 
 export async function getDatabase(): Promise<Db> {
   const client = await clientPromise
-  return client.db("systech_ott_platform")
+  return client.db("systech_digital")
 }
 
 export default clientPromise

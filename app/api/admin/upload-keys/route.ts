@@ -1,7 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
 import * as XLSX from "xlsx"
-import type { OTTKey } from "@/lib/models"
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,44 +11,40 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "No file provided" }, { status: 400 })
     }
 
-    // Read Excel file
+    // Read file buffer
     const buffer = await file.arrayBuffer()
-    const workbook = XLSX.read(buffer, { type: "array" })
+    const workbook = XLSX.read(buffer, { type: "buffer" })
     const sheetName = workbook.SheetNames[0]
     const worksheet = workbook.Sheets[sheetName]
     const data = XLSX.utils.sheet_to_json(worksheet)
 
-    console.log("Excel data parsed:", data.length, "rows")
+    if (data.length === 0) {
+      return NextResponse.json({ success: false, error: "No data found in file" }, { status: 400 })
+    }
 
+    // Transform data to match our schema
+    const ottKeys = data.map((row: any, index: number) => ({
+      id: `key_${Date.now()}_${index}`,
+      productSubCategory: row["Product Sub Category"] || "",
+      product: row["Product"] || "",
+      activationCode: row["Activation Code"] || "",
+      status: "available",
+      createdAt: new Date().toISOString(),
+    }))
+
+    // Save to database
     const db = await getDatabase()
-    const ottKeys: OTTKey[] = []
 
-    for (const row of data as any[]) {
-      // Flexible column mapping
-      const platform = row["Platform"] || row["platform"] || row["OTT Platform"] || "Netflix"
-      const keyCode = row["Key Code"] || row["Code"] || row["key_code"] || row["Key"] || ""
+    // Clear existing OTT keys
+    await db.collection("ottKeys").deleteMany({})
 
-      if (keyCode) {
-        const ottKey: OTTKey = {
-          id: `key_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          platform,
-          keyCode,
-          status: "available",
-          createdAt: new Date().toISOString(),
-        }
-        ottKeys.push(ottKey)
-      }
-    }
-
-    if (ottKeys.length > 0) {
-      await db.collection<OTTKey>("ottKeys").insertMany(ottKeys)
-      console.log(`Inserted ${ottKeys.length} OTT keys`)
-    }
+    // Insert new keys
+    const result = await db.collection("ottKeys").insertMany(ottKeys)
 
     return NextResponse.json({
       success: true,
-      message: `Successfully uploaded ${ottKeys.length} OTT keys`,
-      count: ottKeys.length,
+      count: result.insertedCount,
+      message: "OTT keys uploaded successfully",
     })
   } catch (error) {
     console.error("Error uploading OTT keys:", error)

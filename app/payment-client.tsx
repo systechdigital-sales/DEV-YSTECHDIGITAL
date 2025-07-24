@@ -76,7 +76,7 @@ export default function PaymentClient() {
 
       // Initialize Razorpay
       const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        key: orderData.key,
         amount: orderData.order.amount,
         currency: orderData.order.currency,
         name: "SYSTECH DIGITAL",

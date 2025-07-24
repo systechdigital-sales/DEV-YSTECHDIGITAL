@@ -1,7 +1,12 @@
+"use client"
+
+import { Suspense } from "react"
 import PaymentClient from "@/components/payment-client"
 
-export default async function PaymentPage() {
-  const publicKey = process.env.RAZORPAY_KEY_ID!
-
-  return <PaymentClient publicKey={publicKey} />
+export default function PaymentPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <PaymentClient />
+    </Suspense>
+  )
 }
