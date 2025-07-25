@@ -1,58 +1,85 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { getDatabase } from "@/lib/mongodb"
+import { NextResponse } from "next/server"
 import * as XLSX from "xlsx"
-import type { OTTKey } from "@/lib/models"
+import { getDatabase } from "@/lib/mongodb"
+import type { IOTTKey } from "@/lib/models"
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
+    const db = await getDatabase()
     const formData = await request.formData()
-    const file = formData.get("file") as File
+    const file = formData.get("file") as File | null
 
     if (!file) {
-      return NextResponse.json({ success: false, error: "No file provided" }, { status: 400 })
+      return NextResponse.json({ success: false, error: "No file uploaded." }, { status: 400 })
     }
 
-    // Read Excel file
-    const buffer = await file.arrayBuffer()
-    const workbook = XLSX.read(buffer, { type: "array" })
+    const arrayBuffer = await file.arrayBuffer()
+    const data = new Uint8Array(arrayBuffer)
+    const workbook = XLSX.read(data, { type: "array" })
+
     const sheetName = workbook.SheetNames[0]
     const worksheet = workbook.Sheets[sheetName]
-    const data = XLSX.utils.sheet_to_json(worksheet)
+    const json = XLSX.utils.sheet_to_json(worksheet) as any[]
 
-    console.log("Excel data parsed:", data.length, "rows")
+    let uploadedCount = 0
+    const errors: string[] = []
+    const keysToInsert: IOTTKey[] = []
 
-    const db = await getDatabase()
-    const ottKeys: OTTKey[] = []
-
-    for (const row of data as any[]) {
-      // Flexible column mapping
-      const platform = row["Platform"] || row["platform"] || row["OTT Platform"] || "Netflix"
-      const keyCode = row["Key Code"] || row["Code"] || row["key_code"] || row["Key"] || ""
-
-      if (keyCode) {
-        const ottKey: OTTKey = {
-          id: `key_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          platform,
-          keyCode,
-          status: "available",
-          createdAt: new Date().toISOString(),
+    for (const row of json) {
+      try {
+        const newOTTKey: IOTTKey = {
+          productSubCategory: row["Product Sub Category"] || "",
+          product: row["Product"] || "",
+          activationCode: row["Activation Code"] || "",
+          status: "available", // Default status for new keys
+          createdAt: new Date(),
+          updatedAt: new Date(),
         }
-        ottKeys.push(ottKey)
+
+        if (!newOTTKey.productSubCategory || !newOTTKey.product || !newOTTKey.activationCode) {
+          errors.push(`Row ${json.indexOf(row) + 2}: Missing required fields.`)
+          continue
+        }
+
+        keysToInsert.push(newOTTKey)
+      } catch (parseError: any) {
+        errors.push(`Row ${json.indexOf(row) + 2}: ${parseError.message || "Parsing error"}`)
       }
     }
 
-    if (ottKeys.length > 0) {
-      await db.collection<OTTKey>("ottKeys").insertMany(ottKeys)
-      console.log(`Inserted ${ottKeys.length} OTT keys`)
+    if (keysToInsert.length > 0) {
+      try {
+        const result = await db.collection<IOTTKey>("ottkeys").insertMany(keysToInsert, { ordered: false })
+        uploadedCount = result.insertedCount
+      } catch (dbError: any) {
+        if (dbError.code === 11000 && dbError.writeErrors) {
+          dbError.writeErrors.forEach((err: any) => {
+            const duplicateKey = err.err.errmsg.match(/dup key: { : "([^"]+)" }/)?.[1] || "unknown"
+            errors.push(`Duplicate activation code: ${duplicateKey}`)
+          })
+          uploadedCount = keysToInsert.length - dbError.writeErrors.length
+        } else {
+          console.error("Error during bulk insert of OTT keys:", dbError)
+          errors.push(`Database error during bulk insert: ${dbError.message || "Unknown error"}`)
+        }
+      }
     }
 
-    return NextResponse.json({
-      success: true,
-      message: `Successfully uploaded ${ottKeys.length} OTT keys`,
-      count: ottKeys.length,
-    })
-  } catch (error) {
-    console.error("Error uploading OTT keys:", error)
-    return NextResponse.json({ success: false, error: "Failed to upload OTT keys" }, { status: 500 })
+    if (errors.length > 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          count: uploadedCount,
+          error: `Uploaded ${uploadedCount} records with errors in ${errors.length} rows.`,
+          details: errors,
+        },
+        { status: 500 },
+      )
+    }
+
+    return NextResponse.json({ success: true, count: uploadedCount }, { status: 200 })
+  } catch (error: any) {
+    console.error("Error processing keys upload:", error)
+    return NextResponse.json({ success: false, error: error.message || "Internal server error" }, { status: 500 })
   }
 }

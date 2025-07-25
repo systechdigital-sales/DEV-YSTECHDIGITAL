@@ -1,22 +1,24 @@
 import { NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
-import type { ClaimResponse } from "@/lib/models"
-import { getFallbackClaims, withFallback } from "@/lib/fallback-data"
+import type { IClaimResponse, ClaimResponse } from "@/lib/models"
 
 export async function GET() {
   try {
-    const claims = await withFallback(
-      async () => {
-        const db = await getDatabase()
-        return db.collection<ClaimResponse>("claims").find({}).sort({ createdAt: -1 }).toArray()
-      },
-      getFallbackClaims(),
-      "Error fetching claims"
-    )
+    const db = await getDatabase()
+    const claims = await db.collection<IClaimResponse>("claims").find({}).toArray() // Changed collection name
 
-    return NextResponse.json({ success: true, data: claims })
-  } catch (error) {
+    const formattedClaims: ClaimResponse[] = claims.map((claim) => ({
+      ...claim,
+      id: claim._id.toString(),
+      createdAt: claim.createdAt ? claim.createdAt.toString() : "",
+      updatedAt: claim.updatedAt ? claim.updatedAt.toString() : "",
+    }))
+
+    console.log(`Fetched ${formattedClaims.length} claims`)
+
+    return NextResponse.json(formattedClaims)
+  } catch (error: any) {
     console.error("Error fetching claims:", error)
-    return NextResponse.json({ success: false, error: "Failed to fetch claims" }, { status: 500 })
+    return NextResponse.json({ error: error.message || "Failed to fetch claims" }, { status: 500 })
   }
 }

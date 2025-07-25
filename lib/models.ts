@@ -1,5 +1,8 @@
-export interface ClaimResponse {
-  id: string
+import type { ObjectId } from "mongodb"
+
+// Interfaces for MongoDB documents
+export interface IClaimResponse {
+  _id?: ObjectId
   firstName: string
   lastName: string
   email: string
@@ -10,52 +13,61 @@ export interface ClaimResponse {
   state: string
   postalCode: string
   country: string
-  purchaseType: "hardware" | "software"
+  purchaseType: string
   activationCode: string
   purchaseDate: string
+  claimSubmissionDate: string
   invoiceNumber?: string
   sellerName?: string
-  billFileName?: string
-  paymentStatus: "pending" | "completed" | "failed"
+  paymentStatus: string
   paymentId?: string
-  ottCodeStatus: "pending" | "assigned" | "delivered" | "failed"
+  ottCodeStatus: string // e.g., "pending", "delivered", "failed", "already_claimed", "activation_code_not_found"
   ottCode?: string
-  createdAt: string
-  updatedAt: string
+  createdAt?: Date
+  updatedAt?: Date
+  billFileName?: string
 }
 
-export interface SalesRecord {
-  id: string
-  customerName: string
-  email: string
-  phone: string
+export interface ISalesRecord {
+  _id?: ObjectId
+  productSubCategory: string
+  product: string
   activationCode: string
-  purchaseDate: string
-  productType: string
-  amount: number
-  status: "active" | "claimed" | "expired"
-  createdAt: string
+  status?: "available" | "claimed" // Added status field
+  createdAt?: Date
+  updatedAt?: Date
 }
 
-export interface OTTKey {
-  id: string
-  platform: string
-  keyCode: string
+export interface IOTTKey {
+  _id?: ObjectId
+  productSubCategory: string
+  product: string
+  activationCode: string
   status: "available" | "assigned" | "used"
-  assignedTo?: string
-  assignedDate?: string
-  createdAt: string
+  assignedEmail?: string
+  assignedDate?: Date
+  assignedTo?: ObjectId // Added to link to ClaimResponse _id
+  createdAt?: Date
+  updatedAt?: Date
 }
 
-export interface PaymentRecord {
+// Client-side interfaces (mapping _id to id string)
+export interface ClaimResponse extends Omit<IClaimResponse, "_id" | "createdAt" | "updatedAt"> {
   id: string
-  claimId: string
-  paymentId: string
-  orderId: string
-  amount: number
-  currency: string
-  status: "success" | "failed"
-  customerEmail: string
-  customerName: string
   createdAt: string
+  updatedAt?: string
+}
+
+export interface SalesRecord extends Omit<ISalesRecord, "_id" | "createdAt" | "updatedAt"> {
+  id: string
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface OTTKey extends Omit<IOTTKey, "_id" | "createdAt" | "updatedAt" | "assignedDate" | "assignedTo"> {
+  id: string
+  createdAt?: string
+  updatedAt?: string
+  assignedDate?: string
+  assignedTo?: string
 }

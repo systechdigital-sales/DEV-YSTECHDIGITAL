@@ -1,22 +1,22 @@
 import { NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
-import type { SalesRecord } from "@/lib/models"
-import { getFallbackSales, withFallback } from "@/lib/fallback-data"
+import type { ISalesRecord, SalesRecord } from "@/lib/models"
 
 export async function GET() {
   try {
-    const sales = await withFallback(
-      async () => {
-        const db = await getDatabase()
-        return db.collection<SalesRecord>("sales").find({}).sort({ createdAt: -1 }).toArray()
-      },
-      getFallbackSales(),
-      "Error fetching sales"
-    )
+    const db = await getDatabase()
+    const sales = await db.collection<ISalesRecord>("salesrecords").find({}).toArray()
 
-    return NextResponse.json({ success: true, data: sales })
-  } catch (error) {
-    console.error("Error fetching sales:", error)
-    return NextResponse.json({ success: false, error: "Failed to fetch sales" }, { status: 500 })
+    const formattedSales: SalesRecord[] = sales.map((sale) => ({
+      ...sale,
+      id: sale._id.toString(),
+      createdAt: sale.createdAt ? sale.createdAt.toISOString() : undefined,
+      updatedAt: sale.updatedAt ? sale.updatedAt.toISOString() : undefined,
+    }))
+
+    return NextResponse.json(formattedSales)
+  } catch (error: any) {
+    console.error("Error fetching sales records:", error)
+    return NextResponse.json({ error: error.message || "Failed to fetch sales records" }, { status: 500 })
   }
 }

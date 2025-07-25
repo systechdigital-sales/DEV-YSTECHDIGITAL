@@ -1,8 +1,7 @@
 "use client"
 
 import type React from "react"
-
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -12,49 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Eye, Download, RefreshCw, Upload, Play } from "lucide-react"
 import Image from "next/image"
-
-interface ClaimResponse {
-  id: string
-  firstName: string
-  lastName: string
-  email: string
-  phone: string
-  streetAddress: string
-  addressLine2: string
-  city: string
-  state: string
-  postalCode: string
-  country: string
-  purchaseType: string
-  activationCode: string
-  purchaseDate: string
-  claimSubmissionDate: string
-  invoiceNumber?: string
-  sellerName?: string
-  paymentStatus: string
-  paymentId?: string
-  ottCodeStatus: string
-  ottCode?: string
-  createdAt: string
-  billFileName?: string
-}
-
-interface SalesRecord {
-  id: string
-  productSubCategory: string
-  product: string
-  activationCode: string
-}
-
-interface OTTKey {
-  id: string
-  productSubCategory: string
-  product: string
-  activationCode: string
-  status: string
-  assignedEmail?: string
-  assignedDate?: string
-}
+import type { ClaimResponse, SalesRecord, OTTKey } from "@/lib/models" // Import interfaces
 
 export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -102,6 +59,13 @@ export default function AdminDashboard() {
     }
   }
 
+  // Fetch data on component mount if already authenticated (e.g., after a refresh)
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchAllData()
+    }
+  }, [isAuthenticated])
+
   const handleSalesUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -115,7 +79,6 @@ export default function AdminDashboard() {
         method: "POST",
         body: formData,
       })
-
       const result = await response.json()
       if (result.success) {
         alert(`Successfully uploaded ${result.count} sales records`)
@@ -147,7 +110,6 @@ export default function AdminDashboard() {
         method: "POST",
         body: formData,
       })
-
       const result = await response.json()
       if (result.success) {
         alert(`Successfully uploaded ${result.count} OTT keys`)
@@ -169,11 +131,9 @@ export default function AdminDashboard() {
   const exportToExcel = async (type: string) => {
     try {
       const response = await fetch(`/api/admin/export?type=${type}`)
-
       if (!response.ok) {
         throw new Error("Export failed")
       }
-
       const blob = await response.blob()
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement("a")
@@ -197,19 +157,17 @@ export default function AdminDashboard() {
     ) {
       return
     }
-
     setLoading(true)
     try {
       const response = await fetch("/api/admin/process-automation", { method: "POST" })
       const result = await response.json()
-
       if (result.success) {
         alert(
-          `Automation completed successfully!\n\nProcessed: ${result.processed} claims\nOTT Codes Sent: ${result.ottCodesSent}\nWait Emails Sent: ${result.waitEmails}\nAlready Claimed: ${result.alreadyClaimed}`,
+          `Automation completed successfully!\n\nProcessed: ${result.results.processed} claims\nSuccess: ${result.results.success}\nFailed: ${result.results.failed}`,
         )
         fetchAllData()
       } else {
-        alert("Error processing automation: " + result.message)
+        alert("Error processing automation: " + result.error)
       }
     } catch (error) {
       console.error("Error processing automation:", error)
@@ -293,7 +251,6 @@ export default function AdminDashboard() {
           </div>
         </div>
       </header>
-
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs defaultValue="claims" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3">
@@ -301,7 +258,6 @@ export default function AdminDashboard() {
             <TabsTrigger value="sales">All Sales ({salesRecords.length})</TabsTrigger>
             <TabsTrigger value="keys">OTT Keys ({ottKeys.length})</TabsTrigger>
           </TabsList>
-
           <TabsContent value="claims">
             <Card>
               <CardHeader>
@@ -399,7 +355,6 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
           </TabsContent>
-
           <TabsContent value="sales">
             <Card>
               <CardHeader>
@@ -457,6 +412,7 @@ export default function AdminDashboard() {
                         <TableHead>Product Sub Category</TableHead>
                         <TableHead>Product</TableHead>
                         <TableHead>Activation Code/ Serial No / IMEI Number</TableHead>
+                        <TableHead>Status</TableHead> {/* Added status column */}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -465,6 +421,11 @@ export default function AdminDashboard() {
                           <TableCell>{sale.productSubCategory}</TableCell>
                           <TableCell>{sale.product}</TableCell>
                           <TableCell className="font-mono">{sale.activationCode}</TableCell>
+                          <TableCell>
+                            <Badge variant={sale.status === "claimed" ? "destructive" : "default"}>
+                              {sale.status || "available"}
+                            </Badge>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -473,7 +434,6 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
           </TabsContent>
-
           <TabsContent value="keys">
             <Card>
               <CardHeader>
