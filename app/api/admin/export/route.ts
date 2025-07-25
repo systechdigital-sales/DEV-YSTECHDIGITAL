@@ -90,6 +90,7 @@ export async function GET(request: Request) {
         "sellerName",
         "paymentStatus",
         "paymentId",
+        "razorpayOrderId", // Added new header
         "ottCodeStatus",
         "ottCode",
         "createdAt",

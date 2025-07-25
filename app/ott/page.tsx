@@ -202,8 +202,14 @@ export default function OTTClaimPage() {
       const result = await response.json()
 
       if (result.success) {
-        // Redirect to payment page with claim ID
-        router.push(`/payment?claimId=${result.claimId}`)
+        // Redirect to payment page with claim ID and customer details
+        const customerName = encodeURIComponent(`${formData.firstName} ${formData.lastName}`)
+        const customerEmail = encodeURIComponent(formData.email)
+        const customerPhone = encodeURIComponent(formData.phone)
+
+        router.push(
+          `/payment?claimId=${result.claimId}&customerName=${customerName}&customerEmail=${customerEmail}&customerPhone=${customerPhone}`,
+        )
       } else {
         setErrors({ submit: result.error || "Failed to submit claim" })
       }

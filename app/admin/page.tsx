@@ -288,7 +288,8 @@ export default function AdminDashboard() {
                         <TableHead>Activation Code</TableHead>
                         <TableHead>Purchase Date</TableHead>
                         <TableHead>Payment Status</TableHead>
-                        <TableHead>Payment ID</TableHead>
+                        <TableHead>Razorpay Payment ID</TableHead> {/* New */}
+                        <TableHead>Razorpay Order ID</TableHead> {/* New */}
                         <TableHead>OTT Status</TableHead>
                         <TableHead>OTT Code</TableHead>
                         <TableHead>Submitted</TableHead>
@@ -334,7 +335,10 @@ export default function AdminDashboard() {
                               {claim.paymentStatus}
                             </Badge>
                           </TableCell>
-                          <TableCell className="font-mono text-xs">{claim.paymentId || "-"}</TableCell>
+                          <TableCell className="font-mono text-xs">{claim.paymentId || "-"}</TableCell>{" "}
+                          {/* Display Payment ID */}
+                          <TableCell className="font-mono text-xs">{claim.razorpayOrderId || "-"}</TableCell>{" "}
+                          {/* Display Order ID */}
                           <TableCell>
                             <Badge variant={claim.ottCodeStatus === "sent" ? "default" : "secondary"}>
                               {claim.ottCodeStatus}

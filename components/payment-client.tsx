@@ -55,8 +55,8 @@ export default function PaymentClient({ publicKey }: PaymentClientProps) {
   useEffect(() => {
     const loadRazorpayScript = () => {
       return new Promise((resolve) => {
-        const script = document.createElement('script')
-        script.src = 'https://checkout.razorpay.com/v1/checkout.js'
+        const script = document.createElement("script")
+        script.src = "https://checkout.razorpay.com/v1/checkout.js"
         script.onload = () => {
           resolve(true)
         }
@@ -121,9 +121,35 @@ export default function PaymentClient({ publicKey }: PaymentClientProps) {
       description: orderData.description,
       image: "/logo.png",
       order_id: order.id,
-      handler: (resp: any) => {
+      handler: async (resp: any) => {
         console.log("Payment successful:", resp)
-        window.location.href = `/payment/success?payment_id=${resp.razorpay_payment_id}&order_id=${resp.razorpay_order_id}&signature=${resp.razorpay_signature}&claim_id=${orderData.claimId}`
+        try {
+          // Update claim status in database
+          const updateRes = await fetch("/api/payment/update-claim-status", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              claimId: orderData.claimId,
+              paymentId: resp.razorpay_payment_id,
+              orderId: resp.razorpay_order_id,
+            }),
+          })
+          const updateResult = await updateRes.json()
+
+          if (updateResult.success) {
+            window.location.href = `/payment/success?payment_id=${resp.razorpay_payment_id}&order_id=${resp.razorpay_order_id}&signature=${resp.razorpay_signature}&claim_id=${orderData.claimId}&customerName=${encodeURIComponent(orderData.customerName)}&customerEmail=${encodeURIComponent(orderData.customerEmail)}&customerPhone=${encodeURIComponent(orderData.customerPhone)}`
+          } else {
+            alert("Payment successful, but failed to update claim status. Please contact support.")
+            console.error("Failed to update claim status:", updateResult.error)
+            // Still redirect to success page, but with a warning
+            window.location.href = `/payment/success?payment_id=${resp.razorpay_payment_id}&order_id=${resp.razorpay_order_id}&signature=${resp.razorpay_signature}&claim_id=${orderData.claimId}&customerName=${encodeURIComponent(orderData.customerName)}&customerEmail=${encodeURIComponent(orderData.customerEmail)}&customerPhone=${encodeURIComponent(orderData.customerPhone)}&status=warning`
+          }
+        } catch (error) {
+          console.error("Error during claim status update:", error)
+          // alert("An error occurred after payment. Please contact support.")
+          // Still redirect to success page, but with an error indication
+          window.location.href = `/payment/success?payment_id=${resp.razorpay_payment_id}&order_id=${resp.razorpay_order_id}&signature=${resp.razorpay_signature}&claim_id=${orderData.claimId}&customerName=${encodeURIComponent(orderData.customerName)}&customerEmail=${encodeURIComponent(orderData.customerEmail)}&customerPhone=${encodeURIComponent(orderData.customerPhone)}&status=error`
+        }
       },
       prefill: {
         name: orderData.customerName,
@@ -367,7 +393,6 @@ export default function PaymentClient({ publicKey }: PaymentClientProps) {
           </div>
         </div>
       </footer>
-
     </div>
   )
 }

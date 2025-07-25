@@ -26,6 +26,7 @@ export interface IClaimResponse {
   createdAt?: Date
   updatedAt?: Date
   billFileName?: string
+  razorpayOrderId?: string
 }
 
 export interface ISalesRecord {
@@ -56,6 +57,7 @@ export interface ClaimResponse extends Omit<IClaimResponse, "_id" | "createdAt" 
   id: string
   createdAt: string
   updatedAt?: string
+  razorpayOrderId?: string
 }
 
 export interface SalesRecord extends Omit<ISalesRecord, "_id" | "createdAt" | "updatedAt"> {

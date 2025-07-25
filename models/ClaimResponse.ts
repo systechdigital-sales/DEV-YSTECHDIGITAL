@@ -23,6 +23,7 @@ export interface IClaimResponse extends Document {
   ottCode?: string
   createdAt: Date
   billFileName?: string
+  razorpayOrderId?: string
 }
 
 const ClaimResponseSchema: Schema = new Schema(
@@ -48,6 +49,7 @@ const ClaimResponseSchema: Schema = new Schema(
     ottCodeStatus: { type: String, required: true, default: "pending" },
     ottCode: { type: String },
     billFileName: { type: String },
+    razorpayOrderId: { type: String },
   },
   { timestamps: true },
 )

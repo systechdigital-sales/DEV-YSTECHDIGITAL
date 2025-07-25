@@ -11,6 +11,9 @@ export default function PaymentSuccessPage() {
   const paymentId = searchParams.get("payment_id")
   const orderId = searchParams.get("order_id")
   const signature = searchParams.get("signature")
+  const customerName = searchParams.get("customerName") // Retrieve customer name
+  const customerEmail = searchParams.get("customerEmail") // Retrieve customer email
+  const customerPhone = searchParams.get("customerPhone") // Retrieve customer phone
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
@@ -20,13 +23,13 @@ export default function PaymentSuccessPage() {
           <div className="flex items-center justify-between">
             <div className="cursor-pointer flex items-center" onClick={() => (window.location.href = "/")}>
               <img
-                src="/logo-white.png"
+                src="/logo.png"
                 alt="SYSTECH DIGITAL Logo"
                 className="h-10 w-auto mr-3"
                 onError={(e) => {
                   // Fallback to text if image fails to load
                   e.currentTarget.style.display = "none"
-                  e.currentTarget.nextElementSibling.style.display = "block"
+                  e.currentTarget.nextElementSibling!.style.display = "block"
                 }}
               />
               <div style={{ display: "none" }}>
@@ -87,6 +90,29 @@ export default function PaymentSuccessPage() {
                   <p>1st Cross, JC Road</p>
                   <p>Bangalore South, Karnataka - 560027</p>
                 </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* New Card for Customer Information */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Customer Information</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Name:</span>
+                <span className="font-semibold text-gray-900">{customerName || "-"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Email:</span>
+                <span className="text-gray-900">{customerEmail || "-"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Phone:</span>
+                <span className="text-gray-900">{customerPhone || "-"}</span>
               </div>
             </div>
           </CardContent>
