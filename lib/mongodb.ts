@@ -49,12 +49,7 @@ export async function getDatabase(): Promise<Db> {
     console.error("Error connecting to database:", error)
     // Fallback to creating a new connection if the cached one fails
     const fallbackClient = new MongoClient(uri, {
-      ...options,
-      serverApi: {
-        version: '1',
-        strict: true,
-        deprecationErrors: true
-      }
+      ...options
     })
     try {
       await fallbackClient.connect()

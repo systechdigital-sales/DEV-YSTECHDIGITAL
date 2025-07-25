@@ -1,11 +1,14 @@
 import nodemailer from "nodemailer"
 
+// Create a transporter with proper error handling
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
     user: process.env.GMAIL_USER,
     pass: process.env.GMAIL_APP_PASSWORD,
   },
+  debug: process.env.NODE_ENV === "development", // Enable debug logs in development
+  logger: process.env.NODE_ENV === "development", // Enable logger in development
 })
 
 export async function sendEmail(to: string, subject: string, template: string, data: any) {
@@ -99,6 +102,25 @@ export async function sendEmail(to: string, subject: string, template: string, d
         `
         break
 
+      case "automation_failed":
+        htmlContent = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #DC2626;">OTT Claim Status Update</h2>
+            <p>Dear ${data.firstName} ${data.lastName},</p>
+            <p>We're processing your OTT platform claim, but we need a bit more time.</p>
+            <div style="background: #fee2e2; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #DC2626;">
+              <h3>Status Update:</h3>
+              <p><strong>Claim ID:</strong> ${data.id}</p>
+              <p><strong>Activation Code:</strong> ${data.activationCode}</p>
+              <p><strong>Status:</strong> Under Review</p>
+            </div>
+            <p>Our team is working on your request. This may take up to 24-48 working hours.</p>
+            <p>We will notify you via email as soon as your OTT access codes are ready.</p>
+            <p>Thank you for your patience!</p>
+          </div>
+        `
+        break
+
       default:
         htmlContent = `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -119,7 +141,13 @@ export async function sendEmail(to: string, subject: string, template: string, d
     console.log("Email sent successfully:", result.messageId)
     return result
   } catch (error) {
-    console.error("Error sending email:", error)
-    throw error
+    console.error("Error sending email to:", to)
+    console.error("Email subject:", subject)
+    console.error("Email template:", template)
+    console.error("Error details:", error)
+
+    // Don't throw the error, just log it and return a failed status
+    // This prevents the automation process from failing completely if email sending fails
+    return { success: false, error: error instanceof Error ? error.message : "Unknown error" }
   }
 }
