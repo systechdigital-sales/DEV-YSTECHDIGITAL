@@ -12,5 +12,3 @@ Continue building your app on:
 **[https://v0.dev/chat/projects/oB5sOIb9R51](https://v0.dev/chat/projects/oB5sOIb9R51)**
 
 ## How It Works
-
-2. Deploy your chats from the v0 interface
