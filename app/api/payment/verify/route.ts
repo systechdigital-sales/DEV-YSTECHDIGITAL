@@ -2,84 +2,103 @@ import { type NextRequest, NextResponse } from "next/server"
 import crypto from "crypto"
 import { getDatabase } from "@/lib/mongodb"
 import { sendEmail } from "@/lib/email"
-import type { PaymentRecord, ClaimResponse } from "@/lib/models"
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, claim_id } = body
 
-    console.log("Payment verification started:", { razorpay_payment_id, claim_id })
+    console.log("Payment verification request:", {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      claim_id,
+    })
 
-    // Verify signature
-    const sign = razorpay_order_id + "|" + razorpay_payment_id
-    const expectedSign = crypto
-      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET!)
-      .update(sign.toString())
-      .digest("hex")
+    // Verify Razorpay signature
+    const secret = process.env.RAZORPAY_KEY_SECRET
+    if (!secret) {
+      throw new Error("Razorpay secret key not configured")
+    }
 
-    if (razorpay_signature !== expectedSign) {
+    const body_string = razorpay_order_id + "|" + razorpay_payment_id
+    const expected_signature = crypto.createHmac("sha256", secret).update(body_string).digest("hex")
+
+    const is_authentic = expected_signature === razorpay_signature
+
+    if (!is_authentic) {
       console.error("Invalid payment signature")
-      return NextResponse.json({ success: false, error: "Invalid signature" }, { status: 400 })
+      return NextResponse.json({ success: false, error: "Invalid payment signature" }, { status: 400 })
     }
 
+    console.log("Payment signature verified successfully")
+
+    // Update claim in database
     const db = await getDatabase()
+    const claimsCollection = db.collection("claims")
 
-    // Get claim details
-    const claim = await db.collection<ClaimResponse>("claims").findOne({ id: claim_id })
-    if (!claim) {
-      console.error("Claim not found:", claim_id)
-      return NextResponse.json({ success: false, error: "Claim not found" }, { status: 404 })
-    }
-
-    // Create payment record
-    const paymentRecord: PaymentRecord = {
-      id: `payment_${Date.now()}`,
-      claimId: claim_id,
-      paymentId: razorpay_payment_id,
-      orderId: razorpay_order_id,
-      amount: 99,
-      currency: "INR",
-      status: "success",
-      customerEmail: claim.email,
-      customerName: `${claim.firstName} ${claim.lastName}`,
-      createdAt: new Date().toISOString(),
-    }
-
-    // Save payment record
-    await db.collection<PaymentRecord>("payments").insertOne(paymentRecord)
-
-    // Update claim status
-    await db.collection<ClaimResponse>("claims").updateOne(
+    const updateResult = await claimsCollection.updateOne(
       { id: claim_id },
       {
         $set: {
-          paymentStatus: "completed",
+          paymentStatus: "paid",
           paymentId: razorpay_payment_id,
-          updatedAt: new Date().toISOString(),
+          orderId: razorpay_order_id,
+          razorpayPaymentId: razorpay_payment_id,
+          razorpayOrderId: razorpay_order_id,
+          razorpaySignature: razorpay_signature,
+          updatedAt: new Date(),
         },
       },
     )
 
-    // Send success email
-    try {
-      await sendEmail(claim.email, "Payment Successful - OTT Key Processing - SYSTECH DIGITAL", "payment_success", {
-        ...claim,
-        paymentId: razorpay_payment_id,
-      })
-      console.log("Payment success email sent")
-    } catch (emailError) {
-      console.error("Failed to send payment success email:", emailError)
+    if (updateResult.matchedCount === 0) {
+      console.error("Claim not found:", claim_id)
+      return NextResponse.json({ success: false, error: "Claim not found" }, { status: 404 })
     }
 
-    console.log("Payment verification completed successfully")
+    console.log("Claim updated successfully:", claim_id)
+
+    // Get updated claim for email
+    const updatedClaim = await claimsCollection.findOne({ id: claim_id })
+
+    if (updatedClaim) {
+      // Send payment success email
+      try {
+        await sendEmail({
+          to: updatedClaim.email,
+          subject: "Payment Successful - OTT Code Processing",
+          template: "payment_success_detailed",
+          data: {
+            customerName: `${updatedClaim.firstName} ${updatedClaim.lastName}`,
+            email: updatedClaim.email,
+            phone: updatedClaim.phone,
+            paymentId: razorpay_payment_id,
+            orderId: razorpay_order_id,
+            claimId: claim_id,
+            amount: "₹99",
+            date: new Date().toLocaleDateString("en-IN", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            }),
+          },
+        })
+        console.log("Payment success email sent to:", updatedClaim.email)
+      } catch (emailError) {
+        console.error("Failed to send payment success email:", emailError)
+        // Don't fail the payment verification if email fails
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      message: "Payment verified successfully",
+      message: "Payment verified and claim updated successfully",
       paymentId: razorpay_payment_id,
+      orderId: razorpay_order_id,
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error("Payment verification error:", error)
-    return NextResponse.json({ success: false, error: "Payment verification failed" }, { status: 500 })
+    return NextResponse.json({ success: false, error: error.message || "Payment verification failed" }, { status: 500 })
   }
 }

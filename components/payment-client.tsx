@@ -1,13 +1,11 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Loader2, CreditCard, Shield, CheckCircle, AlertCircle, RefreshCw, X, Lock, Star, Clock } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { CreditCard, Shield, CheckCircle } from "lucide-react"
 
 declare global {
   interface Window {
@@ -16,383 +14,414 @@ declare global {
 }
 
 interface PaymentClientProps {
-  publicKey: string
+  claimId: string
+  customerName: string
+  customerEmail: string
+  customerPhone: string
 }
 
-export default function PaymentClient({ publicKey }: PaymentClientProps) {
-  const searchParams = useSearchParams()
+const PAYMENT_AMOUNT = 99 // Fixed price of 99 rs
+
+export default function PaymentClient({ claimId, customerName, customerEmail, customerPhone }: PaymentClientProps) {
   const [loading, setLoading] = useState(false)
-  const [orderData, setOrderData] = useState({
-    amount: 99,
-    currency: "INR",
-    customerName: "",
-    customerEmail: "",
-    customerPhone: "",
-    productName: "OTT Platform Subscription",
-    description: "Processing fee for OTT platform claim verification",
-    claimId: "",
-  })
+  const [razorpayKey, setRazorpayKey] = useState<string | null>(null)
+  const [keyLoading, setKeyLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [showErrorDialog, setShowErrorDialog] = useState(false)
+  const [retryCount, setRetryCount] = useState(0)
+  const [paymentError, setPaymentError] = useState<string | null>(null)
 
   useEffect(() => {
-    // Get data from URL parameters
-    const claimId = searchParams.get("claimId") || ""
-    const amount = Number.parseInt(searchParams.get("amount") || "99")
-    const customerName = searchParams.get("customerName") || ""
-    const customerEmail = searchParams.get("customerEmail") || ""
-    const customerPhone = searchParams.get("customerPhone") || ""
-
-    setOrderData((prev) => ({
-      ...prev,
-      claimId,
-      amount,
-      customerName: decodeURIComponent(customerName),
-      customerEmail: decodeURIComponent(customerEmail),
-      customerPhone: decodeURIComponent(customerPhone),
-    }))
-  }, [searchParams])
-
-  // Load Razorpay script
-  useEffect(() => {
-    const loadRazorpayScript = () => {
-      return new Promise((resolve) => {
-        const script = document.createElement("script")
-        script.src = "https://checkout.razorpay.com/v1/checkout.js"
-        script.onload = () => {
-          resolve(true)
-        }
-        script.onerror = () => {
-          resolve(false)
-        }
-        document.body.appendChild(script)
-      })
-    }
-
+    fetchRazorpayKey()
     loadRazorpayScript()
   }, [])
 
-  const handleChange = (k: string, v: string | number) => setOrderData((p) => ({ ...p, [k]: v }))
+  const fetchRazorpayKey = async () => {
+    try {
+      setKeyLoading(true)
+      const response = await fetch("/api/razorpay-key")
+      const data = await response.json()
+
+      if (data.error) {
+        throw new Error(data.error)
+      }
+
+      setRazorpayKey(data.key)
+    } catch (error) {
+      console.error("Error fetching Razorpay key:", error)
+      setError("Failed to load payment configuration")
+    } finally {
+      setKeyLoading(false)
+    }
+  }
+
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if (window.Razorpay) {
+        resolve(true)
+        return
+      }
+
+      const script = document.createElement("script")
+      script.src = "https://checkout.razorpay.com/v1/checkout.js"
+      script.onload = () => resolve(true)
+      script.onerror = () => resolve(false)
+      document.body.appendChild(script)
+    })
+  }
 
   const createOrder = async () => {
-    if (!orderData.claimId) {
-      alert("Invalid claim ID. Please go back and submit the form again.")
-      return
-    }
-
-    setLoading(true)
     try {
-      const res = await fetch("/api/payment/create-order", {
+      const response = await fetch("/api/payment/create-order", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
-          amount: orderData.amount * 100, // Convert to paise
-          currency: orderData.currency,
-          receipt: `receipt_${orderData.claimId}`,
-          notes: {
-            claim_id: orderData.claimId,
-            customer_name: orderData.customerName,
-            customer_email: orderData.customerEmail,
-            product_name: orderData.productName,
-          },
+          amount: PAYMENT_AMOUNT,
+          claimId,
+          customerName,
+          customerEmail,
         }),
       })
 
-      const order = await res.json()
-      console.log("Order created:", order)
+      const data = await response.json()
 
-      if (order.id) {
-        openRzp(order)
-      } else {
-        throw new Error("Failed to create order")
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || data.details || "Failed to create order")
       }
+
+      return data
     } catch (error) {
-      console.error("Order creation failed:", error)
-      alert("Order creation failed. Please try again.")
-    } finally {
+      console.error("Order creation error:", error)
+      throw error
+    }
+  }
+
+  const verifyPayment = async (paymentData: any) => {
+    try {
+      const response = await fetch("/api/payment/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...paymentData,
+          claimId,
+          customerName,
+          customerEmail,
+          customerPhone,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Payment verification failed")
+      }
+
+      return data
+    } catch (error) {
+      console.error("Payment verification error:", error)
+      throw error
+    }
+  }
+
+  const handlePayment = async () => {
+    if (!razorpayKey) {
+      setError("Payment configuration not loaded")
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError(null)
+      setPaymentError(null)
+
+      // Create order
+      const orderData = await createOrder()
+
+      const options = {
+        key: razorpayKey,
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: "SYSTECH DIGITAL",
+        description: "OTT Platform Access - Processing Fee",
+        order_id: orderData.orderId,
+        prefill: {
+          name: customerName,
+          email: customerEmail,
+          contact: customerPhone,
+        },
+        theme: {
+          color: "#3B82F6",
+        },
+        handler: async (response: any) => {
+          try {
+            console.log("Payment successful, verifying...", response)
+
+            // Verify payment signature only
+            const verificationResult = await verifyPayment({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            })
+
+            console.log("Payment verification successful:", verificationResult)
+
+            // Redirect to success page with transaction details
+            const successUrl = new URL("/payment/success", window.location.origin)
+            successUrl.searchParams.set("payment_id", response.razorpay_payment_id)
+            successUrl.searchParams.set("order_id", response.razorpay_order_id)
+            successUrl.searchParams.set("transaction_id", response.razorpay_payment_id) // Use payment ID as transaction ID
+            successUrl.searchParams.set("customerName", customerName)
+            successUrl.searchParams.set("customerEmail", customerEmail)
+            successUrl.searchParams.set("customerPhone", customerPhone)
+            successUrl.searchParams.set("claimId", claimId)
+            successUrl.searchParams.set("amount", PAYMENT_AMOUNT.toString())
+
+            window.location.href = successUrl.toString()
+          } catch (error) {
+            console.error("Payment verification failed:", error)
+            setPaymentError(error instanceof Error ? error.message : "Payment verification failed")
+            setShowErrorDialog(true)
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            console.log("Payment modal dismissed")
+            setLoading(false)
+          },
+        },
+      }
+
+      const razorpay = new window.Razorpay(options)
+
+      razorpay.on("payment.failed", (response: any) => {
+        console.error("Payment failed:", response.error)
+        setPaymentError(`Payment failed: ${response.error.description}`)
+        setShowErrorDialog(true)
+        setLoading(false)
+      })
+
+      razorpay.open()
+    } catch (error) {
+      console.error("Payment initiation error:", error)
+      setError(error instanceof Error ? error.message : "Failed to initiate payment")
       setLoading(false)
     }
   }
 
-  const openRzp = (order: any) => {
-    const opts = {
-      key: publicKey,
-      amount: order.amount,
-      currency: order.currency,
-      name: "SYSTECH DIGITAL",
-      description: orderData.description,
-      image: "/logo.png",
-      order_id: order.id,
-      handler: async (resp: any) => {
-        console.log("Payment successful:", resp)
-        try {
-          // Update claim status in database
-          const updateRes = await fetch("/api/payment/update-claim-status", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              claimId: orderData.claimId,
-              paymentId: resp.razorpay_payment_id,
-              orderId: resp.razorpay_order_id,
-            }),
-          })
-          const updateResult = await updateRes.json()
+  const handleRetryPayment = () => {
+    setRetryCount((prev) => prev + 1)
+    setShowErrorDialog(false)
+    setPaymentError(null)
+    handlePayment()
+  }
 
-          if (updateResult.success) {
-            window.location.href = `/payment/success?payment_id=${resp.razorpay_payment_id}&order_id=${resp.razorpay_order_id}&signature=${resp.razorpay_signature}&claim_id=${orderData.claimId}&customerName=${encodeURIComponent(orderData.customerName)}&customerEmail=${encodeURIComponent(orderData.customerEmail)}&customerPhone=${encodeURIComponent(orderData.customerPhone)}`
-          } else {
-            alert("Payment successful, but failed to update claim status. Please contact support.")
-            console.error("Failed to update claim status:", updateResult.error)
-            // Still redirect to success page, but with a warning
-            window.location.href = `/payment/success?payment_id=${resp.razorpay_payment_id}&order_id=${resp.razorpay_order_id}&signature=${resp.razorpay_signature}&claim_id=${orderData.claimId}&customerName=${encodeURIComponent(orderData.customerName)}&customerEmail=${encodeURIComponent(orderData.customerEmail)}&customerPhone=${encodeURIComponent(orderData.customerPhone)}&status=warning`
-          }
-        } catch (error) {
-          console.error("Error during claim status update:", error)
-          // alert("An error occurred after payment. Please contact support.")
-          // Still redirect to success page, but with an error indication
-          window.location.href = `/payment/success?payment_id=${resp.razorpay_payment_id}&order_id=${resp.razorpay_order_id}&signature=${resp.razorpay_signature}&claim_id=${orderData.claimId}&customerName=${encodeURIComponent(orderData.customerName)}&customerEmail=${encodeURIComponent(orderData.customerEmail)}&customerPhone=${encodeURIComponent(orderData.customerPhone)}&status=error`
-        }
-      },
-      prefill: {
-        name: orderData.customerName,
-        email: orderData.customerEmail,
-        contact: orderData.customerPhone,
-      },
-      notes: {
-        claim_id: orderData.claimId,
-        address:
-          "Unit NO H-04, 4th Floor, SOLUS No 2, 8/9, No 23, PID No 48-74-2, 1st Cross, JC Road, Bangalore South, Karnataka, India - 560027",
-      },
-      theme: { color: "#dc2626" },
-      modal: {
-        ondismiss: () => {
-          console.log("Payment cancelled")
-          window.location.href = `/payment/cancelled?claim_id=${orderData.claimId}`
-        },
-      },
-    }
+  const handleCancelPayment = () => {
+    setShowErrorDialog(false)
+    window.location.href = "/ott"
+  }
 
-    if (window.Razorpay) {
-      new window.Razorpay(opts).open()
-    } else {
-      alert("Payment gateway not loaded. Please refresh and try again.")
-    }
+  if (keyLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md shadow-2xl border-0">
+          <CardContent className="flex items-center justify-center p-12">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Setting up payment</h3>
+              <p className="text-gray-600">Please wait while we prepare your secure payment...</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md shadow-2xl border-0">
+          <CardContent className="p-8">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <AlertCircle className="w-8 h-8 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Payment Error</h3>
+              <p className="text-gray-600 mb-6">{error}</p>
+              <Button
+                onClick={() => window.location.reload()}
+                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+              >
+                Try Again
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-50 to-gray-100">
-      {/* Header */}
-      <header className="bg-gradient-to-r from-black via-red-900 to-black shadow-lg border-b border-red-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div className="cursor-pointer flex items-center" onClick={() => (window.location.href = "/")}>
-              <img
-                src="/logo-white.png"
-                alt="SYSTECH DIGITAL Logo"
-                className="h-10 w-auto mr-3"
-                onError={(e) => {
-                  e.currentTarget.style.display = "none"
-                  e.currentTarget.nextElementSibling!.style.display = "block"
-                }}
-              />
-              <div style={{ display: "none" }}>
-                <h1 className="text-3xl font-bold text-white">SYSTECH DIGITAL</h1>
-                <p className="text-sm text-red-200 mt-1">Secure Payment Gateway</p>
-              </div>
-            </div>
-            <Badge variant="secondary" className="bg-red-100 text-red-800 px-4 py-2 border border-red-300">
-              <Shield className="w-4 h-4 mr-2" />
-              Secure Payment
-            </Badge>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-lg">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="w-20 h-20 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+            <CreditCard className="w-10 h-10 text-white" />
           </div>
-        </div>
-      </header>
-
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Process Steps */}
-        <div className="mb-8">
-          <div className="flex items-center justify-center space-x-8 mb-8">
-            <div className="flex items-center">
-              <div className="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
-                <CheckCircle className="w-4 h-4" />
-              </div>
-              <span className="ml-2 text-sm font-medium text-green-600">Claim Submitted</span>
-            </div>
-            <div className="flex-1 h-px bg-gray-300"></div>
-            <div className="flex items-center">
-              <div className="w-8 h-8 bg-red-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
-                2
-              </div>
-              <span className="ml-2 text-sm font-medium text-red-600">Payment (₹99)</span>
-            </div>
-            <div className="flex-1 h-px bg-gray-300"></div>
-            <div className="flex items-center">
-              <div className="w-8 h-8 bg-gray-300 text-gray-600 rounded-full flex items-center justify-center text-sm font-bold">
-                3
-              </div>
-              <span className="ml-2 text-sm font-medium text-gray-600">Get OTT Key</span>
-            </div>
-          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Complete Your Payment</h1>
+          <p className="text-gray-600">Secure payment processing for your OTT subscription</p>
         </div>
 
-        <Card className="w-full max-w-md mx-auto bg-white shadow-lg">
-          <CardHeader className="bg-gradient-to-r from-red-600 to-red-700 text-white rounded-t-lg">
-            <CardTitle className="text-2xl font-semibold">💳 Payment Details</CardTitle>
-            <CardDescription className="text-red-100">Complete your payment to process the OTT claim</CardDescription>
+        {/* Main Payment Card */}
+        <Card className="shadow-2xl border-0 mb-6">
+          <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-t-lg">
+            <CardTitle className="text-center text-xl font-semibold">Payment Summary</CardTitle>
           </CardHeader>
-          <CardContent className="p-6 space-y-4">
-            {/* Claim Information */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="font-semibold text-gray-900 mb-2">Claim Information</h3>
-              <div className="space-y-1 text-sm text-gray-600">
-                <p>
-                  <strong>Claim ID:</strong> {orderData.claimId}
-                </p>
-                <p>
-                  <strong>Customer:</strong> {orderData.customerName}
-                </p>
-                <p>
-                  <strong>Email:</strong> {orderData.customerEmail}
-                </p>
-                <p>
-                  <strong>Phone:</strong> {orderData.customerPhone}
-                </p>
+          <CardContent className="p-8">
+            {/* Customer Details */}
+            <div className="space-y-4 mb-8">
+              <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                <span className="text-gray-600 font-medium">Customer Name</span>
+                <span className="font-semibold text-gray-900">{customerName}</span>
+              </div>
+              <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                <span className="text-gray-600 font-medium">Email Address</span>
+                <span className="font-semibold text-gray-900 text-sm">{customerEmail}</span>
+              </div>
+              <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                <span className="text-gray-600 font-medium">Phone Number</span>
+                <span className="font-semibold text-gray-900">{customerPhone}</span>
+              </div>
+              <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                <span className="text-gray-600 font-medium">Claim ID</span>
+                <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">{claimId}</span>
               </div>
             </div>
 
-            {/* Payment Details */}
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="amount">Amount (INR)</Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  value={orderData.amount}
-                  onChange={(e) => handleChange("amount", Number(e.target.value))}
-                  className="mt-1"
-                  readOnly
-                />
+            {/* Pricing */}
+            <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-6 mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-lg font-medium text-gray-700">Processing Fee</span>
+                <div className="text-right">
+                  <div className="text-3xl font-bold text-green-600">₹{PAYMENT_AMOUNT}</div>
+                  <div className="text-sm text-gray-500">One-time payment</div>
+                </div>
               </div>
-              <div>
-                <Label htmlFor="productName">Product</Label>
-                <Input
-                  id="productName"
-                  value={orderData.productName}
-                  onChange={(e) => handleChange("productName", e.target.value)}
-                  className="mt-1"
-                  readOnly
-                />
+              <div className="flex items-center text-sm text-gray-600">
+                <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
+                <span>Includes all taxes and fees</span>
               </div>
-              <div>
-                <Label htmlFor="description">Description</Label>
-                <Input
-                  id="description"
-                  value={orderData.description}
-                  onChange={(e) => handleChange("description", e.target.value)}
-                  className="mt-1"
-                  readOnly
-                />
+            </div>
+
+            {/* Features */}
+            <div className="grid grid-cols-1 gap-4 mb-8">
+              <div className="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg">
+                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                  <Clock className="w-4 h-4 text-blue-600" />
+                </div>
+                <div>
+                  <div className="font-medium text-gray-900">Instant Activation</div>
+                  <div className="text-sm text-gray-600">OTT codes delivered within 24 hours</div>
+                </div>
+              </div>
+              <div className="flex items-center space-x-3 p-3 bg-green-50 rounded-lg">
+                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                  <Shield className="w-4 h-4 text-green-600" />
+                </div>
+                <div>
+                  <div className="font-medium text-gray-900">100% Secure</div>
+                  <div className="text-sm text-gray-600">Bank-grade security & encryption</div>
+                </div>
+              </div>
+              <div className="flex items-center space-x-3 p-3 bg-purple-50 rounded-lg">
+                <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                  <Star className="w-4 h-4 text-purple-600" />
+                </div>
+                <div>
+                  <div className="font-medium text-gray-900">Premium Access</div>
+                  <div className="text-sm text-gray-600">Full OTT platform subscription</div>
+                </div>
               </div>
             </div>
 
             {/* Payment Button */}
             <Button
-              onClick={createOrder}
-              disabled={loading || !orderData.claimId}
-              className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white py-3 text-lg font-semibold"
+              onClick={handlePayment}
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white py-4 text-lg font-semibold rounded-xl shadow-lg transform transition-all duration-200 hover:scale-105 disabled:transform-none"
+              size="lg"
             >
               {loading ? (
                 <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                  Processing...
+                  <Loader2 className="w-5 h-5 animate-spin mr-3" />
+                  Processing Payment...
                 </>
               ) : (
                 <>
-                  <CreditCard className="w-5 h-5 mr-2" />
-                  Pay ₹{orderData.amount}
+                  <Lock className="w-5 h-5 mr-3" />
+                  Pay ₹{PAYMENT_AMOUNT} Securely
                 </>
               )}
             </Button>
 
-            {/* Security Notice */}
-            <div className="text-center text-xs text-gray-500 mt-4">
-              <Shield className="w-4 h-4 inline mr-1" />
-              Your payment is secured by Razorpay
+            {/* Security Badge */}
+            <div className="flex items-center justify-center space-x-2 mt-6 text-sm text-gray-500">
+              <Shield className="w-4 h-4" />
+              <span>Secured by</span>
+              <Badge variant="outline" className="text-blue-600 border-blue-200">
+                Razorpay
+              </Badge>
             </div>
           </CardContent>
         </Card>
-      </main>
 
-      {/* Footer */}
-      <footer className="bg-gradient-to-r from-black via-red-900 to-black text-white py-8 border-t border-red-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div>
-              <h3 className="text-xl font-bold mb-4 text-white">SYSTECH DIGITAL</h3>
-              <p className="text-red-200 text-sm">Your trusted partner for IT Solutions & Mobile Technology</p>
+        {/* Trust Indicators */}
+        <div className="text-center space-y-2 text-sm text-gray-500">
+          <div className="flex items-center justify-center space-x-4">
+            <div className="flex items-center space-x-1">
+              <Lock className="w-4 h-4" />
+              <span>SSL Encrypted</span>
             </div>
-            <div>
-              <h4 className="font-semibold mb-3 text-white">Quick Links</h4>
-              <ul className="space-y-2 text-sm">
-                <li>
-                  <button
-                    onClick={() => (window.location.href = "/")}
-                    className="text-red-200 hover:text-white transition-colors"
-                  >
-                    Home
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() => (window.location.href = "/ottclaim")}
-                    className="text-red-200 hover:text-white transition-colors"
-                  >
-                    OTT Claim
-                  </button>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-3 text-white">Policies</h4>
-              <ul className="space-y-2 text-sm">
-                <li>
-                  <button
-                    onClick={() => (window.location.href = "/terms-and-conditions")}
-                    className="text-red-200 hover:text-white transition-colors"
-                  >
-                    Terms & Conditions
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() => (window.location.href = "/refund-policy")}
-                    className="text-red-200 hover:text-white transition-colors"
-                  >
-                    Refund Policy
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() => (window.location.href = "/cookie-policy")}
-                    className="text-red-200 hover:text-white transition-colors"
-                  >
-                    Cookie Policy
-                  </button>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-3 text-white">Contact Us</h4>
-              <ul className="space-y-2 text-sm text-red-200">
-                <li>📞 +91 7709803412</li>
-                <li>📧 sales.systechdigital@gmail.com</li>
-                <li>🌐 www.systechdigital.co.in</li>
-              </ul>
+            <div className="flex items-center space-x-1">
+              <Shield className="w-4 h-4" />
+              <span>PCI Compliant</span>
             </div>
           </div>
-          <div className="border-t border-red-800 mt-8 pt-8 text-center">
-            <p className="text-sm text-red-200">© 2025 Systech IT Solutions. All rights reserved.</p>
-          </div>
+          <p>Your payment information is encrypted and secure</p>
         </div>
-      </footer>
+      </div>
+
+      {/* Error Dialog */}
+      <Dialog open={showErrorDialog} onOpenChange={setShowErrorDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <AlertCircle className="w-5 h-5 text-red-500" />
+              <span>Payment Issue</span>
+            </DialogTitle>
+            <DialogDescription className="text-left">
+              {paymentError || "There was an issue processing your payment. You can try again or cancel."}
+              {retryCount > 0 && <div className="mt-2 text-sm text-gray-500">Retry attempt: {retryCount}</div>}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex space-x-3 mt-6">
+            <Button onClick={handleRetryPayment} className="flex-1 bg-blue-600 hover:bg-blue-700">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Retry Payment
+            </Button>
+            <Button onClick={handleCancelPayment} variant="outline" className="flex-1 bg-transparent">
+              <X className="w-4 h-4 mr-2" />
+              Cancel
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

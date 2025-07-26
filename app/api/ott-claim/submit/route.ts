@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
 import { sendEmail } from "@/lib/email"
-import type { ClaimResponse } from "@/lib/models"
+import type { IClaimResponse } from "@/lib/models"
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,36 +10,35 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData()
     console.log("Form data received")
 
-    // Extract form fields
-    const claimData: ClaimResponse = {
-      id: `claim_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    const claimData: Partial<IClaimResponse> = {
       firstName: formData.get("firstName") as string,
       lastName: formData.get("lastName") as string,
       email: formData.get("email") as string,
       phone: formData.get("phone") as string,
       streetAddress: formData.get("streetAddress") as string,
-      addressLine2: (formData.get("addressLine2") as string) || "",
+      addressLine2: (formData.get("addressLine2") as string) || undefined,
       city: formData.get("city") as string,
       state: formData.get("state") as string,
       postalCode: formData.get("postalCode") as string,
       country: formData.get("country") as string,
-      purchaseType: formData.get("purchaseType") as "hardware" | "software",
+      purchaseType: formData.get("purchaseType") as string,
       activationCode: formData.get("activationCode") as string,
       purchaseDate: formData.get("purchaseDate") as string,
-      invoiceNumber: (formData.get("invoiceNumber") as string) || "",
-      sellerName: (formData.get("sellerName") as string) || "",
+      claimSubmissionDate: new Date().toISOString(),
+      invoiceNumber: (formData.get("invoiceNumber") as string) || undefined,
+      sellerName: (formData.get("sellerName") as string) || undefined,
       paymentStatus: "pending",
       ottCodeStatus: "pending",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
     }
 
-    console.log("Claim data prepared:", { id: claimData.id, email: claimData.email })
+    console.log("Claim data prepared:", { email: claimData.email })
 
     // Handle file upload
     const billFile = formData.get("billFile") as File
     if (billFile && billFile.size > 0) {
-      claimData.billFileName = `${claimData.id}_${billFile.name}`
+      claimData.billFileName = `${claimData.activationCode}_${billFile.name}`
       console.log("File uploaded:", claimData.billFileName)
     }
 
@@ -60,7 +59,7 @@ export async function POST(request: NextRequest) {
     ]
 
     for (const field of requiredFields) {
-      if (!claimData[field as keyof ClaimResponse]) {
+      if (!claimData[field as keyof Partial<IClaimResponse>]) {
         console.error(`Missing required field: ${field}`)
         return NextResponse.json({ success: false, error: `${field} is required` }, { status: 400 })
       }
@@ -84,12 +83,36 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Invalid email address" }, { status: 400 })
     }
 
-    // Save to database
+    // Connect to database
     console.log("Connecting to database...")
     const db = await getDatabase()
-    console.log("Database connected, inserting claim...")
+    console.log("Database connected")
 
-    const result = await db.collection("claims").insertOne(claimData)
+    // Check if email has already submitted a claim for this activation code
+    const claimsCollection = db.collection<IClaimResponse>("claims")
+    const existingClaim = await claimsCollection.findOne({
+      email: claimData.email,
+      activationCode: claimData.activationCode,
+    })
+
+    if (existingClaim) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "duplicate_claim",
+          message: "You have already submitted a claim for this activation code",
+        },
+        { status: 400 },
+      )
+    }
+
+    // Generate unique claim ID
+    const claimId = `claim_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    claimData._id = claimId as any
+
+    // Insert claim into database
+    const result = await claimsCollection.insertOne(claimData as IClaimResponse)
+
     console.log("Claim inserted:", result.insertedId)
 
     if (!result.insertedId) {
@@ -115,19 +138,18 @@ export async function POST(request: NextRequest) {
     console.log("OTT Claim submission completed successfully")
     return NextResponse.json({
       success: true,
+      claimId: claimId,
       message: "Claim submitted successfully",
-      claimId: claimData.id,
-      redirectUrl: `/payment?claimId=${claimData.id}&amount=99&customerName=${encodeURIComponent(
+      redirectUrl: `/payment?claimId=${claimId}&amount=99&customerName=${encodeURIComponent(
         `${claimData.firstName} ${claimData.lastName}`,
       )}&customerEmail=${encodeURIComponent(claimData.email)}&customerPhone=${encodeURIComponent(claimData.phone)}`,
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error submitting claim:", error)
     return NextResponse.json(
       {
         success: false,
-        error: "Internal server error",
-        details: error instanceof Error ? error.message : "Unknown error",
+        error: error.message || "Failed to submit claim",
       },
       { status: 500 },
     )

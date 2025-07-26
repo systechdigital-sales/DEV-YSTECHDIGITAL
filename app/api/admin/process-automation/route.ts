@@ -1,237 +1,206 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getDatabase } from "@/lib/mongodb"
+import dbConnect from "@/lib/dbConnect"
+import ClaimResponse from "@/models/ClaimResponse"
+import SalesRecord from "@/models/SalesRecord"
+import OTTKey from "@/models/OTTKey"
 import { sendEmail } from "@/lib/email"
-import type { IClaimResponse, ISalesRecord, IOTTKey } from "@/lib/models"
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("Automation process started")
-    const db = await getDatabase()
+    await dbConnect()
 
-    // Get all paid claims that haven't been processed
-    const pendingClaims = await db
-      .collection<IClaimResponse>("claims")
-      .find({
-        paymentStatus: "paid",
-        ottCodeStatus: "pending", // Only process claims that are still pending
-      })
-      .toArray()
+    console.log("Starting automation process...")
 
-    console.log(`Found ${pendingClaims.length} pending claims to process`)
+    // Get all claims with paid status that haven't been processed yet
+    const paidClaims = await ClaimResponse.find({
+      paymentStatus: "paid",
+      ottCodeStatus: { $in: ["pending", "activation_code_not_found"] },
+    })
+
+    console.log(`Found ${paidClaims.length} paid claims to process`)
 
     const results = {
       processed: 0,
       success: 0,
       failed: 0,
-      details: [] as any[],
+      skipped: 0,
+      details: [] as Array<{
+        email: string
+        status: "success" | "failed" | "skipped"
+        message: string
+        ottCode?: string
+      }>,
     }
 
-    for (const claim of pendingClaims) {
-      try {
-        console.log(`Processing claim: ${claim._id?.toString()}`)
-        results.processed++
+    for (const claim of paidClaims) {
+      results.processed++
 
-        // 1. Check if activation code exists in sales records
-        const salesRecord = await db.collection<ISalesRecord>("salesrecords").findOne({
+      console.log(`Processing claim for ${claim.email} with activation code: ${claim.activationCode}`)
+
+      // Skip claims with activation_code_not_found status
+      if (claim.ottCodeStatus === "activation_code_not_found") {
+        console.log(`Skipping claim for ${claim.email} - activation code not found`)
+        results.skipped++
+        results.details.push({
+          email: claim.email,
+          status: "skipped",
+          message: "Activation code not found in sales records",
+        })
+        continue
+      }
+
+      try {
+        // Check if activation code exists in sales records
+        const salesRecord = await SalesRecord.findOne({
           activationCode: claim.activationCode,
         })
-        console.log(`Found sales record for activation code ${claim.activationCode}:`, salesRecord)
 
         if (!salesRecord) {
-          console.log(`Activation code not found in sales: ${claim.activationCode}`)
-          await db.collection<IClaimResponse>("claims").updateOne(
-            { _id: claim._id },
-            {
-              $set: {
-                ottCodeStatus: "activation_code_not_found", // Specific status for clarity
-                updatedAt: new Date(),
-              },
-            },
-          )
+          console.log(`No sales record found for activation code: ${claim.activationCode}`)
 
-          const emailResult = await sendEmail(claim.email, "OTT Claim Under Review - Please Wait - SYSTECH DIGITAL", "automation_failed", {
-            ...claim,
-            id: claim._id?.toString() || "",
-            createdAt: claim.createdAt?.toISOString() || "",
+          // Update claim status to activation_code_not_found
+          await ClaimResponse.findByIdAndUpdate(claim._id, {
             ottCodeStatus: "activation_code_not_found",
           })
 
-          if (emailResult.success === false) {
-            console.warn(`Email sending failed for claim ${claim._id?.toString()} with status activation_code_not_found`)
-          }
-          results.failed++
+          results.skipped++
           results.details.push({
-            claimId: claim._id?.toString(),
-            status: "failed",
-            reason: "Activation code not found in sales records",
+            email: claim.email,
+            status: "skipped",
+            message: "Activation code not found in sales records",
           })
-          continue // Move to the next claim
+          continue
         }
 
-        // 2. Check if sales record is already claimed
-        if (salesRecord.status === "claimed") {
-          console.log(`Activation code already claimed: ${claim.activationCode}`)
-          await db.collection<IClaimResponse>("claims").updateOne(
-            { _id: claim._id },
-            {
-              $set: {
-                ottCodeStatus: "already_claimed", // Specific status for clarity
-                updatedAt: new Date(),
-              },
-            },
-          )
-          const emailResult = await sendEmail(
-            claim.email,
-            "OTT Code Already Claimed - Contact Support - SYSTECH DIGITAL",
-            "automation_failed",
-            {
-              ...claim,
-              id: claim._id?.toString() || "",
-              createdAt: claim.createdAt?.toISOString() || "",
-              ottCodeStatus: "already_claimed",
-            },
-          )
-
-          if (emailResult.success === false) {
-            console.warn(`Email sending failed for claim ${claim._id?.toString()} with status already_claimed`)
-          }
-          results.failed++
-          results.details.push({
-            claimId: claim._id?.toString(),
-            status: "failed",
-            reason: "Activation code already claimed",
-          })
-          continue // Move to the next claim
-        }
-
-        console.log(`Processing sales record for activation code ${claim.activationCode}:`, salesRecord)
-        // 3. Get an available OTT key
-        const availableKeyResult = await db.collection<IOTTKey>("ottkeys").findOneAndUpdate(
-          {
-            status: "available",
-          },
-          {
-            $set: {
-              status: "assigned",
-              assignedEmail: claim.email,
-              assignedDate: new Date(),
-              assignedTo: claim._id, // Link to the claim's ObjectId
-              updatedAt: new Date(),
-            },
-          },
-          { returnDocument: "after" } // Return the updated document
-        )
-
-        console.log(`Available OTT key found:`, availableKeyResult.value)
-
-        // Check if a key was found and assigned
-        if (!availableKeyResult.value || !availableKeyResult.value) {
-          console.log("No available OTT keys")
-          await db.collection<IClaimResponse>("claims").updateOne(
-            { _id: claim._id },
-            {
-              $set: {
-                ottCodeStatus: "no_key_available", // Specific status for clarity
-                updatedAt: new Date(),
-              },
-            },
-          )
-          const createdAt =
-              claim.createdAt instanceof Date
-                  ? claim.createdAt.toISOString()
-                  : typeof claim.createdAt === "string"
-                      ? claim.createdAt
-                      : ""
-          const emailResult = await sendEmail(claim.email, "OTT Claim Under Review - Please Wait - SYSTECH DIGITAL", "automation_failed", {
-            ...claim,
-            id: claim._id?.toString() || "",
-            createdAt: createdAt,
-            ottCodeStatus: "no_key_available",
-          })
-
-          if (emailResult.success === false) {
-            console.warn(`Email sending failed for claim ${claim._id?.toString()} with status no_key_available`)
-          }
-          results.failed++
-          results.details.push({
-            claimId: claim._id?.toString(),
-            status: "failed",
-            reason: "No available OTT keys",
-          })
-          continue // Move to the next claim
-        }
-
-        // If we reach here, availableKeyResult.value is guaranteed to be non-null
-        const assignedOTTKey: IOTTKey = availableKeyResult.value // Explicitly type and assign here
-
-        // 4. Update claim with OTT code and status
-        await db.collection<IClaimResponse>("claims").updateOne(
-          { _id: claim._id },
-          {
-            $set: {
-              ottCodeStatus: "delivered", // Using 'delivered' as per previous code, implies 'sent'
-              ottCode: assignedOTTKey.activationCode,
-              updatedAt: new Date(),
-            },
-          },
-        )
-
-        // 5. Mark sales record as claimed
-        await db.collection<ISalesRecord>("salesrecords").updateOne(
-          { _id: salesRecord._id },
-          {
-            $set: {
-              status: "claimed",
-              updatedAt: new Date(),
-            },
-          },
-        )
-
-        // 6. Send success email
-        const emailResult = await sendEmail(claim.email, "OTT Key Delivered Successfully - SYSTECH DIGITAL", "automation_success", {
-          ...claim,
-          id: claim._id?.toString() || "",
-          createdAt: claim.createdAt?.toISOString() || "",
-          ottCode: assignedOTTKey.activationCode,
-          platform: salesRecord.product, // Add platform information for the email template
+        // Find an available OTT key
+        const availableKey = await OTTKey.findOne({
+          status: "available",
         })
 
-        if (emailResult.success === false) {
-          console.warn(`Email sending failed for claim ${claim._id?.toString()}, but claim was processed successfully`)
+        if (!availableKey) {
+          console.log(`No available OTT keys for ${claim.email}`)
+          results.failed++
+          results.details.push({
+            email: claim.email,
+            status: "failed",
+            message: "No available OTT keys",
+          })
+          continue
         }
+
+        // Update the OTT key to assigned
+        await OTTKey.findByIdAndUpdate(availableKey._id, {
+          status: "assigned",
+          assignedEmail: claim.email,
+          assignedDate: new Date(),
+        })
+
+        // Update the claim with OTT code
+        await ClaimResponse.findByIdAndUpdate(claim._id, {
+          ottCode: availableKey.activationCode,
+          ottCodeStatus: "sent",
+          ottAssignedAt: new Date(),
+        })
+
+        // Update sales record status
+        await SalesRecord.findByIdAndUpdate(salesRecord._id, {
+          status: "claimed",
+        })
+
+        // Send email to customer
+        const emailSubject = "Your OTT Subscription Code - SYSTECH DIGITAL"
+        const emailBody = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background: linear-gradient(to right, #000000, #7f1d1d, #000000); padding: 20px; text-align: center;">
+              <h1 style="color: white; margin: 0;">SYSTECH DIGITAL</h1>
+              <p style="color: #fecaca; margin: 5px 0 0 0;">Your OTT Subscription is Ready!</p>
+            </div>
+            
+            <div style="padding: 30px; background-color: #f9fafb;">
+              <h2 style="color: #1f2937; margin-bottom: 20px;">Congratulations! 🎉</h2>
+              
+              <p style="color: #4b5563; font-size: 16px; line-height: 1.6;">
+                Dear ${claim.firstName} ${claim.lastName},
+              </p>
+              
+              <p style="color: #4b5563; font-size: 16px; line-height: 1.6;">
+                Thank you for your purchase! Your OTT subscription code is now ready for activation.
+              </p>
+              
+              <div style="background-color: white; border: 2px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <h3 style="color: #1f2937; margin-top: 0;">Your OTT Subscription Details:</h3>
+                <p style="margin: 10px 0;"><strong>Service:</strong> ${availableKey.product}</p>
+                <p style="margin: 10px 0;"><strong>Category:</strong> ${availableKey.productSubCategory}</p>
+                <p style="margin: 10px 0;"><strong>Activation Code:</strong> 
+                  <span style="background-color: #fef3c7; padding: 5px 10px; border-radius: 4px; font-family: monospace; font-weight: bold;">
+                    ${availableKey.activationCode}
+                  </span>
+                </p>
+              </div>
+              
+              <div style="background-color: #dbeafe; border-left: 4px solid #3b82f6; padding: 15px; margin: 20px 0;">
+                <h4 style="color: #1e40af; margin-top: 0;">How to Activate:</h4>
+                <ol style="color: #1e40af; margin: 0;">
+                  <li>Visit the official website of your OTT service</li>
+                  <li>Go to the subscription or redeem section</li>
+                  <li>Enter the activation code provided above</li>
+                  <li>Follow the on-screen instructions to complete activation</li>
+                </ol>
+              </div>
+              
+              <p style="color: #4b5563; font-size: 14px; margin-top: 30px;">
+                If you have any questions or need assistance, please contact our support team at 
+                <a href="mailto:sales.systechdigital@gmail.com" style="color: #dc2626;">sales.systechdigital@gmail.com</a>
+                or call us at +91 7709803412.
+              </p>
+              
+              <div style="text-align: center; margin-top: 30px;">
+                <p style="color: #6b7280; font-size: 14px;">
+                  Thank you for choosing SYSTECH DIGITAL!<br>
+                  Your trusted partner for IT Solutions & Mobile Technology
+                </p>
+              </div>
+            </div>
+            
+            <div style="background-color: #1f2937; padding: 20px; text-align: center;">
+              <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+                © 2025 SYSTECH IT SOLUTIONS LIMITED. All rights reserved.
+              </p>
+            </div>
+          </div>
+        `
+
+        await sendEmail(claim.email, emailSubject, emailBody)
+
+        console.log(`Successfully processed claim for ${claim.email} with OTT code: ${availableKey.activationCode}`)
 
         results.success++
         results.details.push({
-          claimId: claim._id?.toString(),
+          email: claim.email,
           status: "success",
-          ottCode: assignedOTTKey.activationCode,
+          message: `OTT code assigned and email sent successfully`,
+          ottCode: availableKey.activationCode,
         })
-        console.log(`Successfully processed claim: ${claim._id?.toString()}`)
-      } catch (claimError) {
-        console.error(`Error processing claim ${claim._id?.toString()}:`, claimError)
+      } catch (error) {
+        console.error(`Error processing claim for ${claim.email}:`, error)
         results.failed++
         results.details.push({
-          claimId: claim._id?.toString(),
-          status: "error",
-          reason: claimError instanceof Error ? claimError.message : "Unknown error",
+          email: claim.email,
+          status: "failed",
+          message: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
         })
       }
     }
+
     console.log("Automation process completed:", results)
+
     return NextResponse.json({
       success: true,
       message: "Automation process completed",
       results,
     })
   } catch (error) {
-    console.error("Automation process error:", error)
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Automation process failed",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    )
+    console.error("Error in automation process:", error)
+    return NextResponse.json({ error: "Automation process failed" }, { status: 500 })
   }
 }

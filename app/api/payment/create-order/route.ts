@@ -1,35 +1,49 @@
 import { type NextRequest, NextResponse } from "next/server"
 import Razorpay from "razorpay"
 
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID!,
+  key_secret: process.env.RAZORPAY_KEY_SECRET!,
+})
+
 export async function POST(request: NextRequest) {
   try {
-    // Ensure the env vars exist at runtime
-    const KEY_ID = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID
-    const KEY_SECRET = process.env.RAZORPAY_KEY_SECRET
-    if (!KEY_ID || !KEY_SECRET) {
-      return NextResponse.json({ error: "Razorpay environment variables are not configured" }, { status: 500 })
+    const { amount, currency = "INR", claimId, customerName, customerEmail } = await request.json()
+
+    console.log("Creating order for:", { amount, claimId, customerName, customerEmail })
+
+    if (!amount || !claimId || !customerName || !customerEmail) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    // Create the client at request time (avoids build-time crashes)
-    const razorpay = new Razorpay({
-      key_id: KEY_ID,
-      key_secret: KEY_SECRET,
-    })
-
-    const body = await request.json()
-    const { amount, currency = "INR", receipt, notes } = body
-
-    const order = await razorpay.orders.create({
-      amount,
+    const options = {
+      amount: amount * 100, // Convert to paise
       currency,
-      receipt,
-      notes,
-      payment_capture: 1,
-    })
+      receipt: `receipt_${claimId}`,
+      notes: {
+        claimId,
+        customerName,
+        customerEmail,
+      },
+    }
 
-    return NextResponse.json(order)
+    const order = await razorpay.orders.create(options)
+    console.log("Order created successfully:", order.id)
+
+    return NextResponse.json({
+      success: true,
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
+    })
   } catch (error) {
     console.error("Error creating Razorpay order:", error)
-    return NextResponse.json({ error: "Failed to create order" }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: "Failed to create order",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 },
+    )
   }
 }

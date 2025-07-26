@@ -4,18 +4,15 @@ import type React from "react"
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Eye, Download, RefreshCw, Upload, Play } from "lucide-react"
 import Image from "next/image"
-import type { ClaimResponse, SalesRecord, OTTKey } from "@/lib/models" // Import interfaces
+import { useRouter } from "next/navigation"
+import type { ClaimResponse, SalesRecord, OTTKey } from "@/lib/models"
 
 export default function AdminDashboard() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [loginData, setLoginData] = useState({ email: "", password: "" })
   const [claimResponses, setClaimResponses] = useState<ClaimResponse[]>([])
   const [salesRecords, setSalesRecords] = useState<SalesRecord[]>([])
   const [ottKeys, setOTTKeys] = useState<OTTKey[]>([])
@@ -24,47 +21,67 @@ export default function AdminDashboard() {
   const [uploadingKeys, setUploadingKeys] = useState(false)
   const salesFileInputRef = useRef<HTMLInputElement>(null)
   const keysFileInputRef = useRef<HTMLInputElement>(null)
+  const router = useRouter()
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (loginData.email === "sales.systechdigital@gmail.com" && loginData.password === "Admin@12345") {
-      setIsAuthenticated(true)
-      fetchAllData()
-    } else {
-      alert("Invalid credentials")
+  useEffect(() => {
+    // Check authentication
+    const isAuthenticated = sessionStorage.getItem("adminAuthenticated")
+    if (!isAuthenticated) {
+      router.push("/login")
+      return
     }
-  }
+
+    fetchAllData()
+  }, [router])
 
   const fetchAllData = async () => {
     setLoading(true)
     try {
-      // Fetch claim responses
-      const claimsResponse = await fetch("/api/admin/claims")
+      console.log("Fetching all data from MongoDB...")
+
+      // Fetch claim responses with force refresh
+      const claimsResponse = await fetch("/api/admin/claims", {
+        method: "GET",
+        headers: {
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+        },
+      })
       const claimsData = await claimsResponse.json()
+      console.log("Claims data fetched:", claimsData)
       setClaimResponses(Array.isArray(claimsData) ? claimsData : [])
 
-      // Fetch sales records
-      const salesResponse = await fetch("/api/admin/sales")
+      // Fetch sales records with force refresh
+      const salesResponse = await fetch("/api/admin/sales", {
+        method: "GET",
+        headers: {
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+        },
+      })
       const salesData = await salesResponse.json()
+      console.log("Sales data fetched:", salesData)
       setSalesRecords(Array.isArray(salesData) ? salesData : [])
 
-      // Fetch OTT keys
-      const keysResponse = await fetch("/api/admin/keys")
+      // Fetch OTT keys with force refresh
+      const keysResponse = await fetch("/api/admin/keys", {
+        method: "GET",
+        headers: {
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+        },
+      })
       const keysData = await keysResponse.json()
+      console.log("Keys data fetched:", keysData)
       setOTTKeys(Array.isArray(keysData) ? keysData : [])
+
+      console.log("All data refreshed successfully")
     } catch (error) {
       console.error("Error fetching data:", error)
     } finally {
       setLoading(false)
     }
   }
-
-  // Fetch data on component mount if already authenticated (e.g., after a refresh)
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchAllData()
-    }
-  }, [isAuthenticated])
 
   const handleSalesUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -82,7 +99,7 @@ export default function AdminDashboard() {
       const result = await response.json()
       if (result.success) {
         alert(`Successfully uploaded ${result.count} sales records`)
-        fetchAllData()
+        await fetchAllData() // Refresh data after upload
       } else {
         alert("Error uploading sales data: " + result.error)
       }
@@ -113,7 +130,7 @@ export default function AdminDashboard() {
       const result = await response.json()
       if (result.success) {
         alert(`Successfully uploaded ${result.count} OTT keys`)
-        fetchAllData()
+        await fetchAllData() // Refresh data after upload
       } else {
         alert("Error uploading OTT keys: " + result.error)
       }
@@ -149,77 +166,13 @@ export default function AdminDashboard() {
     }
   }
 
-  const processAutomation = async () => {
-    if (
-      !confirm(
-        "Are you sure you want to start the automation process? This will check all pending claims and send OTT codes where applicable.",
-      )
-    ) {
-      return
-    }
-    setLoading(true)
-    try {
-      const response = await fetch("/api/admin/process-automation", { method: "POST" })
-      const result = await response.json()
-      if (result.success) {
-        alert(
-          `Automation completed successfully!\n\nProcessed: ${result.results.processed} claims\nSuccess: ${result.results.success}\nFailed: ${result.results.failed}`,
-        )
-        fetchAllData()
-      } else {
-        alert("Error processing automation: " + result.error)
-      }
-    } catch (error) {
-      console.error("Error processing automation:", error)
-      alert("Error processing automation")
-    } finally {
-      setLoading(false)
-    }
+  const goToAutomation = () => {
+    router.push("/automation")
   }
 
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <Image src="/logo.png" alt="SYSTECH DIGITAL Logo" width={60} height={60} className="rounded-full" />
-            </div>
-            <CardTitle className="text-2xl">Admin Login</CardTitle>
-            <p className="text-gray-600">SYSTECH DIGITAL Admin Dashboard</p>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={loginData.email}
-                  onChange={(e) => setLoginData((prev) => ({ ...prev, email: e.target.value }))}
-                  placeholder="sales.systechdigital@gmail.com"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={loginData.password}
-                  onChange={(e) => setLoginData((prev) => ({ ...prev, password: e.target.value }))}
-                  placeholder="Admin@12345"
-                  required
-                />
-              </div>
-              <Button type="submit" className="w-full">
-                Login
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
-    )
+  const handleLogout = () => {
+    sessionStorage.removeItem("adminAuthenticated")
+    router.push("/login")
   }
 
   return (
@@ -236,14 +189,14 @@ export default function AdminDashboard() {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <Button onClick={processAutomation} disabled={loading} className="bg-green-600 hover:bg-green-700">
+              <Button onClick={goToAutomation} disabled={loading} className="bg-green-600 hover:bg-green-700">
                 <Play className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
                 Start Automation
               </Button>
               <Button
-                onClick={() => setIsAuthenticated(false)}
+                onClick={handleLogout}
                 variant="outline"
-                className="text-white border-white hover:bg-white hover:text-black"
+                className="text-white border-white hover:bg-white hover:text-black bg-transparent"
               >
                 Logout
               </Button>
@@ -251,6 +204,7 @@ export default function AdminDashboard() {
           </div>
         </div>
       </header>
+
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs defaultValue="claims" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3">
@@ -258,6 +212,7 @@ export default function AdminDashboard() {
             <TabsTrigger value="sales">All Sales ({salesRecords.length})</TabsTrigger>
             <TabsTrigger value="keys">OTT Keys ({ottKeys.length})</TabsTrigger>
           </TabsList>
+
           <TabsContent value="claims">
             <Card>
               <CardHeader>
@@ -268,9 +223,9 @@ export default function AdminDashboard() {
                       <Download className="w-4 h-4 mr-2" />
                       Export Excel
                     </Button>
-                    <Button onClick={fetchAllData} variant="outline">
-                      <RefreshCw className="w-4 h-4 mr-2" />
-                      Refresh
+                    <Button onClick={fetchAllData} variant="outline" disabled={loading}>
+                      <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+                      {loading ? "Refreshing..." : "Refresh"}
                     </Button>
                   </div>
                 </div>
@@ -288,8 +243,10 @@ export default function AdminDashboard() {
                         <TableHead>Activation Code</TableHead>
                         <TableHead>Purchase Date</TableHead>
                         <TableHead>Payment Status</TableHead>
-                        <TableHead>Razorpay Payment ID</TableHead> {/* New */}
-                        <TableHead>Razorpay Order ID</TableHead> {/* New */}
+                        <TableHead>Payment ID</TableHead>
+                        <TableHead>Order ID</TableHead>
+                        <TableHead>Razorpay Payment ID</TableHead>
+                        <TableHead>Razorpay Order ID</TableHead>
                         <TableHead>OTT Status</TableHead>
                         <TableHead>OTT Code</TableHead>
                         <TableHead>Submitted</TableHead>
@@ -325,7 +282,7 @@ export default function AdminDashboard() {
                           <TableCell>
                             <Badge
                               variant={
-                                claim.paymentStatus === "completed"
+                                claim.paymentStatus === "paid"
                                   ? "default"
                                   : claim.paymentStatus === "failed"
                                     ? "destructive"
@@ -335,10 +292,10 @@ export default function AdminDashboard() {
                               {claim.paymentStatus}
                             </Badge>
                           </TableCell>
-                          <TableCell className="font-mono text-xs">{claim.paymentId || "-"}</TableCell>{" "}
-                          {/* Display Payment ID */}
-                          <TableCell className="font-mono text-xs">{claim.razorpayOrderId || "-"}</TableCell>{" "}
-                          {/* Display Order ID */}
+                          <TableCell className="font-mono text-xs">{claim.paymentId || "-"}</TableCell>
+                          <TableCell className="font-mono text-xs">{claim.orderId || "-"}</TableCell>
+                          <TableCell className="font-mono text-xs">{claim.razorpayPaymentId || "-"}</TableCell>
+                          <TableCell className="font-mono text-xs">{claim.razorpayOrderId || "-"}</TableCell>
                           <TableCell>
                             <Badge variant={claim.ottCodeStatus === "sent" ? "default" : "secondary"}>
                               {claim.ottCodeStatus}
@@ -359,6 +316,7 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
           </TabsContent>
+
           <TabsContent value="sales">
             <Card>
               <CardHeader>
@@ -384,9 +342,9 @@ export default function AdminDashboard() {
                       <Download className="w-4 h-4 mr-2" />
                       Export Excel
                     </Button>
-                    <Button onClick={fetchAllData} variant="outline">
-                      <RefreshCw className="w-4 h-4 mr-2" />
-                      Refresh
+                    <Button onClick={fetchAllData} variant="outline" disabled={loading}>
+                      <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+                      {loading ? "Refreshing..." : "Refresh"}
                     </Button>
                   </div>
                 </div>
@@ -416,7 +374,7 @@ export default function AdminDashboard() {
                         <TableHead>Product Sub Category</TableHead>
                         <TableHead>Product</TableHead>
                         <TableHead>Activation Code/ Serial No / IMEI Number</TableHead>
-                        <TableHead>Status</TableHead> {/* Added status column */}
+                        <TableHead>Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -438,6 +396,7 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
           </TabsContent>
+
           <TabsContent value="keys">
             <Card>
               <CardHeader>
@@ -463,9 +422,9 @@ export default function AdminDashboard() {
                       <Download className="w-4 h-4 mr-2" />
                       Export Excel
                     </Button>
-                    <Button onClick={fetchAllData} variant="outline">
-                      <RefreshCw className="w-4 h-4 mr-2" />
-                      Refresh
+                    <Button onClick={fetchAllData} variant="outline" disabled={loading}>
+                      <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+                      {loading ? "Refreshing..." : "Refresh"}
                     </Button>
                   </div>
                 </div>

@@ -34,7 +34,9 @@ export interface ISalesRecord {
   productSubCategory: string
   product: string
   activationCode: string
-  status?: "available" | "claimed" // Added status field
+  status?: "available" | "claimed" // Status field
+  claimedBy?: string // Email of the person who claimed it
+  claimedDate?: Date // Date when it was claimed
   createdAt?: Date
   updatedAt?: Date
 }
@@ -60,10 +62,11 @@ export interface ClaimResponse extends Omit<IClaimResponse, "_id" | "createdAt" 
   razorpayOrderId?: string
 }
 
-export interface SalesRecord extends Omit<ISalesRecord, "_id" | "createdAt" | "updatedAt"> {
+export interface SalesRecord extends Omit<ISalesRecord, "_id" | "createdAt" | "updatedAt" | "claimedDate"> {
   id: string
   createdAt?: string
   updatedAt?: string
+  claimedDate?: string
 }
 
 export interface OTTKey extends Omit<IOTTKey, "_id" | "createdAt" | "updatedAt" | "assignedDate" | "assignedTo"> {

@@ -19,11 +19,13 @@ export interface IClaimResponse extends Document {
   sellerName?: string
   paymentStatus: string
   paymentId?: string
+  orderId?: string
+  razorpayPaymentId?: string
+  razorpayOrderId?: string
   ottCodeStatus: string
   ottCode?: string
   createdAt: Date
   billFileName?: string
-  razorpayOrderId?: string
 }
 
 const ClaimResponseSchema: Schema = new Schema(
@@ -40,23 +42,28 @@ const ClaimResponseSchema: Schema = new Schema(
     country: { type: String, required: true },
     purchaseType: { type: String, required: true },
     activationCode: { type: String, required: true },
-    purchaseDate: { type: String, required: true }, // Storing as string for simplicity based on original code
-    claimSubmissionDate: { type: String, required: true }, // Storing as string
+    purchaseDate: { type: String, required: true },
+    claimSubmissionDate: { type: String, required: true },
     invoiceNumber: { type: String },
     sellerName: { type: String },
-    paymentStatus: { type: String, required: true },
+    paymentStatus: { type: String, required: true, default: "pending" },
     paymentId: { type: String },
+    orderId: { type: String },
+    razorpayPaymentId: { type: String },
+    razorpayOrderId: { type: String },
     ottCodeStatus: { type: String, required: true, default: "pending" },
     ottCode: { type: String },
     billFileName: { type: String },
-    razorpayOrderId: { type: String },
   },
   { timestamps: true },
 )
 
-export default (mongoose.models.ClaimResponse ||
+const ClaimResponse = (mongoose.models.ClaimResponse ||
   mongoose.model<IClaimResponse>(
     "ClaimResponse",
     ClaimResponseSchema,
     "claimresponses",
   )) as mongoose.Model<IClaimResponse>
+
+export default ClaimResponse
+export { ClaimResponse }

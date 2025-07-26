@@ -5,7 +5,13 @@ import type { IClaimResponse, ClaimResponse } from "@/lib/models"
 export async function GET() {
   try {
     const db = await getDatabase()
-    const claims = await db.collection<IClaimResponse>("claims").find({}).toArray() // Changed collection name
+
+    // Sort by createdAt in descending order (-1)
+    const claims = await db
+      .collection<IClaimResponse>("claims")
+      .find({})
+      .sort({ createdAt: -1 }) // Add this line to sort in descending order
+      .toArray()
 
     const formattedClaims: ClaimResponse[] = claims.map((claim) => ({
       ...claim,
