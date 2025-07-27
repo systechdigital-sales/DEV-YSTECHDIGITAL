@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, CreditCard, Shield, CheckCircle, AlertCircle, RefreshCw, X, Lock, Star, Clock } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
+import { json } from "stream/consumers"
 
 declare global {
   interface Window {
@@ -89,6 +90,8 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
 
       if (!response.ok || !data.success) {
         throw new Error(data.error || data.details || "Failed to create order")
+        console.log("create order")
+        alert(data)
       }
 
       return data
@@ -115,10 +118,29 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
       })
 
       const data = await response.json()
+      if (data.success) {
+        // Update claim payment status after successful verification
+        await fetch("/api/payment/update-claim-status", {
+          method: "PATCH", // Your backend expects POST, not PATCH
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            claimId,
+            paymentId: data.paymentId,
+            orderId: data.orderId,
+            razorpayPaymentId: data.paymentId, // If you want to store Razorpay payment ID
+            razorpayOrderId: data.orderId,     // If you want to store Razorpay order ID
+            paymentStatus: "paid",
+          }),
+        })
+      }
+   
 
       if (!response.ok || !data.success) {
         throw new Error(data.error || "Payment verification failed")
       }
+      
 
       return data
     } catch (error) {
@@ -165,9 +187,10 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
+              razorpay_status: response.razorpay_status
             })
 
-            console.log("Payment verification successful:", verificationResult)
+            
 
             // Redirect to success page with transaction details
             const successUrl = new URL("/payment/success", window.location.origin)
