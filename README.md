@@ -9,6 +9,5 @@ Any changes you make to your deployed app will be automatically pushed to this r
 
 Continue building your app on:
 
-**[https://v0.dev/chat/projects/oB5sOIb9R51](https://v0.dev/chat/projects/oB5sOIb9R51)**
 
 ## How It Works
