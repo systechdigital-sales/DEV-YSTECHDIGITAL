@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
 import type { IOTTKey, OTTKey } from "@/lib/models"
