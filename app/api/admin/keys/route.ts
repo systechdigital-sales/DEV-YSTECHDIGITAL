@@ -1,4 +1,4 @@
-export const dynamic = "force-dynamic";
+export const dynamic = "force-dynamic"
 
 import { NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
@@ -11,11 +11,14 @@ export async function GET() {
 
     const formattedKeys: OTTKey[] = keys.map((key) => ({
       ...key,
-      id: key._id.toString(),
+      id: key._id?.toString() || "",
+      _id: key._id?.toString() || "",
       createdAt: key.createdAt ? key.createdAt.toISOString() : undefined,
       updatedAt: key.updatedAt ? key.updatedAt.toISOString() : undefined,
       assignedDate: key.assignedDate ? key.assignedDate.toISOString() : undefined,
     }))
+
+    console.log(`Fetched ${formattedKeys.length} OTT keys from systech_ott_platform`)
 
     return NextResponse.json(formattedKeys)
   } catch (error: any) {

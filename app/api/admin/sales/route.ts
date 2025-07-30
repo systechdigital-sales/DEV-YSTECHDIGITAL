@@ -1,4 +1,4 @@
-export const dynamic = "force-dynamic";
+export const dynamic = "force-dynamic"
 
 import { NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
@@ -11,10 +11,14 @@ export async function GET() {
 
     const formattedSales: SalesRecord[] = sales.map((sale) => ({
       ...sale,
-      id: sale._id.toString(),
+      id: sale._id?.toString() || "",
+      _id: sale._id?.toString() || "",
       createdAt: sale.createdAt ? sale.createdAt.toISOString() : undefined,
       updatedAt: sale.updatedAt ? sale.updatedAt.toISOString() : undefined,
+      claimedDate: sale.claimedDate ? sale.claimedDate.toISOString() : undefined,
     }))
+
+    console.log(`Fetched ${formattedSales.length} sales records from systech_ott_platform`)
 
     return NextResponse.json(formattedSales)
   } catch (error: any) {

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
-import * as XLSX from "xlsx"
 import { getDatabase } from "@/lib/mongodb"
 import type { ISalesRecord } from "@/lib/models"
+import { parseExcel, parseCSV } from "@/lib/excelParser" // Import the parser functions
 
 export async function POST(request: Request) {
   try {
@@ -13,49 +13,90 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "No file uploaded." }, { status: 400 })
     }
 
-    const arrayBuffer = await file.arrayBuffer()
-    const data = new Uint8Array(arrayBuffer)
-    const workbook = XLSX.read(data, { type: "array" })
+    const fileExtension = file.name.split(".").pop()?.toLowerCase()
+    let json: any[] = []
 
-    const sheetName = workbook.SheetNames[0]
-    const worksheet = workbook.Sheets[sheetName]
-    const json = XLSX.utils.sheet_to_json(worksheet) as any[]
+    const arrayBuffer = await file.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+
+    if (fileExtension === "xlsx" || fileExtension === "xls") {
+      json = parseExcel(buffer)
+    } else if (fileExtension === "csv") {
+      json = parseCSV(buffer.toString("utf-8"))
+    } else {
+      return NextResponse.json(
+        { success: false, error: "Unsupported file type. Please upload .xlsx, .xls, or .csv." },
+        { status: 400 },
+      )
+    }
+
+    if (!json || json.length === 0) {
+      return NextResponse.json({ success: false, error: "No data found in the uploaded file." }, { status: 400 })
+    }
 
     let uploadedCount = 0
     const errors: string[] = []
     const recordsToInsert: ISalesRecord[] = []
 
-    for (const row of json) {
-      try {
-        const newSalesRecord: ISalesRecord = {
-          productSubCategory: row["Product Sub Category"] || "",
-          product: row["Product"] || "",
-          activationCode: row["Activation Code/ Serial No / IMEI Number"] || "",
-          status: "available", // Default status for new sales records
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }
+    const requiredHeaders = ["Product Sub Category", "Product", "Activation Code/ Serial No / IMEI Number"]
 
-        if (!newSalesRecord.productSubCategory || !newSalesRecord.product || !newSalesRecord.activationCode) {
-          errors.push(`Row ${json.indexOf(row) + 2}: Missing required fields.`)
-          continue
-        }
+    // Check if all required headers are present in the first row (keys of the first object)
+    const actualHeaders = Object.keys(json[0] || {})
+    const missingHeaders = requiredHeaders.filter((header) => !actualHeaders.includes(header))
 
-        recordsToInsert.push(newSalesRecord)
-      } catch (parseError: any) {
-        errors.push(`Row ${json.indexOf(row) + 2}: ${parseError.message || "Parsing error"}`)
+    if (missingHeaders.length > 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Missing required column headers.",
+          details: missingHeaders.map((header) => `Missing column: '${header}'`),
+        },
+        { status: 400 },
+      )
+    }
+
+    for (let i = 0; i < json.length; i++) {
+      const row = json[i]
+      const rowNumber = i + 2 // +2 because Excel rows are 1-indexed and header is row 1
+
+      const missingFields: string[] = []
+      const productSubCategory = row["Product Sub Category"]?.toString().trim() || ""
+      const product = row["Product"]?.toString().trim() || ""
+      const activationCode = row["Activation Code/ Serial No / IMEI Number"]?.toString().trim() || ""
+      const status = row["Status"]?.toString().trim() || "available" // Optional, default to 'available'
+
+      if (!productSubCategory) missingFields.push("'Product Sub Category'")
+      if (!product) missingFields.push("'Product'")
+      if (!activationCode) missingFields.push("'Activation Code/ Serial No / IMEI Number'")
+
+      if (missingFields.length > 0) {
+        errors.push(`Row ${rowNumber}: Missing required field(s): ${missingFields.join(", ")}.`)
+        continue
       }
+
+      const newSalesRecord: ISalesRecord = {
+        productSubCategory,
+        product,
+        activationCode,
+        status,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+
+      recordsToInsert.push(newSalesRecord)
     }
 
     if (recordsToInsert.length > 0) {
       try {
+        // Use insertMany with ordered: false to continue inserting even if some fail (e.g., duplicates)
         const result = await db.collection<ISalesRecord>("salesrecords").insertMany(recordsToInsert, { ordered: false })
         uploadedCount = result.insertedCount
       } catch (dbError: any) {
         if (dbError.code === 11000 && dbError.writeErrors) {
+          // Handle duplicate key errors specifically
           dbError.writeErrors.forEach((err: any) => {
-            const duplicateKey = err.err.errmsg.match(/dup key: { : "([^"]+)" }/)?.[1] || "unknown"
-            errors.push(`Duplicate activation code: ${duplicateKey}`)
+            const duplicateValue = err.err.errmsg.match(/dup key: { : "([^"]+)" }/)?.[1] || "unknown"
+            errors.push(`Duplicate Activation Code/ Serial No / IMEI Number: '${duplicateValue}'.`)
           })
           uploadedCount = recordsToInsert.length - dbError.writeErrors.length
         } else {
@@ -68,16 +109,19 @@ export async function POST(request: Request) {
     if (errors.length > 0) {
       return NextResponse.json(
         {
-          success: false,
+          success: uploadedCount > 0, // Partial success if some records were uploaded
           count: uploadedCount,
-          error: `Uploaded ${uploadedCount} records with errors in ${errors.length} rows.`,
+          message: `Uploaded ${uploadedCount} records with errors in ${errors.length} rows.`,
           details: errors,
         },
-        { status: 500 },
+        { status: uploadedCount > 0 ? 200 : 500 }, // 200 for partial success, 500 for full failure
       )
     }
 
-    return NextResponse.json({ success: true, count: uploadedCount }, { status: 200 })
+    return NextResponse.json(
+      { success: true, count: uploadedCount, message: `Successfully uploaded ${uploadedCount} sales records.` },
+      { status: 200 },
+    )
   } catch (error: any) {
     console.error("Error processing sales upload:", error)
     return NextResponse.json({ success: false, error: error.message || "Internal server error" }, { status: 500 })

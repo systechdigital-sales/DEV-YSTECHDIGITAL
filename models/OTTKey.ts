@@ -1,26 +1,37 @@
 import mongoose, { Schema, type Document } from "mongoose"
 
 export interface IOTTKey extends Document {
-  productSubCategory: string
-  product: string
   activationCode: string
-  status: "available" | "assigned" | "used" // Added 'used' for more states
+  product: string
+  productSubCategory: string
+  status: "available" | "assigned" | "expired"
   assignedEmail?: string
   assignedDate?: Date
   createdAt: Date
+  updatedAt: Date
 }
 
 const OTTKeySchema: Schema = new Schema(
   {
-    productSubCategory: { type: String, required: true },
+    activationCode: { type: String, required: true, unique: true },
     product: { type: String, required: true },
-    activationCode: { type: String, required: true, unique: true }, // Activation code should be unique
-    status: { type: String, enum: ["available", "assigned", "used"], default: "available" },
+    productSubCategory: { type: String, required: true },
+    status: {
+      type: String,
+      enum: ["available", "assigned", "expired"],
+      default: "available",
+    },
     assignedEmail: { type: String },
     assignedDate: { type: Date },
   },
   { timestamps: true },
 )
 
-export default (mongoose.models.OTTKey ||
-  mongoose.model<IOTTKey>("OTTKey", OTTKeySchema, "ottkeys")) as mongoose.Model<IOTTKey>
+// Create indexes for better query performance
+OTTKeySchema.index({ status: 1 })
+OTTKeySchema.index({ assignedEmail: 1 })
+OTTKeySchema.index({ activationCode: 1 })
+
+const OTTKey = mongoose.models.OTTKey || mongoose.model<IOTTKey>("OTTKey", OTTKeySchema)
+
+export default OTTKey

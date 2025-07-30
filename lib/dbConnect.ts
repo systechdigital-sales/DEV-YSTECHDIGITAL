@@ -11,16 +11,10 @@ if (!MONGODB_URI) {
  * in development. This prevents connections growing exponentially
  * during API Route usage.
  */
-// Extend global type to include mongoose property
-declare global {
-  // eslint-disable-next-line no-var
-  var mongoose: { conn: typeof mongoose | null; promise: Promise<typeof mongoose> | null } | undefined;
-}
-
-let cached = global.mongoose as { conn: typeof mongoose | null; promise: Promise<typeof mongoose> | null };
+let cached = global.mongoose
 
 if (!cached) {
-  cached = global.mongoose = { conn: null, promise: null };
+  cached = global.mongoose = { conn: null, promise: null }
 }
 
 async function dbConnect() {
@@ -37,13 +31,7 @@ async function dbConnect() {
       return mongoose
     })
   }
-  try {
-    cached.conn = await cached.promise
-  } catch (e) {
-    cached.promise = null
-    throw e
-  }
-
+  cached.conn = await cached.promise
   return cached.conn
 }
 

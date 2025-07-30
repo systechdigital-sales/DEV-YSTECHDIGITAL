@@ -1,4 +1,4 @@
-export const dynamic = "force-dynamic";
+export const dynamic = "force-dynamic"
 
 import { NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
@@ -9,20 +9,17 @@ export async function GET() {
     const db = await getDatabase()
 
     // Sort by createdAt in descending order (-1)
-    const claims = await db
-      .collection<IClaimResponse>("claims")
-      .find({})
-      .sort({ createdAt: -1 }) // Add this line to sort in descending order
-      .toArray()
+    const claims = await db.collection<IClaimResponse>("claims").find({}).sort({ createdAt: -1 }).toArray()
 
     const formattedClaims: ClaimResponse[] = claims.map((claim) => ({
       ...claim,
-      id: claim._id.toString(),
-      createdAt: claim.createdAt ? claim.createdAt.toString() : "",
+      id: claim._id?.toString() || "",
+      _id: claim._id?.toString() || "",
+      createdAt: claim.createdAt ? claim.createdAt.toString() : new Date().toISOString(),
       updatedAt: claim.updatedAt ? claim.updatedAt.toString() : "",
     }))
 
-    console.log(`Fetched ${formattedClaims.length} claims`)
+    console.log(`Fetched ${formattedClaims.length} claims from systech_ott_platform`)
 
     return NextResponse.json(formattedClaims)
   } catch (error: any) {

@@ -32,11 +32,11 @@ if (process.env.NODE_ENV === "development") {
     globalWithMongo._mongoClientPromise = client
       .connect()
       .then((client) => {
-        console.log("MongoDB connected successfully in development mode")
+        console.log("MongoDB connected successfully to systech_ott_platform in development mode")
         return client
       })
       .catch((err) => {
-        console.error("Failed to connect to MongoDB in development:", err)
+        console.error("Failed to connect to MongoDB systech_ott_platform in development:", err)
         throw err
       })
   }
@@ -47,34 +47,34 @@ if (process.env.NODE_ENV === "development") {
   clientPromise = client
     .connect()
     .then((client) => {
-      console.log("MongoDB connected successfully in production mode")
+      console.log("MongoDB connected successfully to systech_ott_platform in production mode")
       return client
     })
     .catch((err) => {
-      console.error("Failed to connect to MongoDB in production:", err)
+      console.error("Failed to connect to MongoDB systech_ott_platform in production:", err)
       throw err
     })
 }
 
 export async function getDatabase(): Promise<Db> {
   try {
-    console.log("Getting database connection...")
+    console.log("Getting database connection to systech_ott_platform...")
     const client = await clientPromise
     const db = client.db("systech_ott_platform")
-    console.log("Database connection successful")
+    console.log("Database connection successful to systech_ott_platform")
     return db
   } catch (error) {
-    console.error("Error connecting to database:", error)
+    console.error("Error connecting to systech_ott_platform database:", error)
 
     // Fallback to creating a new connection if the cached one fails
     try {
-      console.log("Attempting fallback connection...")
+      console.log("Attempting fallback connection to systech_ott_platform...")
       const fallbackClient = new MongoClient(uri, options)
       await fallbackClient.connect()
-      console.log("Fallback connection successful")
+      console.log("Fallback connection successful to systech_ott_platform")
       return fallbackClient.db("systech_ott_platform")
     } catch (fallbackError) {
-      console.error("Fallback connection also failed:", fallbackError)
+      console.error("Fallback connection also failed for systech_ott_platform:", fallbackError)
       throw fallbackError
     }
   }

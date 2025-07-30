@@ -1,10 +1,13 @@
 import nodemailer from "nodemailer"
 
-interface EmailData {
+interface EmailOptions {
   to: string
   subject: string
-  template: string
-  data: any
+  template: "custom" | "default" // Add more templates as needed
+  data: {
+    html: string // For custom HTML templates
+    // Add other data properties for default templates if needed
+  }
 }
 
 const transporter = nodemailer.createTransport({
@@ -105,29 +108,44 @@ const emailTemplates = {
     </body>
     </html>
   `,
+  custom: (data: any) => data.html || "",
 }
 
-export async function sendEmail({ to, subject, template, data }: EmailData) {
+export async function sendEmail(options: EmailOptions) {
+  const user = process.env.GMAIL_USER
+  const pass = process.env.GMAIL_APP_PASSWORD
+
+  if (!user || !pass) {
+    console.error("GMAIL_USER or GMAIL_APP_PASSWORD environment variables are not set.")
+    throw new Error("Email credentials not configured.")
+  }
+
+  let htmlContent: string
+
+  switch (options.template) {
+    case "custom":
+      htmlContent = options.data.html
+      break
+    case "default":
+      // You can define a default template here or load from a file
+      htmlContent = `<p>This is a default email. Subject: ${options.subject}</p>`
+      break
+    default:
+      htmlContent = `<p>No template specified. Subject: ${options.subject}</p>`
+  }
+
+  const mailOptions = {
+    from: user,
+    to: options.to,
+    subject: options.subject,
+    html: htmlContent,
+  }
+
   try {
-    const templateFunction = emailTemplates[template as keyof typeof emailTemplates]
-    if (!templateFunction) {
-      throw new Error(`Template ${template} not found`)
-    }
-
-    const html = templateFunction(data)
-
-    const mailOptions = {
-      from: process.env.GMAIL_USER,
-      to,
-      subject,
-      html,
-    }
-
-    const result = await transporter.sendMail(mailOptions)
-    console.log("Email sent successfully:", result.messageId)
-    return result
+    await transporter.sendMail(mailOptions)
+    console.log(`Email sent successfully to ${options.to}`)
   } catch (error) {
-    console.error("Error sending email:", error)
-    throw error
+    console.error(`Error sending email to ${options.to}:`, error)
+    throw new Error(`Failed to send email: ${error instanceof Error ? error.message : "Unknown error"}`)
   }
 }

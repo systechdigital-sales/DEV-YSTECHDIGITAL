@@ -1,56 +1,3 @@
-// import { type NextRequest, NextResponse } from "next/server"
-// import { getDatabase } from "@/lib/mongodb"
-// import * as XLSX from "xlsx"
-
-// // Force dynamic rendering
-// export const dynamic = "force-dynamic"
-
-// export async function GET(request: NextRequest) {
-//   try {
-//     const { searchParams } = new URL(request.url)
-//     const type = searchParams.get("type") || "claims"
-
-//     const db = await getDatabase()
-//     let data: any[] = []
-//     let filename = ""
-
-//     switch (type) {
-//       case "claims":
-//         data = await db.collection("claims").find({}).toArray()
-//         filename = "ott_claims.xlsx"
-//         break
-//       case "sales":
-//         data = await db.collection("sales").find({}).toArray()
-//         filename = "sales_records.xlsx"
-//         break
-//       case "keys":
-//         data = await db.collection("ott_keys").find({}).toArray()
-//         filename = "ott_keys.xlsx"
-//         break
-//       default:
-//         return NextResponse.json({ success: false, error: "Invalid export type" }, { status: 400 })
-//     }
-
-//     // Convert to Excel
-//     const worksheet = XLSX.utils.json_to_sheet(data)
-//     const workbook = XLSX.utils.book_new()
-//     XLSX.utils.book_append_sheet(workbook, worksheet, type)
-
-//     // Generate buffer
-//     const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" })
-
-//     return new NextResponse(buffer, {
-//       headers: {
-//         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-//         "Content-Disposition": `attachment; filename="${filename}"`,
-//       },
-//     })
-//   } catch (error) {
-//     console.error("Export error:", error)
-//     return NextResponse.json({ success: false, error: "Export failed" }, { status: 500 })
-//   }
-// }
-
 import { NextResponse } from "next/server"
 import * as XLSX from "xlsx"
 import { getDatabase } from "@/lib/mongodb"
@@ -63,81 +10,107 @@ export async function GET(request: Request) {
   let data: any[] = []
   let fileName = "export"
   let headers: string[] = []
+  let formattedData: any[] = []
 
   try {
     const db = await getDatabase()
 
     if (type === "claims") {
-      data = await db.collection<IClaimResponse>("claims").find({}).toArray() // Changed collection name
+      data = await db.collection<IClaimResponse>("claims").find({}).toArray()
       fileName = "claims_export"
       headers = [
-        "id",
-        "firstName",
-        "lastName",
-        "email",
-        "phone",
-        "streetAddress",
-        "addressLine2",
-        "city",
-        "state",
-        "postalCode",
-        "country",
-        "purchaseType",
-        "activationCode",
-        "purchaseDate",
-        "claimSubmissionDate",
-        "invoiceNumber",
-        "sellerName",
-        "paymentStatus",
-        "paymentId",
-        "razorpayOrderId", // Added new header
-        "ottCodeStatus",
-        "ottCode",
-        "createdAt",
-        "billFileName",
+        "ID",
+        "First Name",
+        "Last Name",
+        "Email",
+        "Phone",
+        "Street Address",
+        "Address Line 2",
+        "City",
+        "State",
+        "Postal Code",
+        "Country",
+        "Purchase Type",
+        "Activation Code",
+        "Purchase Date",
+        "Claim Submission Date", // Maps to createdAt
+        "Invoice Number",
+        "Seller Name",
+        "Payment Status",
+        "Payment ID",
+        "Razorpay Order ID",
+        "OTT Code Status",
+        "OTT Code",
+        "Bill File Name",
       ]
+      formattedData = data.map((doc) => [
+        doc._id.toString(),
+        doc.firstName,
+        doc.lastName,
+        doc.email,
+        doc.phone,
+        doc.streetAddress,
+        doc.addressLine2,
+        doc.city,
+        doc.state,
+        doc.postalCode,
+        doc.country,
+        doc.purchaseType,
+        doc.activationCode,
+        doc.purchaseDate,
+        doc.createdAt instanceof Date ? doc.createdAt.toISOString() : doc.createdAt, // Use createdAt for submission date
+        doc.invoiceNumber,
+        doc.sellerName,
+        doc.paymentStatus,
+        doc.paymentId,
+        doc.razorpayOrderId,
+        doc.ottCodeStatus,
+        doc.ottCode,
+        doc.billFileName,
+      ])
     } else if (type === "sales") {
       data = await db.collection<ISalesRecord>("salesrecords").find({}).toArray()
       fileName = "sales_export"
-      headers = ["id", "productSubCategory", "product", "activationCode", "status", "createdAt"]
+      headers = ["ID", "Product Sub Category", "Product", "Activation Code", "Status", "Created At"]
+      formattedData = data.map((doc) => [
+        doc._id.toString(),
+        doc.productSubCategory,
+        doc.product,
+        doc.activationCode,
+        doc.status,
+        doc.createdAt instanceof Date ? doc.createdAt.toISOString() : doc.createdAt,
+      ])
     } else if (type === "keys") {
       data = await db.collection<IOTTKey>("ottkeys").find({}).toArray()
       fileName = "ott_keys_export"
       headers = [
-        "id",
-        "productSubCategory",
-        "product",
-        "activationCode",
-        "status",
-        "assignedEmail",
-        "assignedDate",
-        "createdAt",
+        "ID",
+        "Product Sub Category",
+        "Product",
+        "Activation Code",
+        "Status",
+        "Assigned Email",
+        "Assigned Date",
+        "Created At",
       ]
+      formattedData = data.map((doc) => [
+        doc._id.toString(),
+        doc.productSubCategory,
+        doc.product,
+        doc.activationCode,
+        doc.status,
+        doc.assignedEmail,
+        doc.assignedDate instanceof Date ? doc.assignedDate.toISOString() : doc.assignedDate,
+        doc.createdAt instanceof Date ? doc.createdAt.toISOString() : doc.createdAt,
+      ])
     } else {
       return NextResponse.json({ error: "Invalid export type" }, { status: 400 })
     }
 
-    // Format data for export: convert _id to id string and Date objects to ISO strings
-    const formattedData = data.map((doc) => {
-      const newDoc: { [key: string]: any } = { ...doc, id: doc._id.toString() }
-      delete newDoc._id // Remove the MongoDB ObjectId
+    // Prepare data for XLSX.utils.aoa_to_sheet
+    const exportData = [headers, ...formattedData]
 
-      // Convert Date objects to ISO strings for consistency
-      if (newDoc.createdAt instanceof Date) newDoc.createdAt = newDoc.createdAt.toISOString()
-      if (newDoc.updatedAt instanceof Date) newDoc.updatedAt = newDoc.updatedAt.toISOString()
-      if (newDoc.assignedDate instanceof Date) newDoc.assignedDate = newDoc.assignedDate.toISOString()
-
-      return newDoc
-    })
-
-    // If data is empty, create a worksheet with just headers
-    const worksheet =
-      formattedData.length > 0 ? XLSX.utils.json_to_sheet(formattedData) : XLSX.utils.aoa_to_sheet([headers])
-
-    // If data is empty, ensure headers are explicitly set (redundant if using aoa_to_sheet with headers, but good for clarity)
-    if (formattedData.length === 0 && headers.length > 0) {
-      XLSX.utils.sheet_add_aoa(worksheet, [headers], { origin: "A1" })
-    }
+    const worksheet = XLSX.utils.aoa_to_sheet(exportData)
 
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, "Data")
