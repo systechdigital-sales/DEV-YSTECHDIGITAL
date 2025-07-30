@@ -126,7 +126,7 @@ export default function HomePage() {
             <Card className="bg-purple-900/50 border-purple-700 hover:bg-purple-900/70 transition-colors">
               <CardContent className="p-6 text-center">
                 <Star className="w-12 h-12 text-green-400 mx-auto mb-4" />
-                <h4 className="text-xl font-semibold text-white mb-2">21+</h4>
+                <h4 className="text-xl font-semibold text-white mb-2">32+</h4>
                 <p className="text-purple-200">OTT Platforms</p>
               </CardContent>
             </Card>
