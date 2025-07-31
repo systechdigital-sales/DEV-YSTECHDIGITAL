@@ -7,4 +7,3 @@
 
 
 
-## How It Works
