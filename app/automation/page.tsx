@@ -3,7 +3,7 @@
 import type React from "react"
 import { Terminal } from "lucide-react"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -87,6 +87,8 @@ const INTERVAL_OPTIONS = [
 ]
 
 export default function AutomationPage() {
+  console.log("AutomationPage component rendering...") // Added for debugging
+
   const [isRunning, setIsRunning] = useState(false)
   const [settings, setSettings] = useState<AutomationSettings>({
     isEnabled: true,
@@ -109,6 +111,7 @@ export default function AutomationPage() {
   const router = useRouter()
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   const countdownRef = useRef<NodeJS.Timeout | null>(null)
+  const fetchSettingsIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   const [steps, setSteps] = useState<AutomationStep[]>([
     {
@@ -173,19 +176,13 @@ export default function AutomationPage() {
     },
   ])
 
-  useEffect(() => {
-    // Check authentication
-    const isAuthenticated = sessionStorage.getItem("adminAuthenticated")
-    if (!isAuthenticated) {
-      router.push("/login")
-      return
-    }
+  const addLog = useCallback((message: string) => {
+    const timestamp = new Date().toLocaleTimeString()
+    setLogs((prev) => [...prev, `[${timestamp}] ${message}`])
+  }, [])
 
-    // Load automation settings
-    loadAutomationSettings()
-  }, [router])
-
-  const loadAutomationSettings = async () => {
+  const loadAutomationSettings = useCallback(async () => {
+    console.log("loadAutomationSettings called") // Added for debugging
     try {
       const response = await fetch("/api/admin/automation-settings")
       const data = await response.json()
@@ -201,17 +198,55 @@ export default function AutomationPage() {
         setTempSettings(loadedSettings)
 
         // Set initial countdown based on loaded interval
-        setNextRunIn(data.settings.intervalMinutes * 60)
+        // Only reset if not currently running a manual process
+        if (!isRunning) {
+          setNextRunIn(data.settings.intervalMinutes * 60)
+        }
 
-        addLog(
-          `⚙️ Loaded automation settings: ${data.settings.isEnabled ? "ENABLED" : "DISABLED"} - Interval: ${data.settings.intervalMinutes} minutes`,
-        )
+        // Only log if it's the initial load or a significant change
+        // Check if logs.length is 0 OR if totalRuns has actually changed
+        if (logs.length === 0 || data.settings.totalRuns !== settings.totalRuns) {
+          addLog(
+            `⚙️ Loaded automation settings: ${data.settings.isEnabled ? "ENABLED" : "DISABLED"} - Interval: ${data.settings.intervalMinutes} minutes. Total Runs: ${data.settings.totalRuns}`,
+          )
+        }
+      } else {
+        console.error("API error fetching automation settings:", data.error)
+        addLog(`❌ API Error: ${data.error}`)
       }
     } catch (error) {
       console.error("Error loading automation settings:", error)
-      addLog(`❌ Failed to load automation settings: ${error}`)
+      addLog(`❌ Failed to load automation settings: ${error instanceof Error ? error.message : String(error)}`)
     }
-  }
+  }, [addLog, isRunning, settings.totalRuns, logs.length])
+
+  useEffect(() => {
+    console.log("Main useEffect for auth and initial settings load called") // Added for debugging
+    // Check authentication
+    const isAuthenticated = sessionStorage.getItem("adminAuthenticated")
+    if (!isAuthenticated) {
+      router.push("/login")
+      return
+    }
+
+    // Initial load of automation settings
+    loadAutomationSettings()
+
+    // Set up interval to periodically fetch settings (e.g., every 10 seconds)
+    fetchSettingsIntervalRef.current = setInterval(() => {
+      console.log("Fetching settings via interval...") // Added for debugging
+      loadAutomationSettings()
+    }, 10000) // Fetch every 10 seconds
+
+    return () => {
+      console.log("Cleaning up fetchSettingsIntervalRef") // Added for debugging
+      // Cleanup interval on component unmount
+      if (fetchSettingsIntervalRef.current) {
+        clearInterval(fetchSettingsIntervalRef.current)
+        fetchSettingsIntervalRef.current = null // Explicitly nullify
+      }
+    }
+  }, [router, loadAutomationSettings])
 
   const saveAutomationSettings = async () => {
     setIsSaving(true)
@@ -251,13 +286,15 @@ export default function AutomationPage() {
         description: "Failed to save automation settings",
         variant: "destructive",
       })
-      addLog(`❌ Failed to save settings: ${error}`)
+      addLog(`❌ Failed to save settings: ${error instanceof Error ? error.message : String(error)}`)
     } finally {
       setIsSaving(false)
     }
   }
 
-  const updateRunStats = async () => {
+  const updateRunStats = useCallback(async () => {
+    // Made useCallback
+    console.log("updateRunStats called") // Added for debugging
     try {
       await fetch("/api/admin/automation-settings", {
         method: "PATCH",
@@ -269,17 +306,26 @@ export default function AutomationPage() {
           lastRun: new Date().toISOString(),
         }),
       })
+      // After updating stats, immediately re-fetch settings to update UI
+      loadAutomationSettings()
     } catch (error) {
       console.error("Error updating run stats:", error)
+      addLog(`❌ Failed to update run stats: ${error instanceof Error ? error.message : String(error)}`)
     }
-  }
+  }, [loadAutomationSettings, addLog]) // Added dependencies
 
   // Auto-automation countdown effect
   useEffect(() => {
+    console.log("Countdown useEffect called. isEnabled:", settings.isEnabled, "isRunning:", isRunning) // Added for debugging
     if (settings.isEnabled && !isRunning) {
       countdownRef.current = setInterval(() => {
         setNextRunIn((prev) => {
           if (prev <= 1) {
+            // Trigger automation if enabled and not already running
+            if (settings.isEnabled && !isRunning) {
+              console.log("Countdown reached 0, triggering automation...") // Added for debugging
+              startAutomation(true) // Pass true to indicate auto-run
+            }
             return settings.intervalMinutes * 60 // Reset based on current interval
           }
           return prev - 1
@@ -290,28 +336,43 @@ export default function AutomationPage() {
         clearInterval(countdownRef.current)
         countdownRef.current = null
       }
-      setNextRunIn(settings.intervalMinutes * 60)
+      // Only reset nextRunIn if automation is disabled or a manual run just finished
+      // This condition ensures nextRunIn is reset when automation is turned off or a run completes
+      if (!settings.isEnabled || (!isRunning && nextRunIn !== settings.intervalMinutes * 60)) {
+        setNextRunIn(settings.intervalMinutes * 60)
+      }
     }
 
     return () => {
+      console.log("Cleaning up countdownRef") // Added for debugging
       if (countdownRef.current) {
         clearInterval(countdownRef.current)
+        countdownRef.current = null // Explicitly nullify
       }
     }
-  }, [settings.isEnabled, settings.intervalMinutes, isRunning])
+  }, [settings.isEnabled, settings.intervalMinutes, isRunning, startAutomation, nextRunIn]) // Added nextRunIn to dependencies for more precise control
 
-  // Auto-automation interval effect
+  // Auto-automation interval effect (This is now largely redundant due to Vercel Cron and countdown effect)
+  // Keeping it for local development or if Vercel Cron is not used.
   useEffect(() => {
+    console.log("Redundant interval useEffect called. isEnabled:", settings.isEnabled) // Added for debugging
     if (settings.isEnabled) {
       const intervalMs = settings.intervalMinutes * 60 * 1000
 
+      // Clear existing interval if any
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+      }
+
       intervalRef.current = setInterval(() => {
         if (!isRunning) {
-          startAutomation(true) // Pass true to indicate auto-run
+          // This block will be less critical with Vercel Cron, but good for fallback/local
+          // The countdown effect will also trigger startAutomation
+          // startAutomation(true) // Commented out as countdown effect handles this
         }
       }, intervalMs)
 
-      addLog(`🤖 Auto-automation enabled - will run every ${settings.intervalMinutes} minute(s)`)
+      addLog(`🤖 Auto-automation enabled - will run every ${settings.intervalMinutes} minute(s) (via Vercel Cron)`)
     } else {
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
@@ -321,16 +382,13 @@ export default function AutomationPage() {
     }
 
     return () => {
+      console.log("Cleaning up intervalRef") // Added for debugging
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
+        intervalRef.current = null // Explicitly nullify
       }
     }
-  }, [settings.isEnabled, settings.intervalMinutes, isRunning])
-
-  const addLog = (message: string) => {
-    const timestamp = new Date().toLocaleTimeString()
-    setLogs((prev) => [...prev, `[${timestamp}] ${message}`])
-  }
+  }, [settings.isEnabled, settings.intervalMinutes, isRunning, addLog]) // Added isRunning to dependencies
 
   const updateStepStatus = (stepId: string, status: AutomationStep["status"]) => {
     setSteps((prevSteps) => prevSteps.map((step) => (step.id === stepId ? { ...step, status } : step)))
@@ -356,161 +414,164 @@ export default function AutomationPage() {
     }
   }
 
-  const startAutomation = async (isAutoRun = false) => {
-    setIsRunning(true)
-    setProgress(0)
-    if (!isAutoRun) {
-      setResults(null)
-      setLogs([])
-    }
-    setError("")
-
-    // Reset all steps to idle
-    setSteps((prevSteps) => prevSteps.map((step) => ({ ...step, status: "idle" })))
-
-    try {
-      if (isAutoRun) {
-        addLog(`🤖 Auto-run #${settings.totalRuns + 1} - Automated OTT Key Assignment initiated...`)
-        await updateRunStats()
-      } else {
-        addLog("🚀 Manual OTT Key Assignment Automation initiated...")
+  const startAutomation = useCallback(
+    async (isAutoRun = false) => {
+      console.log("startAutomation called. isAutoRun:", isAutoRun) // Added for debugging
+      setIsRunning(true)
+      setProgress(0)
+      if (!isAutoRun) {
+        setResults(null)
+        setLogs([])
       }
-      setCurrentStep("System initialization...")
-      setProgress(5)
+      setError("")
 
-      // Step 1: Check expired claims
-      updateStepStatus("check-expired", "loading")
-      setCurrentStep("Step 1: Processing expired claims...")
-      setProgress(15)
-      addLog("⏰ Step 1: Scanning Claims table for pending claims older than 48 hours...")
-      addLog("📊 Updating expired claims status to 'failed' in database...")
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-      updateStepStatus("check-expired", "complete")
+      // Reset all steps to idle
+      setSteps((prevSteps) => prevSteps.map((step) => ({ ...step, status: "idle" })))
 
-      // Step 2: Fetch paid claims
-      updateStepStatus("fetch-claims", "loading")
-      setCurrentStep("Step 2: Retrieving paid claims...")
-      setProgress(30)
-      addLog("💰 Step 2: Querying Claims table for paid claims with pending OTT status...")
-      addLog("🔍 Filtering claims ready for OTT key assignment...")
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-      updateStepStatus("fetch-claims", "complete")
+      try {
+        if (isAutoRun) {
+          addLog(`🤖 Auto-run #${settings.totalRuns + 1} - Automated OTT Key Assignment initiated...`)
+          await updateRunStats() // Increment totalRuns in DB and update UI
+        } else {
+          addLog("🚀 Manual OTT Key Assignment Automation initiated...")
+        }
+        setCurrentStep("System initialization...")
+        setProgress(5)
 
-      // Step 3: Verify activation codes
-      updateStepStatus("verify-codes", "loading")
-      setCurrentStep("Step 3: Verifying activation codes...")
-      setProgress(45)
-      addLog("🔍 Step 3: Cross-referencing activation codes with SalesRecord table...")
-      addLog("✅ Validating code authenticity and eligibility...")
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-      updateStepStatus("verify-codes", "complete")
+        // Step 1: Check expired claims
+        updateStepStatus("check-expired", "loading")
+        setCurrentStep("Step 1: Processing expired claims...")
+        setProgress(15)
+        addLog("⏰ Step 1: Scanning Claims table for pending claims older than 48 hours...")
+        addLog("📊 Updating expired claims status to 'failed' in database...")
+        await new Promise((resolve) => setTimeout(resolve, 2000))
+        updateStepStatus("check-expired", "complete")
 
-      // Step 4: Duplicate detection
-      updateStepStatus("duplicate-check", "loading")
-      setCurrentStep("Step 4: Checking for duplicates...")
-      setProgress(60)
-      addLog("🛡️ Step 4: Scanning Claims table for duplicate claims on same activation codes...")
-      addLog("⚠️ Flagging duplicate entries - same key can't be assigned twice...")
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-      updateStepStatus("duplicate-check", "complete")
+        // Step 2: Fetch paid claims
+        updateStepStatus("fetch-claims", "loading")
+        setCurrentStep("Step 2: Retrieving paid claims...")
+        setProgress(30)
+        addLog("💰 Step 2: Querying Claims table for paid claims with pending OTT status...")
+        addLog("🔍 Filtering claims ready for OTT key assignment...")
+        await new Promise((resolve) => setTimeout(resolve, 1500))
+        updateStepStatus("fetch-claims", "complete")
 
-      // Step 5: Assign OTT keys
-      updateStepStatus("assign-keys", "loading")
-      setCurrentStep("Step 5: Assigning OTT keys...")
-      setProgress(75)
-      addLog("🔑 Step 5: Fetching available keys from OTTKey table...")
-      addLog("💾 Updating key status to 'assigned' and linking to claims...")
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-      updateStepStatus("assign-keys", "complete")
+        // Step 3: Verify activation codes
+        updateStepStatus("verify-codes", "loading")
+        setCurrentStep("Step 3: Verifying activation codes...")
+        setProgress(45)
+        addLog("🔍 Step 3: Cross-referencing activation codes with SalesRecord table...")
+        addLog("✅ Validating code authenticity and eligibility...")
+        await new Promise((resolve) => setTimeout(resolve, 2000))
+        updateStepStatus("verify-codes", "complete")
 
-      // Step 6: Send emails
-      updateStepStatus("send-emails", "loading")
-      setCurrentStep("Step 6: Sending email notifications...")
-      setProgress(90)
-      addLog("📧 Step 6: Composing and sending OTT code emails to customers...")
-      addLog("📬 Updating Claims table with email delivery status...")
+        // Step 4: Duplicate detection
+        updateStepStatus("duplicate-check", "loading")
+        setCurrentStep("Step 4: Checking for duplicates...")
+        setProgress(60)
+        addLog("🛡️ Step 4: Scanning Claims table for duplicate claims on same activation codes...")
+        addLog("⚠️ Flagging duplicate entries - same key can't be assigned twice...")
+        await new Promise((resolve) => setTimeout(resolve, 1500))
+        updateStepStatus("duplicate-check", "complete")
 
-      // Make actual API call
-      const response = await fetch("/api/admin/process-automation", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
+        // Step 5: Assign OTT keys
+        updateStepStatus("assign-keys", "loading")
+        setCurrentStep("Step 5: Assigning OTT keys...")
+        setProgress(75)
+        addLog("🔑 Step 5: Fetching available keys from OTTKey table...")
+        addLog("💾 Updating key status to 'assigned' and linking to claims...")
+        await new Promise((resolve) => setTimeout(resolve, 2000))
+        updateStepStatus("assign-keys", "complete")
 
-      const data = await response.json()
+        // Step 6: Send emails
+        updateStepStatus("send-emails", "loading")
+        setCurrentStep("Step 6: Sending email notifications...")
+        setProgress(90)
+        addLog("📧 Step 6: Composing and sending OTT code emails to customers...")
+        addLog("📬 Updating Claims table with email delivery status...")
 
-      if (!response.ok) {
-        throw new Error(data.error || "Automation failed")
-      }
+        // Make actual API call
+        const response = await fetch("/api/admin/process-automation", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        })
 
-      updateStepStatus("send-emails", "complete")
-      setCurrentStep("Automation completed successfully!")
-      setProgress(100)
-      setResults(data.results)
+        const data = await response.json()
 
-      if (isAutoRun) {
-        addLog(`🤖 Auto-run #${settings.totalRuns + 1} completed successfully!`)
-        // Update settings with new run count
-        setSettings((prev) => ({ ...prev, totalRuns: prev.totalRuns + 1 }))
-      } else {
-        addLog(`✅ Manual automation process completed successfully!`)
-      }
-      addLog(`📈 Database updates: ${data.results.processed + data.results.expired} records modified`)
-      addLog(`⏰ Expired claims processed: ${data.results.expired}`)
-      addLog(`📊 Total claims processed: ${data.results.processed}`)
-      addLog(`✅ Successful assignments: ${data.results.success}`)
-      addLog(`❌ Failed assignments: ${data.results.failed}`)
-      addLog(`⏭️ Skipped (duplicates/invalid): ${data.results.skipped}`)
+        if (!response.ok) {
+          throw new Error(data.error || "Automation failed")
+        }
 
-      // Handle specific failures
-      if (data.results.failed > 0) {
-        const failedSteps = data.results.details.filter((d: any) => d.status === "failed")
-        if (failedSteps.some((f: any) => f.step === "Key Assignment")) {
-          updateStepStatus("assign-keys", "error")
-          addLog(`⚠️ Some key assignments failed - check OTTKey table inventory`)
+        updateStepStatus("send-emails", "complete")
+        setCurrentStep("Automation completed successfully!")
+        setProgress(100)
+        setResults(data.results)
+
+        if (isAutoRun) {
+          addLog(`🤖 Auto-run #${settings.totalRuns + 1} completed successfully!`)
+          // The totalRuns will be updated by loadAutomationSettings called after updateRunStats
+        } else {
+          addLog(`✅ Manual automation process completed successfully!`)
+        }
+        addLog(`📈 Database updates: ${data.results.processed + data.results.expired} records modified`)
+        addLog(`⏰ Expired claims processed: ${data.results.expired}`)
+        addLog(`📊 Total claims processed: ${data.results.processed}`)
+        addLog(`✅ Successful assignments: ${data.results.success}`)
+        addLog(`❌ Failed assignments: ${data.results.failed}`)
+        addLog(`⏭️ Skipped (duplicates/invalid): ${data.results.skipped}`)
+
+        // Handle specific failures
+        if (data.results.failed > 0) {
+          const failedSteps = data.results.details.filter((d: any) => d.status === "failed")
+          if (failedSteps.some((f: any) => f.step === "Key Assignment")) {
+            updateStepStatus("assign-keys", "error")
+            addLog(`⚠️ Some key assignments failed - check OTTKey table inventory`)
+          }
+        }
+
+        if (data.results.skipped > 0) {
+          const skippedSteps = data.results.details.filter((d: any) => d.status === "skipped")
+          if (skippedSteps.some((f: any) => f.step === "Verification")) {
+            updateStepStatus("verify-codes", "skipped")
+            addLog(`⏭️ Some codes skipped - not found in SalesRecord table`)
+          }
+          if (skippedSteps.some((f: any) => f.step === "Duplicate Check")) {
+            updateStepStatus("duplicate-check", "skipped")
+            addLog(`⏭️ Duplicate users detected - same key can't be assigned again`)
+          }
+        }
+
+        // Reset countdown after successful run
+        if (settings.isEnabled) {
+          setNextRunIn(settings.intervalMinutes * 60)
+        }
+      } catch (error: any) {
+        console.error("Automation error:", error)
+        setError(error.message || "Automation failed")
+        addLog(`❌ CRITICAL ERROR: ${error.message || String(error)}`)
+        addLog(`🔧 Please check database connectivity and table structures`)
+
+        // Mark current and subsequent steps as error
+        const currentStepIndex = steps.findIndex((step) => step.status === "loading")
+        if (currentStepIndex >= 0) {
+          for (let i = currentStepIndex; i < steps.length; i++) {
+            updateStepStatus(steps[i].id, "error")
+          }
+        }
+      } finally {
+        setIsRunning(false)
+        setCurrentStep("")
+        if (isAutoRun) {
+          addLog(`🤖 Auto-run #${settings.totalRuns} session ended at ${new Date().toLocaleString()}`)
+        } else {
+          addLog(`🏁 Manual automation session ended at ${new Date().toLocaleString()}`)
         }
       }
-
-      if (data.results.skipped > 0) {
-        const skippedSteps = data.results.details.filter((d: any) => d.status === "skipped")
-        if (skippedSteps.some((f: any) => f.step === "Verification")) {
-          updateStepStatus("verify-codes", "skipped")
-          addLog(`⏭️ Some codes skipped - not found in SalesRecord table`)
-        }
-        if (skippedSteps.some((f: any) => f.step === "Duplicate Check")) {
-          updateStepStatus("duplicate-check", "skipped")
-          addLog(`⏭️ Duplicate users detected - same key can't be assigned again`)
-        }
-      }
-
-      // Reset countdown after successful run
-      if (settings.isEnabled) {
-        setNextRunIn(settings.intervalMinutes * 60)
-      }
-    } catch (error: any) {
-      console.error("Automation error:", error)
-      setError(error.message || "Automation failed")
-      addLog(`❌ CRITICAL ERROR: ${error.message}`)
-      addLog(`🔧 Please check database connectivity and table structures`)
-
-      // Mark current and subsequent steps as error
-      const currentStepIndex = steps.findIndex((step) => step.status === "loading")
-      if (currentStepIndex >= 0) {
-        for (let i = currentStepIndex; i < steps.length; i++) {
-          updateStepStatus(steps[i].id, "error")
-        }
-      }
-    } finally {
-      setIsRunning(false)
-      setCurrentStep("")
-      if (isAutoRun) {
-        addLog(`🤖 Auto-run #${settings.totalRuns} session ended at ${new Date().toLocaleString()}`)
-      } else {
-        addLog(`🏁 Manual automation session ended at ${new Date().toLocaleString()}`)
-      }
-    }
-  }
+    },
+    [addLog, settings.isEnabled, settings.totalRuns, steps, updateRunStats, settings.intervalMinutes], // Added settings.intervalMinutes
+  )
 
   const hasUnsavedChanges =
     tempSettings.isEnabled !== settings.isEnabled || tempSettings.intervalMinutes !== settings.intervalMinutes

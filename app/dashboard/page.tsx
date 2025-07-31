@@ -97,7 +97,7 @@ export default function DashboardPage() {
       // Fetch claims data from database
       const claimsResponse = await fetch("/api/admin/claims")
       const claimsData = await claimsResponse.json()
-      const claims = claimsData.claims || []
+      const claims = claimsData.claims || [] // Ensure claims is an array, even if empty
 
       // Calculate real statistics from database
       const totalClaims = claims.length
