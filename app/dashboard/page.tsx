@@ -53,6 +53,19 @@ interface DashboardStats {
 
 const COLORS = ["#10B981", "#F59E0B", "#EF4444", "#6B7280"]
 
+const formatDateIST = (dateString: string) => {
+  const date = new Date(dateString)
+  return date.toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  })
+}
+
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats>({
     totalClaims: 0,
@@ -81,12 +94,12 @@ export default function DashboardPage() {
     try {
       setLoading(true)
 
-      // Fetch claims data
+      // Fetch claims data from database
       const claimsResponse = await fetch("/api/admin/claims")
       const claimsData = await claimsResponse.json()
       const claims = claimsData.claims || []
 
-      // Calculate statistics
+      // Calculate real statistics from database
       const totalClaims = claims.length
       const successfulClaims = claims.filter((claim: any) => claim.ottCodeStatus === "delivered").length
       const pendingClaims = claims.filter((claim: any) => claim.ottCodeStatus === "pending").length
@@ -94,14 +107,15 @@ export default function DashboardPage() {
       const paidClaims = claims.filter((claim: any) => claim.paymentStatus === "paid").length
       const totalRevenue = paidClaims * 99 // ₹99 per claim
 
-      // Today's claims
-      const today = new Date().toDateString()
+      // Today's claims (IST timezone)
+      const todayIST = new Date().toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })
       const todayClaims = claims.filter((claim: any) => {
-        const claimDate = new Date(claim.createdAt || claim.timestamp || Date.now()).toDateString()
-        return claimDate === today
+        const claimDate = new Date(claim.createdAt || claim.timestamp || Date.now())
+        const claimDateIST = claimDate.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })
+        return claimDateIST === todayIST
       }).length
 
-      // Monthly data for the last 6 months
+      // Monthly data for the last 6 months (real data from database)
       const monthlyData = []
       const currentDate = new Date()
 
@@ -110,7 +124,7 @@ export default function DashboardPage() {
         const monthName = monthDate.toLocaleDateString("en-US", { month: "short" })
         const year = monthDate.getFullYear()
 
-        // Filter claims for this month
+        // Filter claims for this month from database
         const monthClaims = claims.filter((claim: any) => {
           const claimDate = new Date(claim.createdAt || claim.timestamp || Date.now())
           return claimDate.getMonth() === monthDate.getMonth() && claimDate.getFullYear() === monthDate.getFullYear()
@@ -138,7 +152,7 @@ export default function DashboardPage() {
       })
     } catch (error) {
       console.error("Error fetching dashboard data:", error)
-      // Set fallback data
+      // Set fallback data only if database fetch fails
       setStats({
         totalClaims: 0,
         totalRevenue: 0,
@@ -170,7 +184,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-gray-600">Loading dashboard data from systech_ott_platform database...</p>
+                <p className="text-gray-600">Loading real-time dashboard data from systech_ott_platform database...</p>
               </div>
             </div>
           </SidebarInset>
@@ -205,13 +219,19 @@ export default function DashboardPage() {
                         <BarChart className="w-6 h-6 mr-2" />
                         Dashboard Overview
                       </h1>
-                      <p className="text-sm text-blue-200 mt-1">Real-time analytics and system performance</p>
+                      <p className="text-sm text-blue-200 mt-1">Real-time analytics from database (IST)</p>
                     </div>
                   </div>
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-blue-200">Last updated</p>
-                  <p className="text-white font-semibold">{new Date().toLocaleTimeString()}</p>
+                  <p className="text-white font-semibold">
+                    {new Date().toLocaleTimeString("en-IN", {
+                      timeZone: "Asia/Kolkata",
+                      hour12: true,
+                    })}{" "}
+                    IST
+                  </p>
                 </div>
               </div>
             </div>
@@ -219,7 +239,7 @@ export default function DashboardPage() {
 
           <div className="p-6 max-w-7xl mx-auto">
             <div className="space-y-8">
-              {/* Key Metrics */}
+              {/* Key Metrics - Real Data */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <Card className="shadow-xl border-0 bg-gradient-to-br from-blue-500 to-blue-600 text-white">
                   <CardContent className="p-6">
@@ -227,7 +247,7 @@ export default function DashboardPage() {
                       <div>
                         <p className="text-blue-100 text-sm font-semibold">Total Claims</p>
                         <p className="text-3xl font-bold">{stats.totalClaims.toLocaleString()}</p>
-                        <p className="text-blue-200 text-xs mt-1">All time</p>
+                        <p className="text-blue-200 text-xs mt-1">From database</p>
                       </div>
                       <Users className="w-10 h-10 text-blue-200" />
                     </div>
@@ -266,7 +286,7 @@ export default function DashboardPage() {
                       <div>
                         <p className="text-orange-100 text-sm font-semibold">Today's Claims</p>
                         <p className="text-3xl font-bold">{stats.todayClaims}</p>
-                        <p className="text-orange-200 text-xs mt-1">New today</p>
+                        <p className="text-orange-200 text-xs mt-1">New today (IST)</p>
                       </div>
                       <Activity className="w-10 h-10 text-orange-200" />
                     </div>
@@ -274,7 +294,7 @@ export default function DashboardPage() {
                 </Card>
               </div>
 
-              {/* Status Overview */}
+              {/* Status Overview - Real Data */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <Card className="shadow-xl border-0">
                   <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-t-lg border-b">
@@ -334,7 +354,7 @@ export default function DashboardPage() {
                 </Card>
               </div>
 
-              {/* Charts */}
+              {/* Charts - Real Data */}
               <Tabs defaultValue="trends" className="space-y-6">
                 <TabsList className="grid grid-cols-3 mb-6 bg-white shadow-lg rounded-xl p-1 h-14">
                   <TabsTrigger
@@ -361,7 +381,7 @@ export default function DashboardPage() {
                   <Card className="shadow-xl border-0">
                     <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-lg border-b">
                       <CardTitle className="text-2xl font-bold text-gray-800">Monthly Performance Trends</CardTitle>
-                      <p className="text-gray-600 mt-2">Real data from Claims collection showing 6-month performance</p>
+                      <p className="text-gray-600 mt-2">Real data from Claims collection (6-month performance)</p>
                     </CardHeader>
                     <CardContent className="p-8">
                       <ResponsiveContainer width="100%" height={400}>
@@ -388,7 +408,7 @@ export default function DashboardPage() {
                   <Card className="shadow-xl border-0">
                     <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-t-lg border-b">
                       <CardTitle className="text-2xl font-bold text-gray-800">Claim Status Distribution</CardTitle>
-                      <p className="text-gray-600 mt-2">Current distribution of claim statuses from database</p>
+                      <p className="text-gray-600 mt-2">Current distribution from database</p>
                     </CardHeader>
                     <CardContent className="p-8">
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -433,7 +453,7 @@ export default function DashboardPage() {
                   <Card className="shadow-xl border-0">
                     <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-t-lg border-b">
                       <CardTitle className="text-2xl font-bold text-gray-800">Monthly Revenue Analysis</CardTitle>
-                      <p className="text-gray-600 mt-2">Revenue generated from paid claims (₹99 per claim)</p>
+                      <p className="text-gray-600 mt-2">Revenue from paid claims (₹99 per claim)</p>
                     </CardHeader>
                     <CardContent className="p-8">
                       <ResponsiveContainer width="100%" height={400}>

@@ -1,80 +1,46 @@
 "use client"
 
-import { useRouter } from "next/navigation"
-
 import type React from "react"
 
 import { useState } from "react"
-import { Button } from "@/components/ui/button"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { Upload, FileText, AlertCircle } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Upload, CreditCard, CheckCircle, AlertCircle, Home, User, Package, Shield, Clock } from "lucide-react"
 import Image from "next/image"
 
-const countries = [
-  "Afghanistan",
-  "Albania",
-  "Algeria",
-  "Argentina",
-  "Australia",
-  "Austria",
-  "Bangladesh",
-  "Belgium",
-  "Brazil",
-  "Canada",
-  "China",
-  "Denmark",
-  "Egypt",
-  "Finland",
-  "France",
-  "Germany",
-  "India",
-  "Indonesia",
-  "Iran",
-  "Iraq",
-  "Ireland",
-  "Italy",
-  "Japan",
-  "Jordan",
-  "Kenya",
-  "Malaysia",
-  "Mexico",
-  "Netherlands",
-  "New Zealand",
-  "Nigeria",
-  "Norway",
-  "Pakistan",
-  "Philippines",
-  "Poland",
-  "Russia",
-  "Saudi Arabia",
-  "Singapore",
-  "South Africa",
-  "South Korea",
-  "Spain",
-  "Sweden",
-  "Switzerland",
-  "Thailand",
-  "Turkey",
-  "Ukraine",
-  "United Arab Emirates",
-  "United Kingdom",
-  "United States",
-  "Vietnam",
-]
+interface FormData {
+  firstName: string
+  lastName: string
+  email: string
+  phoneNumber: string
+  streetAddress: string
+  addressLine2: string
+  city: string
+  state: string
+  postalCode: string
+  country: string
+  purchaseType: string
+  activationCode: string
+  purchaseDate: string
+  invoiceNumber: string
+  sellerName: string
+  billFile: File | null
+  agreeToTerms: boolean
+}
 
 export default function OTTClaimPage() {
   const router = useRouter()
-  const [loading, setLoading] = useState(false)
-  const [file, setFile] = useState<File | null>(null)
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     firstName: "",
     lastName: "",
     email: "",
-    phone: "",
+    phoneNumber: "",
     streetAddress: "",
     addressLine2: "",
     city: "",
@@ -86,51 +52,57 @@ export default function OTTClaimPage() {
     purchaseDate: "",
     invoiceNumber: "",
     sellerName: "",
+    billFile: null,
+    agreeToTerms: false,
   })
 
-  const handleInputChange = (field: string, value: string) => {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
+
+  const handleInputChange = (field: keyof FormData, value: string | boolean | File | null) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
+    if (error) setError("")
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0]
-    if (selectedFile) {
-      // Validate file type
+    const file = e.target.files?.[0] || null
+    if (file) {
+      // Validate file type and size
       const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "application/pdf"]
-      if (!allowedTypes.includes(selectedFile.type)) {
-        alert("Please upload only JPG, PNG, or PDF files")
+      const maxSize = 5 * 1024 * 1024 // 5MB
+
+      if (!allowedTypes.includes(file.type)) {
+        setError("Please upload a valid file (JPG, PNG, or PDF)")
         return
       }
 
-      // Validate file size (5MB limit)
-      if (selectedFile.size > 5 * 1024 * 1024) {
-        alert("File size should be less than 5MB")
+      if (file.size > maxSize) {
+        setError("File size must be less than 5MB")
         return
       }
-
-      setFile(selectedFile)
     }
+    handleInputChange("billFile", file)
   }
 
-  const validateForm = () => {
+  const validateForm = (): boolean => {
     const requiredFields = [
       "firstName",
       "lastName",
       "email",
-      "phone",
+      "phoneNumber",
       "streetAddress",
       "city",
       "state",
       "postalCode",
-      "country",
       "purchaseType",
       "activationCode",
       "purchaseDate",
     ]
 
     for (const field of requiredFields) {
-      if (!formData[field as keyof typeof formData]) {
-        alert(`Please fill in the ${field.replace(/([A-Z])/g, " $1").toLowerCase()}`)
+      if (!formData[field as keyof FormData]) {
+        setError(`Please fill in the ${field.replace(/([A-Z])/g, " $1").toLowerCase()} field`)
         return false
       }
     }
@@ -138,14 +110,20 @@ export default function OTTClaimPage() {
     // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(formData.email)) {
-      alert("Please enter a valid email address")
+      setError("Please enter a valid email address")
       return false
     }
 
     // Phone validation
-    const phoneRegex = /^[+]?[\d\s\-()]{10,}$/
-    if (!phoneRegex.test(formData.phone)) {
-      alert("Please enter a valid phone number")
+    const phoneRegex = /^[6-9]\d{9}$/
+    if (!phoneRegex.test(formData.phoneNumber)) {
+      setError("Please enter a valid 10-digit Indian mobile number")
+      return false
+    }
+
+    // Terms agreement
+    if (!formData.agreeToTerms) {
+      setError("Please agree to the terms and conditions")
       return false
     }
 
@@ -155,41 +133,42 @@ export default function OTTClaimPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!validateForm()) {
-      return
-    }
+    if (!validateForm()) return
 
     setLoading(true)
+    setError("")
+    setSuccess("")
 
     try {
       const submitData = new FormData()
 
-      // Add form data
+      // Add all form fields
       Object.entries(formData).forEach(([key, value]) => {
-        submitData.append(key, value)
+        if (key === "billFile" && value instanceof File) {
+          submitData.append(key, value)
+        } else if (key !== "billFile") {
+          submitData.append(key, String(value))
+        }
       })
-
-      // Add file if selected (optional)
-      if (file) {
-        submitData.append("bill", file)
-      }
 
       const response = await fetch("/api/ott-claim/submit", {
         method: "POST",
         body: submitData,
       })
 
-      const result = await response.json()
+      const data = await response.json()
 
-      if (result.success) {
-        // Redirect to payment page
-        window.location.href = result.redirectUrl
+      if (data.success) {
+        setSuccess("Claim submitted successfully! Redirecting to payment...")
+        setTimeout(() => {
+          router.push(`/payment?claimId=${data.claimId}`)
+        }, 2000)
       } else {
-        alert(result.message || "Failed to submit claim. Please try again.")
+        setError(data.message || "Failed to submit claim. Please try again.")
       }
     } catch (error) {
       console.error("Error submitting claim:", error)
-      alert("An error occurred. Please try again.")
+      setError("Network error. Please check your connection and try again.")
     } finally {
       setLoading(false)
     }
@@ -200,279 +179,442 @@ export default function OTTClaimPage() {
       {/* Header */}
       <header className="bg-gradient-to-r from-black via-red-900 to-black shadow-lg border-b border-red-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center">
-            <Image src="/logo.png" alt="SYSTECH DIGITAL Logo" width={40} height={40} className="rounded-full mr-3" />
-            <div>
-              <h1 className="text-3xl font-bold text-white">SYSTECH DIGITAL</h1>
-              <p className="text-sm text-red-200 mt-1">OTT Subscription Claim Form</p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push("/")}
+                className="text-white hover:bg-white/20 mr-4"
+              >
+                <Home className="w-4 h-4 mr-2" />
+                Home
+              </Button>
+              <Image src="/logo.png" alt="SYSTECH DIGITAL Logo" width={40} height={40} className="rounded-full mr-3" />
+              <div>
+                <h1 className="text-3xl font-bold text-white">OTT Subscription Claim</h1>
+                <p className="text-sm text-red-200 mt-1">Get your OTTplay Power Play Pack activation code</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push("/customer-login")}
+                className="text-white hover:bg-white/20 border border-white/30"
+              >
+                <User className="w-4 h-4 mr-2" />
+                My Dashboard
+              </Button>
             </div>
           </div>
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Important Notice */}
-        <Card className="mb-6 border-orange-200 bg-orange-50">
-          <CardContent className="p-4">
-            <div className="flex items-start">
-              <AlertCircle className="w-5 h-5 text-orange-600 mr-2 mt-0.5 flex-shrink-0" />
-              <div className="text-sm text-orange-800">
-                <p className="font-semibold mb-1">Important Notice:</p>
-                <p>
-                  A processing fee of ₹99 is required to verify your claim and process your OTT subscription code. This
-                  fee helps us maintain our verification system and ensure genuine claims.
-                </p>
+        {/* Progress Indicator */}
+        <div className="mb-8">
+          <div className="flex items-center justify-center space-x-4">
+            <div className="flex items-center">
+              <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
+                1
               </div>
+              <span className="ml-2 text-sm font-medium text-blue-600">Submit Claim</span>
             </div>
-          </CardContent>
-        </Card>
+            <div className="w-16 h-1 bg-gray-200 rounded"></div>
+            <div className="flex items-center">
+              <div className="w-8 h-8 bg-gray-200 text-gray-500 rounded-full flex items-center justify-center text-sm font-semibold">
+                2
+              </div>
+              <span className="ml-2 text-sm font-medium text-gray-500">Payment</span>
+            </div>
+            <div className="w-16 h-1 bg-gray-200 rounded"></div>
+            <div className="flex items-center">
+              <div className="w-8 h-8 bg-gray-200 text-gray-500 rounded-full flex items-center justify-center text-sm font-semibold">
+                3
+              </div>
+              <span className="ml-2 text-sm font-medium text-gray-500">Get Code</span>
+            </div>
+          </div>
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Alert Messages */}
+        {error && (
+          <Alert className="mb-6 border-red-200 bg-red-50">
+            <AlertCircle className="w-4 h-4 text-red-600" />
+            <AlertDescription className="text-red-800">{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {success && (
+          <Alert className="mb-6 border-green-200 bg-green-50">
+            <CheckCircle className="w-4 h-4 text-green-600" />
+            <AlertDescription className="text-green-800">{success}</AlertDescription>
+          </Alert>
+        )}
+
+        {/* Main Form */}
+        <form onSubmit={handleSubmit} className="space-y-8">
           {/* Personal Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Personal Information</CardTitle>
+          <Card className="shadow-xl border-0">
+            <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-lg border-b">
+              <CardTitle className="flex items-center text-xl">
+                <User className="w-5 h-5 mr-3 text-blue-600" />
+                Personal Information
+              </CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="firstName">First Name *</Label>
-                <Input
-                  id="firstName"
-                  value={formData.firstName}
-                  onChange={(e) => handleInputChange("firstName", e.target.value)}
-                  placeholder="Enter your first name"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="lastName">Last Name *</Label>
-                <Input
-                  id="lastName"
-                  value={formData.lastName}
-                  onChange={(e) => handleInputChange("lastName", e.target.value)}
-                  placeholder="Enter your last name"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="email">Email Address *</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange("email", e.target.value)}
-                  placeholder="Enter your email address"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="phone">Phone Number *</Label>
-                <Input
-                  id="phone"
-                  value={formData.phone}
-                  onChange={(e) => handleInputChange("phone", e.target.value)}
-                  placeholder="+91 9876543210"
-                  required
-                />
+            <CardContent className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <Label htmlFor="firstName">First Name *</Label>
+                  <Input
+                    id="firstName"
+                    type="text"
+                    value={formData.firstName}
+                    onChange={(e) => handleInputChange("firstName", e.target.value)}
+                    className="mt-1"
+                    placeholder="Enter your first name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="lastName">Last Name *</Label>
+                  <Input
+                    id="lastName"
+                    type="text"
+                    value={formData.lastName}
+                    onChange={(e) => handleInputChange("lastName", e.target.value)}
+                    className="mt-1"
+                    placeholder="Enter your last name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="email">Email Address *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => handleInputChange("email", e.target.value)}
+                    className="mt-1"
+                    placeholder="Enter your email address"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="phoneNumber">Phone Number *</Label>
+                  <Input
+                    id="phoneNumber"
+                    type="tel"
+                    value={formData.phoneNumber}
+                    onChange={(e) => handleInputChange("phoneNumber", e.target.value)}
+                    className="mt-1"
+                    placeholder="Enter 10-digit mobile number"
+                    maxLength={10}
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>
 
           {/* Address Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Address Information</CardTitle>
+          <Card className="shadow-xl border-0">
+            <CardHeader className="bg-gradient-to-r from-green-50 to-blue-50 rounded-t-lg border-b">
+              <CardTitle className="flex items-center text-xl">
+                <Home className="w-5 h-5 mr-3 text-green-600" />
+                Address Information
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="streetAddress">Street Address *</Label>
-                <Input
-                  id="streetAddress"
-                  value={formData.streetAddress}
-                  onChange={(e) => handleInputChange("streetAddress", e.target.value)}
-                  placeholder="Enter your street address"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="addressLine2">Address Line 2 (Optional)</Label>
-                <Input
-                  id="addressLine2"
-                  value={formData.addressLine2}
-                  onChange={(e) => handleInputChange("addressLine2", e.target.value)}
-                  placeholder="Apartment, suite, etc."
-                />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <CardContent className="p-6">
+              <div className="space-y-6">
                 <div>
-                  <Label htmlFor="city">City *</Label>
+                  <Label htmlFor="streetAddress">Street Address *</Label>
                   <Input
-                    id="city"
-                    value={formData.city}
-                    onChange={(e) => handleInputChange("city", e.target.value)}
-                    placeholder="Enter your city"
-                    required
+                    id="streetAddress"
+                    type="text"
+                    value={formData.streetAddress}
+                    onChange={(e) => handleInputChange("streetAddress", e.target.value)}
+                    className="mt-1"
+                    placeholder="Enter your street address"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="state">State *</Label>
+                  <Label htmlFor="addressLine2">Address Line 2 (Optional)</Label>
                   <Input
-                    id="state"
-                    value={formData.state}
-                    onChange={(e) => handleInputChange("state", e.target.value)}
-                    placeholder="Enter your state"
-                    required
+                    id="addressLine2"
+                    type="text"
+                    value={formData.addressLine2}
+                    onChange={(e) => handleInputChange("addressLine2", e.target.value)}
+                    className="mt-1"
+                    placeholder="Apartment, suite, etc."
                   />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div>
+                    <Label htmlFor="city">City *</Label>
+                    <Input
+                      id="city"
+                      type="text"
+                      value={formData.city}
+                      onChange={(e) => handleInputChange("city", e.target.value)}
+                      className="mt-1"
+                      placeholder="Enter your city"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="state">State *</Label>
+                    <Input
+                      id="state"
+                      type="text"
+                      value={formData.state}
+                      onChange={(e) => handleInputChange("state", e.target.value)}
+                      className="mt-1"
+                      placeholder="Enter your state"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="postalCode">Postal Code *</Label>
+                    <Input
+                      id="postalCode"
+                      type="text"
+                      value={formData.postalCode}
+                      onChange={(e) => handleInputChange("postalCode", e.target.value)}
+                      className="mt-1"
+                      placeholder="Enter postal code"
+                      maxLength={6}
+                    />
+                  </div>
                 </div>
                 <div>
-                  <Label htmlFor="postalCode">Postal Code *</Label>
-                  <Input
-                    id="postalCode"
-                    value={formData.postalCode}
-                    onChange={(e) => handleInputChange("postalCode", e.target.value)}
-                    placeholder="Enter postal code"
-                    required
-                  />
+                  <Label htmlFor="country">Country</Label>
+                  <Select value={formData.country} onValueChange={(value) => handleInputChange("country", value)}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="India">India</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              </div>
-              <div>
-                <Label htmlFor="country">Country *</Label>
-                <Select value={formData.country} onValueChange={(value) => handleInputChange("country", value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select country" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="India">India</SelectItem>
-                    <SelectItem value="USA">USA</SelectItem>
-                    <SelectItem value="UK">UK</SelectItem>
-                    <SelectItem value="Canada">Canada</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
             </CardContent>
           </Card>
 
           {/* Purchase Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Purchase Information</CardTitle>
+          <Card className="shadow-xl border-0">
+            <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-t-lg border-b">
+              <CardTitle className="flex items-center text-xl">
+                <Package className="w-5 h-5 mr-3 text-purple-600" />
+                Purchase Information
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="purchaseType">Purchase Type *</Label>
-                <Select
-                  value={formData.purchaseType}
-                  onValueChange={(value) => handleInputChange("purchaseType", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select purchase type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="hardware">Hardware Purchase</SelectItem>
-                    <SelectItem value="software">Software Purchase</SelectItem>
-                    <SelectItem value="subscription">Subscription Service</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="activationCode">Activation Code / Serial Number *</Label>
-                <Input
-                  id="activationCode"
-                  value={formData.activationCode}
-                  onChange={(e) => handleInputChange("activationCode", e.target.value)}
-                  placeholder="Enter activation code or serial number"
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <CardContent className="p-6">
+              <div className="space-y-6">
                 <div>
-                  <Label htmlFor="purchaseDate">Purchase Date *</Label>
-                  <Input
-                    id="purchaseDate"
-                    type="date"
-                    value={formData.purchaseDate}
-                    onChange={(e) => handleInputChange("purchaseDate", e.target.value)}
-                    required
-                  />
+                  <Label htmlFor="purchaseType">Purchase Type *</Label>
+                  <Select
+                    value={formData.purchaseType}
+                    onValueChange={(value) => handleInputChange("purchaseType", value)}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Select purchase type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="online">Online Purchase</SelectItem>
+                      <SelectItem value="retail">Retail Store</SelectItem>
+                      <SelectItem value="distributor">Distributor</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
-                  <Label htmlFor="invoiceNumber">Invoice Number (Optional)</Label>
+                  <Label htmlFor="activationCode">Activation Code *</Label>
                   <Input
-                    id="invoiceNumber"
-                    value={formData.invoiceNumber}
-                    onChange={(e) => handleInputChange("invoiceNumber", e.target.value)}
-                    placeholder="Enter invoice number"
+                    id="activationCode"
+                    type="text"
+                    value={formData.activationCode}
+                    onChange={(e) => handleInputChange("activationCode", e.target.value.toUpperCase())}
+                    className="mt-1 font-mono"
+                    placeholder="Enter your activation code"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">This is the code you received with your purchase</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <Label htmlFor="purchaseDate">Purchase Date *</Label>
+                    <Input
+                      id="purchaseDate"
+                      type="date"
+                      value={formData.purchaseDate}
+                      onChange={(e) => handleInputChange("purchaseDate", e.target.value)}
+                      className="mt-1"
+                      max={new Date().toISOString().split("T")[0]}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="invoiceNumber">Invoice Number (Optional)</Label>
+                    <Input
+                      id="invoiceNumber"
+                      type="text"
+                      value={formData.invoiceNumber}
+                      onChange={(e) => handleInputChange("invoiceNumber", e.target.value)}
+                      className="mt-1"
+                      placeholder="Enter invoice number"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="sellerName">Seller Name (Optional)</Label>
+                  <Input
+                    id="sellerName"
+                    type="text"
+                    value={formData.sellerName}
+                    onChange={(e) => handleInputChange("sellerName", e.target.value)}
+                    className="mt-1"
+                    placeholder="Enter seller or store name"
                   />
                 </div>
-              </div>
-              <div>
-                <Label htmlFor="sellerName">Seller/Store Name (Optional)</Label>
-                <Input
-                  id="sellerName"
-                  value={formData.sellerName}
-                  onChange={(e) => handleInputChange("sellerName", e.target.value)}
-                  placeholder="Enter seller or store name"
-                />
               </div>
             </CardContent>
           </Card>
 
-          {/* File Upload */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                Upload Purchase Bill/Receipt
-                <Badge variant="secondary" className="ml-2 text-xs">
-                  Optional
-                </Badge>
+          {/* Document Upload */}
+          <Card className="shadow-xl border-0">
+            <CardHeader className="bg-gradient-to-r from-orange-50 to-red-50 rounded-t-lg border-b">
+              <CardTitle className="flex items-center text-xl">
+                <Upload className="w-5 h-5 mr-3 text-orange-600" />
+                Document Upload
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                <input
-                  type="file"
-                  id="bill"
-                  accept=".jpg,.jpeg,.png,.pdf"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-                <label htmlFor="bill" className="cursor-pointer">
+            <CardContent className="p-6">
+              <div>
+                <Label htmlFor="billFile">Purchase Bill/Receipt (Optional)</Label>
+                <div className="mt-2 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
                   <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-gray-600 mb-1">Click to upload or drag and drop</p>
-                  <p className="text-xs text-gray-500">JPG, PNG or PDF (Max 5MB) - Optional</p>
-                </label>
-                {file && (
-                  <div className="mt-3 flex items-center justify-center">
-                    <FileText className="w-4 h-4 text-blue-600 mr-2" />
-                    <span className="text-sm text-blue-600">{file.name}</span>
+                  <div className="text-sm text-gray-600 mb-2">
+                    {formData.billFile ? (
+                      <span className="text-green-600 font-medium">{formData.billFile.name}</span>
+                    ) : (
+                      "Click to upload or drag and drop"
+                    )}
                   </div>
-                )}
+                  <p className="text-xs text-gray-500">JPG, PNG or PDF (Max 5MB)</p>
+                  <input
+                    id="billFile"
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.pdf"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-2 bg-transparent"
+                    onClick={() => document.getElementById("billFile")?.click()}
+                  >
+                    Choose File
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Terms and Conditions */}
+          <Card className="shadow-xl border-0">
+            <CardContent className="p-6">
+              <div className="flex items-start space-x-3">
+                <Checkbox
+                  id="agreeToTerms"
+                  checked={formData.agreeToTerms}
+                  onCheckedChange={(checked) => handleInputChange("agreeToTerms", checked as boolean)}
+                  className="mt-1"
+                />
+                <div className="text-sm">
+                  <Label htmlFor="agreeToTerms" className="cursor-pointer">
+                    I agree to the{" "}
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="p-0 h-auto text-blue-600 underline"
+                      onClick={() => router.push("/terms-and-conditions")}
+                    >
+                      Terms and Conditions
+                    </Button>{" "}
+                    and{" "}
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="p-0 h-auto text-blue-600 underline"
+                      onClick={() => router.push("/privacy-policy")}
+                    >
+                      Privacy Policy
+                    </Button>
+                  </Label>
+                  <p className="text-gray-500 mt-1">
+                    By submitting this claim, you confirm that all information provided is accurate and complete.
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>
 
           {/* Submit Button */}
-          <div className="text-center">
+          <div className="flex justify-center">
             <Button
               type="submit"
               disabled={loading}
               size="lg"
-              className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-8 py-3"
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-12 py-4 text-lg font-semibold shadow-xl"
             >
               {loading ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                   Submitting Claim...
                 </>
               ) : (
-                "Submit Claim & Proceed to Payment"
+                <>
+                  Submit Claim & Proceed to Payment
+                  <CreditCard className="w-5 h-5 ml-2" />
+                </>
               )}
             </Button>
-            <p className="text-sm text-gray-600 mt-3">
-              You will be redirected to secure payment processing after submission
-            </p>
           </div>
         </form>
+
+        {/* Information Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
+          <Card className="border-0 shadow-lg">
+            <CardContent className="p-6 text-center">
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Shield className="w-6 h-6 text-blue-600" />
+              </div>
+              <h4 className="font-semibold text-gray-900 mb-2">Secure Process</h4>
+              <p className="text-sm text-gray-600">
+                Your data is encrypted and protected with industry-standard security measures.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-lg">
+            <CardContent className="p-6 text-center">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Clock className="w-6 h-6 text-green-600" />
+              </div>
+              <h4 className="font-semibold text-gray-900 mb-2">Quick Processing</h4>
+              <p className="text-sm text-gray-600">
+                Claims are processed within 24-48 hours after successful payment verification.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-lg">
+            <CardContent className="p-6 text-center">
+              <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="w-6 h-6 text-purple-600" />
+              </div>
+              <h4 className="font-semibold text-gray-900 mb-2">Guaranteed Delivery</h4>
+              <p className="text-sm text-gray-600">100% genuine OTT codes delivered directly to your email address.</p>
+            </CardContent>
+          </Card>
+        </div>
       </main>
     </div>
   )
