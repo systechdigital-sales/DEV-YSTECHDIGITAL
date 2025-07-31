@@ -1,7 +1,10 @@
 "use client"
 
+<<<<<<< HEAD
+=======
+import { useRouter } from "next/navigation"
+>>>>>>> 964eef0457bbdac9ac6a92244ba1e49899a1a733
 import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,9 +12,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+<<<<<<< HEAD
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Upload, CreditCard, CheckCircle, AlertCircle, Home, User, Package, Shield, Clock } from "lucide-react"
+=======
+import { Badge } from "@/components/ui/badge"
+import { Upload, FileText, AlertCircle, Home } from "lucide-react"
+>>>>>>> 964eef0457bbdac9ac6a92244ba1e49899a1a733
 import Image from "next/image"
 
 interface FormData {
@@ -192,6 +200,7 @@ export default function OTTClaimPage() {
               </Button>
               <Image src="/logo.png" alt="SYSTECH DIGITAL Logo" width={40} height={40} className="rounded-full mr-3" />
               <div>
+<<<<<<< HEAD
                 <h1 className="text-3xl font-bold text-white">OTT Subscription Claim</h1>
                 <p className="text-sm text-red-200 mt-1">Get your OTTplay Power Play Pack activation code</p>
               </div>
@@ -206,18 +215,54 @@ export default function OTTClaimPage() {
                 <User className="w-4 h-4 mr-2" />
                 My Dashboard
               </Button>
+=======
+                <h1 className="text-3xl font-bold text-white">SYSTECH DIGITAL</h1>
+                <p className="text-sm text-red-200 mt-1">OTT Subscription Claim Form</p>
+              </div>
+>>>>>>> 964eef0457bbdac9ac6a92244ba1e49899a1a733
             </div>
           </div>
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<<<<<<< HEAD
         {/* Progress Indicator */}
         <div className="mb-8">
           <div className="flex items-center justify-center space-x-4">
             <div className="flex items-center">
               <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
                 1
+=======
+        {/* Hero Section */}
+        <div className="text-center mb-8">
+          <h2 className="text-4xl font-bold text-gray-900 mb-4">
+            Claim your complimentary OTTplay Power Play Pack worth ₹3499* - Absolutely FREE!
+          </h2>
+          <p className="text-lg text-gray-600 mb-2">*Terms and conditions applied</p>
+          <p className="text-xl text-blue-600 font-semibold">Claim Your Free Subscription</p>
+        </div>
+
+        {/* Terms and Conditions Notice */}
+        <Card className="mb-6 border-blue-200 bg-blue-50">
+          <CardContent className="p-4">
+            <div className="flex items-start">
+              <AlertCircle className="w-5 h-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
+              <div className="text-sm text-blue-800">
+                <p className="font-semibold mb-1">Terms and Conditions:</p>
+                <p>
+                  A processing fee of ₹99 is required to verify your claim and process your OTT subscription code. This
+                  fee helps us maintain our verification system and ensure genuine claims. By proceeding, you agree to
+                  our{" "}
+                  <button
+                    onClick={() => router.push("/terms-and-conditions")}
+                    className="underline hover:text-blue-900 font-semibold"
+                  >
+                    Terms and Conditions
+                  </button>
+                  .
+                </p>
+>>>>>>> 964eef0457bbdac9ac6a92244ba1e49899a1a733
               </div>
               <span className="ml-2 text-sm font-medium text-blue-600">Submit Claim</span>
             </div>
@@ -394,6 +439,24 @@ export default function OTTClaimPage() {
                   </Select>
                 </div>
               </div>
+<<<<<<< HEAD
+=======
+              <div>
+                <Label htmlFor="country">Country *</Label>
+                <Select value={formData.country} onValueChange={(value) => handleInputChange("country", value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select country" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {countries.map((country) => (
+                      <SelectItem key={country} value={country}>
+                        {country}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+>>>>>>> 964eef0457bbdac9ac6a92244ba1e49899a1a733
             </CardContent>
           </Card>
 
