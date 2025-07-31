@@ -1,9 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-
 import type React from "react"
-
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Upload, FileText, AlertCircle } from "lucide-react"
+import { Upload, FileText, AlertCircle, Home } from "lucide-react"
 import Image from "next/image"
 
 const countries = [
@@ -200,27 +198,55 @@ export default function OTTClaimPage() {
       {/* Header */}
       <header className="bg-gradient-to-r from-black via-red-900 to-black shadow-lg border-b border-red-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center">
-            <Image src="/logo.png" alt="SYSTECH DIGITAL Logo" width={40} height={40} className="rounded-full mr-3" />
-            <div>
-              <h1 className="text-3xl font-bold text-white">SYSTECH DIGITAL</h1>
-              <p className="text-sm text-red-200 mt-1">OTT Subscription Claim Form</p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push("/")}
+                className="text-white hover:bg-white/20 mr-4"
+              >
+                <Home className="w-4 h-4 mr-2" />
+                Home
+              </Button>
+              <Image src="/logo.png" alt="SYSTECH DIGITAL Logo" width={40} height={40} className="rounded-full mr-3" />
+              <div>
+                <h1 className="text-3xl font-bold text-white">SYSTECH DIGITAL</h1>
+                <p className="text-sm text-red-200 mt-1">OTT Subscription Claim Form</p>
+              </div>
             </div>
           </div>
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Important Notice */}
-        <Card className="mb-6 border-orange-200 bg-orange-50">
+        {/* Hero Section */}
+        <div className="text-center mb-8">
+          <h2 className="text-4xl font-bold text-gray-900 mb-4">
+            Claim your complimentary OTTplay Power Play Pack worth ₹3499* - Absolutely FREE!
+          </h2>
+          <p className="text-lg text-gray-600 mb-2">*Terms and conditions applied</p>
+          <p className="text-xl text-blue-600 font-semibold">Claim Your Free Subscription</p>
+        </div>
+
+        {/* Terms and Conditions Notice */}
+        <Card className="mb-6 border-blue-200 bg-blue-50">
           <CardContent className="p-4">
             <div className="flex items-start">
-              <AlertCircle className="w-5 h-5 text-orange-600 mr-2 mt-0.5 flex-shrink-0" />
-              <div className="text-sm text-orange-800">
-                <p className="font-semibold mb-1">Important Notice:</p>
+              <AlertCircle className="w-5 h-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
+              <div className="text-sm text-blue-800">
+                <p className="font-semibold mb-1">Terms and Conditions:</p>
                 <p>
                   A processing fee of ₹99 is required to verify your claim and process your OTT subscription code. This
-                  fee helps us maintain our verification system and ensure genuine claims.
+                  fee helps us maintain our verification system and ensure genuine claims. By proceeding, you agree to
+                  our{" "}
+                  <button
+                    onClick={() => router.push("/terms-and-conditions")}
+                    className="underline hover:text-blue-900 font-semibold"
+                  >
+                    Terms and Conditions
+                  </button>
+                  .
                 </p>
               </div>
             </div>
@@ -342,10 +368,11 @@ export default function OTTClaimPage() {
                     <SelectValue placeholder="Select country" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="India">India</SelectItem>
-                    <SelectItem value="USA">USA</SelectItem>
-                    <SelectItem value="UK">UK</SelectItem>
-                    <SelectItem value="Canada">Canada</SelectItem>
+                    {countries.map((country) => (
+                      <SelectItem key={country} value={country}>
+                        {country}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
