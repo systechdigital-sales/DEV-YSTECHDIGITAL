@@ -1,33 +1,34 @@
-import mongoose, { Schema, type Document } from "mongoose"
+import { Schema, model, models } from "mongoose"
 
-export interface IOTTKey extends Document {
+export interface IOTTKey {
   ottCode: string
+  platform: string
   status: "available" | "assigned" | "redeemed"
-  assignedTo?: string // Email of the user it's assigned to
+  assignedTo?: string // Email of the customer
   assignedAt?: Date
   redeemedAt?: Date
-  createdAt: Date
-  updatedAt: Date
+  validity?: string // e.g., "1 month", "3 months"
+  plan?: string // e.g., "Premium", "Standard"
+  source?: string // e.g., "manual", "sale"
+  saleId?: Schema.Types.ObjectId // Reference to SalesRecord if applicable
 }
 
-const OTTKeySchema: Schema = new Schema(
+const OTTKeySchema = new Schema<IOTTKey>(
   {
     ottCode: { type: String, required: true, unique: true },
-    status: {
-      type: String,
-      enum: ["available", "assigned", "redeemed"],
-      default: "available",
-    },
-    assignedTo: { type: String },
+    platform: { type: String, required: true },
+    status: { type: String, enum: ["available", "assigned", "redeemed"], default: "available" },
+    assignedTo: { type: String, sparse: true }, // Use sparse to allow nulls and still index unique non-nulls
     assignedAt: { type: Date },
     redeemedAt: { type: Date },
+    validity: { type: String },
+    plan: { type: String },
+    source: { type: String },
+    saleId: { type: Schema.Types.ObjectId, ref: "SalesRecord" },
   },
   { timestamps: true },
 )
 
-// Create index for efficient lookup of available keys and assigned keys
-OTTKeySchema.index({ status: 1, assignedTo: 1 })
-
-const OTTKey = mongoose.models.OTTKey || mongoose.model<IOTTKey>("OTTKey", OTTKeySchema)
+const OTTKey = models.OTTKey || model<IOTTKey>("OTTKey", OTTKeySchema)
 
 export default OTTKey

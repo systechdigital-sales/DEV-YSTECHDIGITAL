@@ -25,7 +25,7 @@ if (process.env.NODE_ENV === "development") {
   clientPromise = client.connect()
 }
 
-export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db }> {
+export async function getDatabase(): Promise<{ client: MongoClient; db: Db }> {
   try {
     const connectedClient = await clientPromise
     // Use the database name from the URI or a default if not specified

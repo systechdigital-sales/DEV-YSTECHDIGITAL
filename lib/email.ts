@@ -3,10 +3,17 @@ import nodemailer from "nodemailer"
 interface EmailOptions {
   to: string
   subject: string
-  template: "custom" | "default" // Add more templates as needed
+  template: "custom" | "default" | "payment_success_detailed" // Add more templates as needed
   data: {
     html: string // For custom HTML templates
-    // Add other data properties for default templates if needed
+    customerName?: string
+    paymentId?: string
+    orderId?: string
+    claimId?: string
+    amount?: string
+    email?: string
+    phone?: string
+    date?: string
   }
 }
 
@@ -109,6 +116,7 @@ const emailTemplates = {
     </html>
   `,
   custom: (data: any) => data.html || "",
+  default: (data: any) => `<p>This is a default email. Subject: ${data.subject}</p>`,
 }
 
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
@@ -128,25 +136,26 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
       htmlContent = options.data.html
       break
     case "default":
-      htmlContent = `<p>This is a default email. Subject: ${options.subject}</p>`
+      htmlContent = emailTemplates.default(options)
+      break
+    case "payment_success_detailed":
+      htmlContent = emailTemplates.payment_success_detailed(options.data)
       break
     default:
       htmlContent = `<p>No template specified. Subject: ${options.subject}</p>`
   }
 
-  const mailOptions = {
-    from: `"SYSTECH DIGITAL" <${user}>`,
-    to: options.to,
-    subject: options.subject,
-    html: htmlContent,
-  }
-
   try {
-    const info = await transporter.sendMail(mailOptions)
-    console.log("Email sent: %s", info.messageId)
+    await transporter.sendMail({
+      from: `"Systech OTT Platform" <${user}>`,
+      to: options.to,
+      subject: options.subject,
+      html: htmlContent,
+    })
+    console.log(`Email sent successfully to ${options.to}`)
     return true
   } catch (error) {
-    console.error("Error sending email:", error)
+    console.error(`Failed to send email to ${options.to}:`, error)
     return false
   }
 }

@@ -1,177 +1,99 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { connectToDatabase } from "@/lib/mongodb"
+import { NextResponse } from "next/server"
+import { getDatabase } from "@/lib/mongodb"
 import { sendEmail } from "@/lib/email"
+import type { Collection } from "mongodb"
 
-// Rate limiting storage (in production, use Redis or database)
-const otpAttempts = new Map<string, { count: number; resetTime: number }>()
+interface OTPRecord {
+  email: string
+  otp: string
+  createdAt: Date
+}
 
-export async function POST(request: NextRequest) {
+export async function POST(req: Request) {
   try {
-    const { email } = await request.json()
+    const { email } = await req.json()
 
     if (!email) {
-      return NextResponse.json({ success: false, message: "Email is required" }, { status: 400 })
+      return NextResponse.json({ message: "Email is required" }, { status: 400 })
     }
 
-    const normalizedEmail = email.toLowerCase().trim()
-
-    // Email validation
+    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(normalizedEmail)) {
-      return NextResponse.json({ success: false, message: "Please enter a valid email address" }, { status: 400 })
+    if (!emailRegex.test(email)) {
+      return NextResponse.json({ message: "Invalid email format" }, { status: 400 })
     }
 
-    // Rate limiting check
-    const now = Date.now()
-    const attemptKey = normalizedEmail
-    const attempts = otpAttempts.get(attemptKey)
-
-    if (attempts && attempts.count >= 3 && now < attempts.resetTime) {
-      const remainingTime = Math.ceil((attempts.resetTime - now) / 1000 / 60)
-      return NextResponse.json(
-        {
-          success: false,
-          message: `Too many OTP requests. Please try again in ${remainingTime} minutes.`,
-        },
-        { status: 429 },
-      )
-    }
-
-    // Reset attempts if time window has passed
-    if (attempts && now >= attempts.resetTime) {
-      otpAttempts.delete(attemptKey)
-    }
-
-    // Connect to database
     let db
     try {
-      ;({ db } = await connectToDatabase())
-      console.log("Database connection established for send-otp route.")
+      const { db: connectedDb } = await getDatabase()
+      db = connectedDb
     } catch (dbError) {
-      console.error("Database connection error in send-otp route:", dbError)
-      return NextResponse.json(
-        { success: false, message: "Failed to connect to the database. Please try again later." },
-        { status: 500 },
-      )
+      console.error("Error connecting to database for OTP:", dbError)
+      return NextResponse.json({ message: "Database connection failed. Please try again later." }, { status: 500 })
     }
 
-    // Check if email exists in ottkeys collection
-    let ottKey
+    // Check if the email exists in the 'ottkeys' collection (Assigned To field)
+    const ottKeysCollection: Collection = db.collection("ottkeys")
     try {
-      ottKey = await db.collection("ottkeys").findOne({
-        "Assigned To": { $regex: new RegExp(`^${normalizedEmail}$`, "i") },
-      })
-      console.log(`Database query for email '${normalizedEmail}' completed. Found OTT key:`, !!ottKey)
+      const userExists = await ottKeysCollection.findOne({ "Assigned To": email })
+
+      if (!userExists) {
+        console.warn(`Attempted OTP request for unregistered email: ${email}`)
+        return NextResponse.json(
+          { message: "Email not found. Please check your email address or sign up." },
+          { status: 404 },
+        )
+      }
     } catch (queryError) {
-      console.error("Error querying ottkeys collection:", queryError)
+      console.error(`Error querying ottkeys collection for email ${email}:`, queryError)
       return NextResponse.json(
-        { success: false, message: "Failed to retrieve OTT key information. Please try again later." },
+        { message: "An error occurred while verifying your email. Please try again later." },
         { status: 500 },
       )
     }
 
-    if (!ottKey) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "No OTT key found for this email address. Please contact support if you believe this is an error.",
-        },
-        { status: 404 },
-      )
-    }
+    // Generate OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString() // 6-digit OTP
 
-    // Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString()
-
-    // Store OTP in database with expiration (10 minutes)
-    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000)
-
+    // Store OTP in a temporary collection (e.g., 'otps') with an expiry
+    const otpsCollection: Collection<OTPRecord> = db.collection("otps")
     try {
-      await db.collection("customer_otps").deleteMany({ email: normalizedEmail })
-      await db.collection("customer_otps").insertOne({
-        email: normalizedEmail,
+      await otpsCollection.insertOne({
+        email,
         otp,
-        expiresAt: otpExpiry,
-        attempts: 0,
         createdAt: new Date(),
       })
-      console.log(`OTP stored for ${normalizedEmail}.`)
-    } catch (otpDbError) {
-      console.error("Error storing OTP in database:", otpDbError)
-      return NextResponse.json(
-        { success: false, message: "Failed to store OTP. Please try again later." },
-        { status: 500 },
-      )
+      // Ensure TTL index exists for automatic cleanup (e.g., 5 minutes)
+      await otpsCollection.createIndex({ createdAt: 1 }, { expireAfterSeconds: 300 }) // 300 seconds = 5 minutes
+    } catch (otpStoreError) {
+      console.error(`Error storing OTP for ${email}:`, otpStoreError)
+      return NextResponse.json({ message: "Failed to generate OTP. Please try again later." }, { status: 500 })
     }
 
-    // Send OTP email
+    // Send OTP via email
     const emailSent = await sendEmail({
-      to: normalizedEmail,
-      subject: "Your OTT Dashboard Login Code",
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #1e40af; margin-bottom: 10px;">SYSTECH DIGITAL</h1>
-            <h2 style="color: #374151; margin-bottom: 20px;">Your Login Code</h2>
-          </div>
-          
-          <div style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); padding: 30px; border-radius: 10px; text-align: center; margin-bottom: 30px;">
-            <h3 style="color: white; margin-bottom: 15px;">Your 6-Digit Code</h3>
-            <div style="background: white; padding: 20px; border-radius: 8px; display: inline-block;">
-              <span style="font-size: 32px; font-weight: bold; color: #1e40af; letter-spacing: 8px;">${otp}</span>
-            </div>
-          </div>
-          
-          <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-            <h4 style="color: #374151; margin-bottom: 10px;">Important:</h4>
-            <ul style="color: #6b7280; margin: 0; padding-left: 20px;">
-              <li>This code expires in <strong>10 minutes</strong></li>
-              <li>Use this code to access your OTT activation dashboard</li>
-              <li>Don't share this code with anyone</li>
-              <li>If you didn't request this code, please ignore this email</li>
-            </ul>
-          </div>
-          
-          <div style="text-align: center; color: #6b7280; font-size: 14px;">
-            <p>Need help? Contact us at <strong>sales.systechdigital@gmail.com</strong> or call <strong>+91 7709803412</strong></p>
-            <p style="margin-top: 20px;">© 2024 SYSTECH DIGITAL. All rights reserved.</p>
-          </div>
-        </div>
-      `,
+      to: email,
+      subject: "Your OTP for Systech OTT Platform",
+      text: `Your One-Time Password (OTP) is: ${otp}. This OTP is valid for 5 minutes.`,
+      html: `<p>Your One-Time Password (OTP) is: <strong>${otp}</strong>.</p><p>This OTP is valid for 5 minutes.</p><p>If you did not request this, please ignore this email.</p>`,
     })
 
-    if (!emailSent) {
+    if (emailSent) {
       return NextResponse.json(
-        {
-          success: false,
-          message: "Failed to send OTP email. Please check your email address and spam folder, or try again later.",
-        },
+        { message: "OTP sent successfully! Please check your inbox and spam folder." },
+        { status: 200 },
+      )
+    } else {
+      console.error(`Email sending failed for ${email}. Check email service configuration.`)
+      return NextResponse.json(
+        { message: "Failed to send OTP email. Please check your email configuration and try again later." },
         { status: 500 },
       )
     }
-
-    // Update rate limiting
-    const currentAttempts = otpAttempts.get(attemptKey)
-    if (currentAttempts) {
-      otpAttempts.set(attemptKey, {
-        count: currentAttempts.count + 1,
-        resetTime: currentAttempts.resetTime,
-      })
-    } else {
-      otpAttempts.set(attemptKey, {
-        count: 1,
-        resetTime: now + 15 * 60 * 1000, // 15 minutes
-      })
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: "OTP sent successfully to your email address",
-    })
   } catch (error) {
-    console.error("An unexpected error occurred in send-otp route:", error)
+    console.error("Unexpected error in send-otp API:", error)
     return NextResponse.json(
-      { success: false, message: "An unexpected error occurred while sending OTP. Please try again later." },
+      { message: "An unexpected error occurred while sending OTP. Please try again later." },
       { status: 500 },
     )
   }
