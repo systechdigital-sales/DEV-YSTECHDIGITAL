@@ -21,7 +21,7 @@ const ClaimResponseSchema: Schema = new Schema(
   {
     firstName: { type: String, required: true },
     lastName: { type: String, required: true },
-    email: { type: String, required: true },
+    email: { type: String, required: true, unique: true }, // Email should be unique for claims
     phoneNumber: { type: String, required: true },
     activationCode: { type: String, required: true },
     paymentStatus: {

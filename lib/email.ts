@@ -116,9 +116,8 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
   const pass = process.env.GMAIL_APP_PASSWORD
 
   if (!user || !pass) {
-    console.error(
-      "Email credentials not configured. Please ensure GMAIL_USER and GMAIL_APP_PASSWORD are set. For GMAIL_APP_PASSWORD, you need to generate an App Password from your Google Account security settings.",
-    )
+    console.error("Email sending failed: GMAIL_USER or GMAIL_APP_PASSWORD environment variables are not set.")
+    console.error("Please ensure you are using a Gmail App Password for GMAIL_APP_PASSWORD.")
     return false
   }
 
@@ -136,18 +135,18 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
   }
 
   const mailOptions = {
-    from: user,
+    from: `"SYSTECH DIGITAL" <${user}>`,
     to: options.to,
     subject: options.subject,
     html: htmlContent,
   }
 
   try {
-    await transporter.sendMail(mailOptions)
-    console.log(`Email sent successfully to ${options.to}`)
+    const info = await transporter.sendMail(mailOptions)
+    console.log("Email sent: %s", info.messageId)
     return true
   } catch (error) {
-    console.error(`Error sending email to ${options.to}:`, error)
+    console.error("Error sending email:", error)
     return false
   }
 }
