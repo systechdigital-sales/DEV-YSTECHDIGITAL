@@ -12,43 +12,36 @@ export async function GET(request: NextRequest) {
 
     const normalizedEmail = email.toLowerCase().trim()
 
-    let db
-    try {
-      ;({ db } = await connectToDatabase())
-    } catch (dbError) {
-      console.error("Database connection error in ott-key route:", dbError)
-      return NextResponse.json(
-        { success: false, message: "Failed to connect to the database. Please try again later." },
-        { status: 500 },
-      )
-    }
+    // Connect to the specific database and collection
+    const { db } = await connectToDatabase()
 
-    let ottKey
-    try {
-      ottKey = await db
-        .collection("ottkeys")
-        .findOne(
-          { "Assigned To": { $regex: new RegExp(`^${normalizedEmail}$`, "i") } },
-          { projection: { activationCode: 1, product: 1, productSubCategory: 1, status: 1, assignedDate: 1, _id: 0 } },
-        )
-      console.log(`OTT key lookup for email '${normalizedEmail}' completed. Found:`, !!ottKey)
-    } catch (queryError) {
-      console.error("Error querying ottkeys collection for customer:", queryError)
-      return NextResponse.json(
-        { success: false, message: "Failed to retrieve OTT key information. Please try again later." },
-        { status: 500 },
-      )
-    }
+    // Check in the ottkeys collection for the email in "Assigned To" field
+    const ottKey = await db.collection("ottkeys").findOne({
+      "Assigned To": { $regex: new RegExp(`^${normalizedEmail}$`, "i") },
+    })
 
     if (!ottKey) {
-      return NextResponse.json({ success: false, message: "No OTT key found for this email address." }, { status: 404 })
+      return NextResponse.json({
+        success: false,
+        message: "No OTT key found for this email address",
+      })
     }
 
-    return NextResponse.json({ success: true, data: ottKey })
+    return NextResponse.json({
+      success: true,
+      ottKey: {
+        id: ottKey._id.toString(),
+        activationCode: ottKey["Activation Code"] || ottKey.activationCode,
+        product: ottKey.Product || ottKey.product || "OTTplay Power Play Pack",
+        assignedTo: ottKey["Assigned To"] || ottKey.assignedTo,
+        assignedDate: ottKey["Assigned Date"] || ottKey.assignedDate,
+        status: ottKey.Status || ottKey.status || "assigned",
+      },
+    })
   } catch (error) {
-    console.error("An unexpected error occurred in ott-key route:", error)
+    console.error("Error fetching OTT key:", error)
     return NextResponse.json(
-      { success: false, message: "An unexpected error occurred. Please try again later." },
+      { success: false, message: "Failed to fetch OTT key. Please try again later." },
       { status: 500 },
     )
   }

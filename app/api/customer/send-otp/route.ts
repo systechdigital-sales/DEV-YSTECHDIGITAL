@@ -43,30 +43,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Connect to database and check if email exists in ottkeys collection
-    let db
-    try {
-      ;({ db } = await connectToDatabase())
-    } catch (dbError) {
-      console.error("Database connection error in send-otp route:", dbError)
-      return NextResponse.json(
-        { success: false, message: "Failed to connect to the database. Please try again later." },
-        { status: 500 },
-      )
-    }
+    const { db } = await connectToDatabase()
 
-    let ottKey
-    try {
-      ottKey = await db.collection("ottkeys").findOne({
-        "Assigned To": { $regex: new RegExp(`^${normalizedEmail}$`, "i") },
-      })
-      console.log(`Database query for email '${normalizedEmail}' completed. Found OTT key:`, !!ottKey)
-    } catch (queryError) {
-      console.error("Error querying ottkeys collection:", queryError)
-      return NextResponse.json(
-        { success: false, message: "Failed to retrieve OTT key information. Please try again later." },
-        { status: 500 },
-      )
-    }
+    const ottKey = await db.collection("ottkeys").findOne({
+      "Assigned To": { $regex: new RegExp(`^${normalizedEmail}$`, "i") },
+    })
 
     if (!ottKey) {
       return NextResponse.json(
@@ -84,23 +65,14 @@ export async function POST(request: NextRequest) {
     // Store OTP in database with expiration (10 minutes)
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000)
 
-    try {
-      await db.collection("customer_otps").deleteMany({ email: normalizedEmail })
-      await db.collection("customer_otps").insertOne({
-        email: normalizedEmail,
-        otp,
-        expiresAt: otpExpiry,
-        attempts: 0,
-        createdAt: new Date(),
-      })
-      console.log(`OTP stored for ${normalizedEmail}.`)
-    } catch (otpDbError) {
-      console.error("Error storing OTP in database:", otpDbError)
-      return NextResponse.json(
-        { success: false, message: "Failed to store OTP. Please try again later." },
-        { status: 500 },
-      )
-    }
+    await db.collection("customer_otps").deleteMany({ email: normalizedEmail })
+    await db.collection("customer_otps").insertOne({
+      email: normalizedEmail,
+      otp,
+      expiresAt: otpExpiry,
+      attempts: 0,
+      createdAt: new Date(),
+    })
 
     // Send OTP email
     const emailSent = await sendEmail({
@@ -167,7 +139,7 @@ export async function POST(request: NextRequest) {
       message: "OTP sent successfully to your email address",
     })
   } catch (error) {
-    console.error("An unexpected error occurred in send-otp route:", error)
+    console.error("Error sending OTP:", error)
     return NextResponse.json(
       { success: false, message: "An unexpected error occurred while sending OTP. Please try again later." },
       { status: 500 },
