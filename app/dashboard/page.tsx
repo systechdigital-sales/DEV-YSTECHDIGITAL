@@ -31,6 +31,7 @@ import {
   Mail,
   Database,
   Target,
+  ShoppingCart,
 } from "lucide-react"
 import Image from "next/image"
 import { DashboardSidebar } from "@/components/dashboard-sidebar"
@@ -43,6 +44,7 @@ interface DashboardStats {
   pendingClaims: number
   failedClaims: number
   todayClaims: number
+  totalSalesRecords: number // New metric for sales records
   monthlyData: Array<{
     month: string
     claims: number
@@ -74,6 +76,7 @@ export default function DashboardPage() {
     pendingClaims: 0,
     failedClaims: 0,
     todayClaims: 0,
+    totalSalesRecords: 0, // Initialize new metric
     monthlyData: [],
   })
   const [loading, setLoading] = useState(true)
@@ -96,10 +99,13 @@ export default function DashboardPage() {
 
       // Fetch claims data from database
       const claimsResponse = await fetch("/api/admin/claims")
-      const claimsData = await claimsResponse.json()
-      const claims = claimsData.claims || [] // Ensure claims is an array, even if empty
+      const claims = await claimsResponse.json() // claimsData is directly the array
 
-      // Calculate real statistics from database
+      // Fetch sales data from database
+      const salesResponse = await fetch("/api/admin/sales")
+      const sales = await salesResponse.json() // salesData is directly the array
+
+      // Calculate statistics from claims data
       const totalClaims = claims.length
       const successfulClaims = claims.filter((claim: any) => claim.ottCodeStatus === "delivered").length
       const pendingClaims = claims.filter((claim: any) => claim.ottCodeStatus === "pending").length
@@ -110,7 +116,7 @@ export default function DashboardPage() {
       // Today's claims (IST timezone)
       const todayIST = new Date().toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })
       const todayClaims = claims.filter((claim: any) => {
-        const claimDate = new Date(claim.createdAt || claim.timestamp || Date.now())
+        const claimDate = new Date(claim.createdAt || Date.now())
         const claimDateIST = claimDate.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })
         return claimDateIST === todayIST
       }).length
@@ -126,7 +132,7 @@ export default function DashboardPage() {
 
         // Filter claims for this month from database
         const monthClaims = claims.filter((claim: any) => {
-          const claimDate = new Date(claim.createdAt || claim.timestamp || Date.now())
+          const claimDate = new Date(claim.createdAt || Date.now())
           return claimDate.getMonth() === monthDate.getMonth() && claimDate.getFullYear() === monthDate.getFullYear()
         })
 
@@ -141,6 +147,9 @@ export default function DashboardPage() {
         })
       }
 
+      // Calculate total sales records
+      const totalSalesRecords = sales.length
+
       setStats({
         totalClaims,
         totalRevenue,
@@ -148,6 +157,7 @@ export default function DashboardPage() {
         pendingClaims,
         failedClaims,
         todayClaims,
+        totalSalesRecords, // Set the new metric
         monthlyData,
       })
     } catch (error) {
@@ -160,6 +170,7 @@ export default function DashboardPage() {
         pendingClaims: 0,
         failedClaims: 0,
         todayClaims: 0,
+        totalSalesRecords: 0, // Fallback for new metric
         monthlyData: [],
       })
     } finally {
@@ -289,6 +300,20 @@ export default function DashboardPage() {
                         <p className="text-orange-200 text-xs mt-1">New today (IST)</p>
                       </div>
                       <Activity className="w-10 h-10 text-orange-200" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* New Card for Total Sales Records */}
+                <Card className="shadow-xl border-0 bg-gradient-to-br from-red-500 to-red-600 text-white">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-red-100 text-sm font-semibold">Total Sales Records</p>
+                        <p className="text-3xl font-bold">{stats.totalSalesRecords.toLocaleString()}</p>
+                        <p className="text-red-200 text-xs mt-1">From database</p>
+                      </div>
+                      <ShoppingCart className="w-10 h-10 text-red-200" />
                     </div>
                   </CardContent>
                 </Card>
