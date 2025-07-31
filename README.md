@@ -5,6 +5,3 @@
 
 ## Build your app
 
-
-
-## How It Works
