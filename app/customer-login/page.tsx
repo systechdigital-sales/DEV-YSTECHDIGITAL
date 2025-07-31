@@ -37,6 +37,7 @@ export default function CustomerLoginPage() {
         toast.success(data.message || "OTP sent successfully! Please check your inbox and spam folder.")
         setOtpSent(true)
       } else {
+        // Display specific error message from API
         toast.error(data.message || "Failed to send OTP. Please try again later.")
       }
     } catch (error) {
@@ -63,8 +64,11 @@ export default function CustomerLoginPage() {
 
       if (response.ok) {
         toast.success(data.message || "Login successful!")
+        sessionStorage.setItem("customerAuthenticated", "true")
+        sessionStorage.setItem("customerEmail", email) // Store email for dashboard
         router.push("/customer-dashboard") // Redirect to customer dashboard
       } else {
+        // Display specific error message from API
         toast.error(data.message || "OTP verification failed. Please try again.")
       }
     } catch (error) {

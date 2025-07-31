@@ -2,29 +2,29 @@ import { Schema, model, models } from "mongoose"
 
 export interface IOTTKey {
   ottCode: string
-  platform: string
-  status: "available" | "assigned" | "redeemed"
-  assignedTo?: string // Email of the customer
+  status: "available" | "assigned" | "redeemed" | "expired"
+  assignedTo?: string // Email of the customer it's assigned to
   assignedAt?: Date
   redeemedAt?: Date
-  validity?: string // e.g., "1 month", "3 months"
-  plan?: string // e.g., "Premium", "Standard"
-  source?: string // e.g., "manual", "sale"
-  saleId?: Schema.Types.ObjectId // Reference to SalesRecord if applicable
+  platform?: string // e.g., "Hotstar", "SonyLIV"
+  validityDays?: number
+  createdAt: Date
+  updatedAt: Date
 }
 
 const OTTKeySchema = new Schema<IOTTKey>(
   {
     ottCode: { type: String, required: true, unique: true },
-    platform: { type: String, required: true },
-    status: { type: String, enum: ["available", "assigned", "redeemed"], default: "available" },
+    status: {
+      type: String,
+      enum: ["available", "assigned", "redeemed", "expired"],
+      default: "available",
+    },
     assignedTo: { type: String, sparse: true }, // Use sparse to allow nulls and still index unique non-nulls
     assignedAt: { type: Date },
     redeemedAt: { type: Date },
-    validity: { type: String },
-    plan: { type: String },
-    source: { type: String },
-    saleId: { type: Schema.Types.ObjectId, ref: "SalesRecord" },
+    platform: { type: String },
+    validityDays: { type: Number },
   },
   { timestamps: true },
 )

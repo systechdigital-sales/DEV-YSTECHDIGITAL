@@ -1,38 +1,48 @@
 import { Schema, model, models } from "mongoose"
 
 export interface IClaimResponse {
-  email: string
   name: string
+  email: string
   phone: string
   ottCode: string // The OTT code assigned to this claim
-  status: "pending" | "approved" | "rejected" | "redeemed"
+  status: "pending" | "approved" | "rejected" | "delivered"
   claimedAt: Date
   approvedAt?: Date
   rejectedAt?: Date
-  redeemedAt?: Date
-  notes?: string
-  paymentId?: string // For Razorpay payment ID
-  orderId?: string // For Razorpay order ID
-  amount?: number // Amount paid if any
-  paymentStatus?: "pending" | "completed" | "failed"
+  rejectionReason?: string
+  deliveryMethod?: string // e.g., "email", "SMS"
+  deliveryStatus?: "sent" | "failed"
+  deliveredAt?: Date
+  paymentStatus?: "pending" | "paid" | "failed"
+  paymentId?: string
+  orderId?: string
+  signature?: string
+  createdAt?: Date
+  updatedAt?: Date
 }
 
 const ClaimResponseSchema = new Schema<IClaimResponse>(
   {
-    email: { type: String, required: true, unique: true }, // Email should be unique for claims
     name: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
     phone: { type: String, required: true },
-    ottCode: { type: String, required: true, unique: true }, // OTT code should be unique per claim
-    status: { type: String, enum: ["pending", "approved", "rejected", "redeemed"], default: "pending" },
+    ottCode: { type: String, required: true, unique: true },
+    status: {
+      type: String,
+      enum: ["pending", "approved", "rejected", "delivered"],
+      default: "pending",
+    },
     claimedAt: { type: Date, default: Date.now },
     approvedAt: { type: Date },
     rejectedAt: { type: Date },
-    redeemedAt: { type: Date },
-    notes: { type: String },
+    rejectionReason: { type: String },
+    deliveryMethod: { type: String },
+    deliveryStatus: { type: String, enum: ["sent", "failed"] },
+    deliveredAt: { type: Date },
+    paymentStatus: { type: String, enum: ["pending", "paid", "failed"], default: "pending" },
     paymentId: { type: String },
     orderId: { type: String },
-    amount: { type: Number },
-    paymentStatus: { type: String, enum: ["pending", "completed", "failed"] },
+    signature: { type: String },
   },
   { timestamps: true },
 )

@@ -51,13 +51,15 @@ export default function SignupPage() {
       if (response.ok) {
         toast.success(data.message || "Signup successful!")
         setOttCode(data.ottCode)
-        // Optionally redirect after a short delay or show a success message
-        // setTimeout(() => router.push('/customer-login'), 3000);
+        // Optionally store customer email in session for direct login after signup
+        sessionStorage.setItem("customerAuthenticated", "true")
+        sessionStorage.setItem("customerEmail", formData.email)
       } else {
         if (data.errors) {
           setErrors(data.errors)
           toast.error("Validation failed. Please check your input.")
         } else {
+          // Display specific error message from API
           toast.error(data.message || "Signup failed. Please try again.")
         }
       }

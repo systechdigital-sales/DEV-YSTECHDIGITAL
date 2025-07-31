@@ -1,54 +1,47 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { connectToDatabase } from "@/lib/mongodb"
+import { NextResponse } from "next/server"
+import { getDatabase } from "@/lib/mongodb"
+import type { Collection } from "mongodb"
+import type { IOTTKey } from "@/models/OTTKey"
 
-export async function GET(request: NextRequest) {
+export async function GET(req: Request) {
   try {
-    const { searchParams } = new URL(request.url)
+    const { searchParams } = new URL(req.url)
     const email = searchParams.get("email")
 
     if (!email) {
-      return NextResponse.json({ success: false, message: "Email parameter is required" }, { status: 400 })
+      return NextResponse.json({ message: "Email parameter is required" }, { status: 400 })
     }
 
     const normalizedEmail = email.toLowerCase().trim()
 
     let db
     try {
-      ;({ db } = await connectToDatabase())
+      const { db: connectedDb } = await getDatabase()
+      db = connectedDb
     } catch (dbError) {
-      console.error("Database connection error in ott-key route:", dbError)
-      return NextResponse.json(
-        { success: false, message: "Failed to connect to the database. Please try again later." },
-        { status: 500 },
-      )
+      console.error("Error connecting to database for OTT key:", dbError)
+      return NextResponse.json({ message: "Database connection failed. Please try again later." }, { status: 500 })
     }
 
-    let ottKey
+    const ottKeysCollection: Collection<IOTTKey> = db.collection("ottkeys")
+    let ottKey: IOTTKey | null = null
     try {
-      ottKey = await db
-        .collection("ottkeys")
-        .findOne(
-          { "Assigned To": { $regex: new RegExp(`^${normalizedEmail}$`, "i") } },
-          { projection: { activationCode: 1, product: 1, productSubCategory: 1, status: 1, assignedDate: 1, _id: 0 } },
-        )
-      console.log(`OTT key lookup for email '${normalizedEmail}' completed. Found:`, !!ottKey)
+      ottKey = await ottKeysCollection.findOne({ assignedTo: normalizedEmail })
+      console.log(`Fetched OTT key for email ${normalizedEmail}:`, !!ottKey)
     } catch (queryError) {
-      console.error("Error querying ottkeys collection for customer:", queryError)
-      return NextResponse.json(
-        { success: false, message: "Failed to retrieve OTT key information. Please try again later." },
-        { status: 500 },
-      )
+      console.error(`Error querying OTT key for ${normalizedEmail}:`, queryError)
+      return NextResponse.json({ message: "Failed to retrieve your OTT key. Please try again later." }, { status: 500 })
     }
 
     if (!ottKey) {
-      return NextResponse.json({ success: false, message: "No OTT key found for this email address." }, { status: 404 })
+      return NextResponse.json({ message: "No OTT key found for this email." }, { status: 404 })
     }
 
-    return NextResponse.json({ success: true, data: ottKey })
+    return NextResponse.json({ ottKey }, { status: 200 })
   } catch (error) {
-    console.error("An unexpected error occurred in ott-key route:", error)
+    console.error("Unexpected error in customer OTT key API:", error)
     return NextResponse.json(
-      { success: false, message: "An unexpected error occurred. Please try again later." },
+      { message: "An unexpected error occurred while fetching OTT key. Please try again later." },
       { status: 500 },
     )
   }

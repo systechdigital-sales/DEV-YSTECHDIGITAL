@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
-import type { Collection } from "mongodb"
 import { signupFormSchema } from "@/lib/definitions"
 import type { IOTTKey } from "@/models/OTTKey"
 import type { IClaimResponse } from "@/models/ClaimResponse"
+import type { Collection } from "mongodb"
 
 export async function POST(req: Request) {
   try {
@@ -15,83 +15,97 @@ export async function POST(req: Request) {
     }
 
     const { name, email, phone } = validation.data
+    const normalizedEmail = email.toLowerCase().trim()
 
     let db
     try {
       const { db: connectedDb } = await getDatabase()
       db = connectedDb
     } catch (dbError) {
-      console.error("Error connecting to database for signup:", dbError)
-      return NextResponse.json({ message: "Database connection failed. Please try again later." }, { status: 500 })
+      console.error("Error connecting to database for signup route:", dbError)
+      return NextResponse.json(
+        { message: "Failed to connect to the database. Please try again later." },
+        { status: 500 },
+      )
     }
 
     // Check if email already exists in claims
     const claimsCollection: Collection<IClaimResponse> = db.collection("claimresponses")
     try {
-      const existingClaim = await claimsCollection.findOne({ email })
+      const existingClaim = await claimsCollection.findOne({ email: normalizedEmail })
       if (existingClaim) {
-        return NextResponse.json({ message: "This email is already registered." }, { status: 409 })
+        return NextResponse.json(
+          { message: "An account with this email already exists. Please login instead." },
+          { status: 409 },
+        )
       }
-    } catch (queryError) {
-      console.error(`Error checking existing claim for ${email}:`, queryError)
-      return NextResponse.json(
-        { message: "An error occurred during registration. Please try again later." },
-        { status: 500 },
-      )
+    } catch (checkError) {
+      console.error("Error checking existing claim:", checkError)
+      return NextResponse.json({ message: "An error occurred during signup. Please try again later." }, { status: 500 })
     }
 
     // Find an available OTT key
     const ottKeysCollection: Collection<IOTTKey> = db.collection("ottkeys")
     let assignedOttKey: IOTTKey | null = null
     try {
-      assignedOttKey = await ottKeysCollection.findOneAndUpdate(
+      const result = await ottKeysCollection.findOneAndUpdate(
         { status: "available" },
-        { $set: { status: "assigned", assignedTo: email, assignedAt: new Date() } },
-        { returnDocument: "after" },
+        { $set: { status: "assigned", assignedTo: normalizedEmail, assignedAt: new Date() } },
+        { returnDocument: "after" }, // Use returnDocument for MongoDB driver 4.x+
       )
-
-      if (!assignedOttKey.value) {
-        return NextResponse.json(
-          { message: "No available OTT codes at the moment. Please try again later." },
-          { status: 503 },
-        )
-      }
+      assignedOttKey = result.value
+      console.log("Found and assigned OTT key:", assignedOttKey?.ottCode)
     } catch (ottKeyError) {
-      console.error(`Error assigning OTT key for ${email}:`, ottKeyError)
+      console.error("Error assigning OTT key:", ottKeyError)
       return NextResponse.json({ message: "Failed to assign an OTT code. Please try again later." }, { status: 500 })
     }
 
-    // Create a new claim record
-    try {
-      const newClaim: IClaimResponse = {
-        name,
-        email,
-        phone,
-        ottCode: assignedOttKey.value.ottCode,
-        status: "approved", // Assuming signup directly approves and assigns code
-        claimedAt: new Date(),
-        approvedAt: new Date(),
-      }
-      await claimsCollection.insertOne(newClaim)
-    } catch (claimInsertError) {
-      console.error(`Error inserting new claim for ${email}:`, claimInsertError)
-      // If claim insertion fails, try to revert OTT key status
-      await ottKeysCollection.findOneAndUpdate(
-        { ottCode: assignedOttKey.value.ottCode },
-        { $set: { status: "available", assignedTo: null, assignedAt: null } },
+    if (!assignedOttKey) {
+      return NextResponse.json(
+        { message: "No available OTT codes at the moment. Please try again later." },
+        { status: 503 },
       )
-      return NextResponse.json({ message: "Failed to complete registration. Please try again later." }, { status: 500 })
+    }
+
+    // Create a new claim response
+    const newClaim: IClaimResponse = {
+      name,
+      email: normalizedEmail,
+      phone,
+      ottCode: assignedOttKey.ottCode,
+      status: "delivered", // Mark as delivered since it's assigned
+      claimedAt: new Date(),
+      approvedAt: new Date(),
+      deliveryMethod: "email", // Assuming email delivery
+      deliveryStatus: "sent",
+      deliveredAt: new Date(),
+      paymentStatus: "paid", // Assuming signup implies payment is handled or not required for this flow
+    }
+
+    try {
+      await claimsCollection.insertOne(newClaim)
+      console.log("New claim saved:", newClaim.email)
+    } catch (saveError) {
+      console.error("Error saving new claim:", saveError)
+      // If saving claim fails, try to revert OTT key status
+      await ottKeysCollection
+        .findOneAndUpdate(
+          { ottCode: assignedOttKey.ottCode },
+          { $set: { status: "available", assignedTo: null, assignedAt: null } },
+        )
+        .catch((revertError) => console.error("Failed to revert OTT key status:", revertError))
+      return NextResponse.json({ message: "Failed to create your account. Please try again later." }, { status: 500 })
     }
 
     return NextResponse.json(
       {
-        message: "Registration successful! Your OTT Code has been assigned.",
-        ottCode: assignedOttKey.value.ottCode,
+        message: "Account created and OTT code assigned successfully!",
+        ottCode: assignedOttKey.ottCode,
       },
       { status: 201 },
     )
   } catch (error) {
-    console.error("Unexpected error in signup API:", error)
+    console.error("An unexpected error occurred in signup route:", error)
     return NextResponse.json(
       { message: "An unexpected error occurred during signup. Please try again later." },
       { status: 500 },
