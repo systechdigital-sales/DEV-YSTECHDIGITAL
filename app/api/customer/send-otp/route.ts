@@ -112,7 +112,10 @@ export async function POST(request: NextRequest) {
 
     if (!emailSent) {
       return NextResponse.json(
-        { success: false, message: "Failed to send OTP email. Please try again." },
+        {
+          success: false,
+          message: "Failed to send OTP email. Please check your email address and spam folder, or try again later.",
+        },
         { status: 500 },
       )
     }
@@ -138,7 +141,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Error sending OTP:", error)
     return NextResponse.json(
-      { success: false, message: "Failed to send OTP. Please try again later." },
+      { success: false, message: "An unexpected error occurred while sending OTP. Please try again later." },
       { status: 500 },
     )
   }

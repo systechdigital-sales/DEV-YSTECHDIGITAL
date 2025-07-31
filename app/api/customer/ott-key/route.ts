@@ -12,24 +12,31 @@ export async function GET(request: NextRequest) {
 
     const normalizedEmail = email.toLowerCase().trim()
 
+    // Connect to the specific database and collection
     const { db } = await connectToDatabase()
 
-    // Find the OTT key where "Assigned To" matches the provided email
+    // Check in the ottkeys collection for the email in "Assigned To" field
     const ottKey = await db.collection("ottkeys").findOne({
-      "Assigned To": { $regex: new RegExp(`^${normalizedEmail}$`, "i") }, // Case-insensitive match
+      "Assigned To": { $regex: new RegExp(`^${normalizedEmail}$`, "i") },
     })
 
     if (!ottKey) {
-      return NextResponse.json({ success: false, message: "No OTT key found for this email." }, { status: 404 })
+      return NextResponse.json({
+        success: false,
+        message: "No OTT key found for this email address",
+      })
     }
 
-    // Return only the necessary information (Activation Code)
     return NextResponse.json({
       success: true,
-      activationCode: ottKey["Activation Code"], // Assuming this is the correct field name
-      assignedTo: ottKey["Assigned To"],
-      assignedDate: ottKey["Assigned Date"] ? new Date(ottKey["Assigned Date"]).toLocaleDateString() : "N/A",
-      status: ottKey["Status"] || "Assigned", // Default to 'Assigned' if status is not explicitly set
+      ottKey: {
+        id: ottKey._id.toString(),
+        activationCode: ottKey["Activation Code"] || ottKey.activationCode,
+        product: ottKey.Product || ottKey.product || "OTTplay Power Play Pack",
+        assignedTo: ottKey["Assigned To"] || ottKey.assignedTo,
+        assignedDate: ottKey["Assigned Date"] || ottKey.assignedDate,
+        status: ottKey.Status || ottKey.status || "assigned",
+      },
     })
   } catch (error) {
     console.error("Error fetching OTT key:", error)
