@@ -3,18 +3,11 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   CheckCircle,
-  XCircle,
-  Clock,
   Mail,
-  Phone,
-  Calendar,
-  Package,
-  Eye,
   Home,
   RefreshCw,
   LogOut,
@@ -22,6 +15,9 @@ import {
   Key,
   Copy,
   ExternalLink,
+  Package,
+  Eye,
+  Phone,
 } from "lucide-react"
 import Image from "next/image"
 
@@ -29,10 +25,9 @@ interface OTTKeyData {
   id: string
   activationCode: string
   product: string
-  productSubCategory: string
-  status: string
-  assignedEmail: string
+  assignedTo: string
   assignedDate: string
+  status: string
 }
 
 export default function CustomerDashboard() {
@@ -44,6 +39,7 @@ export default function CustomerDashboard() {
   const [copySuccess, setCopySuccess] = useState(false)
 
   const formatDateIST = (dateString: string) => {
+    if (!dateString) return "Not specified"
     const date = new Date(dateString)
     return date.toLocaleString("en-IN", {
       timeZone: "Asia/Kolkata",
@@ -114,34 +110,6 @@ export default function CustomerDashboard() {
     }
   }
 
-  const getStatusBadge = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case "assigned":
-        return (
-          <Badge className="bg-green-100 text-green-800 border-green-300">
-            <CheckCircle className="w-3 h-3 mr-1" />
-            Assigned
-          </Badge>
-        )
-      case "available":
-        return (
-          <Badge className="bg-blue-100 text-blue-800 border-blue-300">
-            <Clock className="w-3 h-3 mr-1" />
-            Available
-          </Badge>
-        )
-      case "expired":
-        return (
-          <Badge className="bg-red-100 text-red-800 border-red-300">
-            <XCircle className="w-3 h-3 mr-1" />
-            Expired
-          </Badge>
-        )
-      default:
-        return <Badge variant="secondary">{status}</Badge>
-    }
-  }
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
@@ -149,7 +117,7 @@ export default function CustomerDashboard() {
           <CardContent className="p-12 text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Loading Dashboard</h3>
-            <p className="text-gray-600">Please wait while we fetch your OTT key...</p>
+            <p className="text-gray-600">Please wait while we check your OTT key...</p>
           </CardContent>
         </Card>
       </div>
@@ -174,8 +142,8 @@ export default function CustomerDashboard() {
               </Button>
               <Image src="/logo.png" alt="SYSTECH DIGITAL Logo" width={40} height={40} className="rounded-full mr-3" />
               <div>
-                <h1 className="text-3xl font-bold text-white">My OTT Dashboard</h1>
-                <p className="text-sm text-red-200 mt-1">Welcome back, {customerEmail}</p>
+                <h1 className="text-3xl font-bold text-white">Customer Dashboard</h1>
+                <p className="text-sm text-red-200 mt-1">Welcome, {customerEmail}</p>
               </div>
             </div>
 
@@ -184,6 +152,16 @@ export default function CustomerDashboard() {
                 <User className="w-4 h-4 text-white mr-2" />
                 <span className="text-white text-sm">{customerEmail}</span>
               </div>
+              <Button
+                onClick={handleRefresh}
+                variant="ghost"
+                size="sm"
+                disabled={refreshing}
+                className="text-white hover:bg-white/20"
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
+                Refresh
+              </Button>
               <Button variant="ghost" size="sm" onClick={handleLogout} className="text-white hover:bg-white/20">
                 <LogOut className="w-4 h-4 mr-2" />
                 Logout
@@ -200,11 +178,12 @@ export default function CustomerDashboard() {
             <Alert className="border-green-200 bg-green-50">
               <CheckCircle className="w-4 h-4 text-green-600" />
               <AlertDescription className="text-green-800">
-                <strong>Great news!</strong> Your OTT key has been found and is ready to use.
+                <strong>Your OTT Activation Code is ready!</strong> Use the code below to activate your OTTplay
+                subscription.
               </AlertDescription>
             </Alert>
 
-            {/* OTT Key Card */}
+            {/* Main Activation Code Card */}
             <Card className="shadow-2xl border-0 bg-gradient-to-br from-white to-blue-50">
               <CardHeader className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-lg">
                 <div className="flex items-center justify-between">
@@ -213,119 +192,87 @@ export default function CustomerDashboard() {
                       <Key className="w-8 h-8 text-white" />
                     </div>
                     <div>
-                      <CardTitle className="text-2xl">Your OTT Play Key</CardTitle>
-                      <p className="text-blue-100 mt-1">Ready to activate your subscription</p>
+                      <CardTitle className="text-2xl">Your Activation Code</CardTitle>
+                      <p className="text-blue-100 mt-1">{ottKey.product}</p>
                     </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    {getStatusBadge(ottKey.status)}
-                    <Button
-                      onClick={handleRefresh}
-                      variant="ghost"
-                      size="sm"
-                      disabled={refreshing}
-                      className="text-white hover:bg-white/20"
-                    >
-                      <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
-                    </Button>
                   </div>
                 </div>
               </CardHeader>
 
               <CardContent className="p-8">
-                <div className="space-y-6">
-                  {/* Activation Code */}
-                  <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl p-6 border-2 border-blue-200">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-semibold text-gray-900">Activation Code</h3>
-                      <Badge className="bg-blue-100 text-blue-800">Ready to Use</Badge>
-                    </div>
-
-                    <div className="bg-white rounded-lg p-4 border-2 border-dashed border-blue-300 mb-4">
-                      <div className="text-center">
-                        <div className="font-mono text-2xl font-bold text-blue-600 tracking-wider mb-2">
-                          {ottKey.activationCode}
-                        </div>
-                        <p className="text-sm text-gray-600">Use this code to activate your OTTplay subscription</p>
+                {/* Large Activation Code Display */}
+                <div className="text-center mb-8">
+                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-8 border-2 border-blue-200 mb-6">
+                    <h3 className="text-lg font-semibold text-gray-700 mb-4">Your Activation Code</h3>
+                    <div className="bg-white rounded-xl p-6 border-2 border-dashed border-blue-300 shadow-inner">
+                      <div className="font-mono text-4xl font-bold text-blue-600 tracking-widest mb-3 select-all">
+                        {ottKey.activationCode}
                       </div>
-                    </div>
-
-                    <div className="flex gap-3">
-                      <Button onClick={handleCopyKey} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">
-                        <Copy className="w-4 h-4 mr-2" />
-                        {copySuccess ? "Copied!" : "Copy Code"}
-                      </Button>
-                      <Button
-                        onClick={() => window.open("https://ottplay.com", "_blank")}
-                        variant="outline"
-                        className="flex-1 border-blue-600 text-blue-600 hover:bg-blue-50"
-                      >
-                        <ExternalLink className="w-4 h-4 mr-2" />
-                        Go to OTTplay
-                      </Button>
+                      <p className="text-sm text-gray-600">Click the code to select it, then copy</p>
                     </div>
                   </div>
 
-                  {/* Product Details */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-4">
-                      <h4 className="font-semibold text-gray-900 text-lg">Product Details</h4>
-                      <div className="space-y-3">
-                        <div className="flex items-center">
-                          <Package className="w-4 h-4 text-gray-500 mr-3" />
-                          <span className="text-sm text-gray-600 min-w-[100px]">Product:</span>
-                          <span className="text-sm font-medium">{ottKey.product}</span>
-                        </div>
-                        <div className="flex items-center">
-                          <Package className="w-4 h-4 text-gray-500 mr-3" />
-                          <span className="text-sm text-gray-600 min-w-[100px]">Category:</span>
-                          <span className="text-sm font-medium">{ottKey.productSubCategory}</span>
-                        </div>
-                        <div className="flex items-center">
-                          <CheckCircle className="w-4 h-4 text-gray-500 mr-3" />
-                          <span className="text-sm text-gray-600 min-w-[100px]">Status:</span>
-                          {getStatusBadge(ottKey.status)}
-                        </div>
-                      </div>
-                    </div>
+                  {/* Action Buttons */}
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                    <Button
+                      onClick={handleCopyKey}
+                      size="lg"
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 text-lg"
+                    >
+                      <Copy className="w-5 h-5 mr-2" />
+                      {copySuccess ? "Copied!" : "Copy Code"}
+                    </Button>
+                    <Button
+                      onClick={() => window.open("https://ottplay.com", "_blank")}
+                      variant="outline"
+                      size="lg"
+                      className="border-2 border-purple-600 text-purple-600 hover:bg-purple-50 px-8 py-3 text-lg"
+                    >
+                      <ExternalLink className="w-5 h-5 mr-2" />
+                      Go to OTTplay
+                    </Button>
+                  </div>
+                </div>
 
-                    <div className="space-y-4">
-                      <h4 className="font-semibold text-gray-900 text-lg">Assignment Details</h4>
-                      <div className="space-y-3">
-                        <div className="flex items-center">
-                          <Mail className="w-4 h-4 text-gray-500 mr-3" />
-                          <span className="text-sm text-gray-600 min-w-[100px]">Email:</span>
-                          <span className="text-sm font-medium">{ottKey.assignedEmail}</span>
-                        </div>
-                        <div className="flex items-center">
-                          <Calendar className="w-4 h-4 text-gray-500 mr-3" />
-                          <span className="text-sm text-gray-600 min-w-[100px]">Assigned:</span>
-                          <span className="text-sm font-medium">
-                            {ottKey.assignedDate ? formatDateIST(ottKey.assignedDate) : "Not specified"}
-                          </span>
-                        </div>
-                        <div className="flex items-center">
-                          <Key className="w-4 h-4 text-gray-500 mr-3" />
-                          <span className="text-sm text-gray-600 min-w-[100px]">Key ID:</span>
-                          <span className="text-sm font-medium font-mono">{ottKey.id.slice(-8).toUpperCase()}</span>
-                        </div>
-                      </div>
+                {/* Assignment Details */}
+                <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+                  <h4 className="font-semibold text-gray-900 text-lg mb-4 flex items-center">
+                    <Mail className="w-5 h-5 mr-2 text-blue-600" />
+                    Assignment Details
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-600">Assigned To:</p>
+                      <p className="font-medium text-gray-900">{ottKey.assignedTo}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Assignment Date:</p>
+                      <p className="font-medium text-gray-900">{formatDateIST(ottKey.assignedDate)}</p>
                     </div>
                   </div>
+                </div>
 
-                  {/* Instructions */}
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                    <h4 className="font-semibold text-blue-900 mb-3 flex items-center">
-                      <CheckCircle className="w-5 h-5 mr-2" />
-                      How to Use Your OTT Key
-                    </h4>
-                    <ol className="list-decimal list-inside space-y-2 text-sm text-blue-800">
-                      <li>Copy your activation code using the button above</li>
-                      <li>Visit OTTplay website or open the OTTplay app</li>
-                      <li>Go to the subscription or activation section</li>
-                      <li>Enter your activation code when prompted</li>
-                      <li>Enjoy your OTTplay Power Play Pack subscription!</li>
-                    </ol>
+                {/* How to Use Instructions */}
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mt-6">
+                  <h4 className="font-semibold text-blue-900 mb-4 flex items-center">
+                    <CheckCircle className="w-5 h-5 mr-2" />
+                    How to Activate Your Subscription
+                  </h4>
+                  <ol className="list-decimal list-inside space-y-2 text-sm text-blue-800">
+                    <li>Copy your activation code using the button above</li>
+                    <li>
+                      Visit <strong>ottplay.com</strong> or open the OTTplay mobile app
+                    </li>
+                    <li>Look for "Activate Subscription" or "Redeem Code" option</li>
+                    <li>Enter your activation code when prompted</li>
+                    <li>Complete the activation process</li>
+                    <li>Start enjoying your OTTplay Power Play Pack!</li>
+                  </ol>
+                  <div className="mt-4 p-3 bg-blue-100 rounded-lg">
+                    <p className="text-xs text-blue-700">
+                      <strong>Note:</strong> Keep this code safe and don't share it with others. If you face any issues
+                      during activation, contact our support team.
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -338,10 +285,10 @@ export default function CustomerDashboard() {
               <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Eye className="w-10 h-10 text-gray-400" />
               </div>
-              <h3 className="text-2xl font-semibold text-gray-900 mb-4">No OTT Key Found</h3>
+              <h3 className="text-2xl font-semibold text-gray-900 mb-4">No Activation Code Found</h3>
               <p className="text-gray-600 mb-8 max-w-md mx-auto">
-                We couldn't find an OTT key assigned to your email address ({customerEmail}). Your key might not have
-                been assigned yet, or there might be an issue with your account.
+                We couldn't find an activation code assigned to your email address <strong>{customerEmail}</strong>.
+                Your code might not have been assigned yet.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -354,7 +301,7 @@ export default function CustomerDashboard() {
                   {refreshing ? "Checking..." : "Check Again"}
                 </Button>
                 <Button
-                  onClick={() => router.push("/ott")}
+                  onClick={() => router.push("/ottclaim")}
                   variant="outline"
                   className="border-purple-600 text-purple-600 hover:bg-purple-50"
                 >
