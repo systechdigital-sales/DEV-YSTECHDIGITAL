@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
 import { sendEmail } from "@/lib/email"
+import type { IClaimResponse, ISalesRecord, IOTTKey } from "@/lib/models" // Import interfaces
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,11 +10,12 @@ export async function POST(request: NextRequest) {
     console.log("Starting automation process for systech_ott_platform database...")
 
     // Get collections from systech_ott_platform database
-    const claimsCollection = db.collection("claims")
-    const salesCollection = db.collection("salesrecords")
-    const keysCollection = db.collection("ottkeys")
+    const claimsCollection = db.collection<IClaimResponse>("claims")
+    const salesCollection = db.collection<ISalesRecord>("salesrecords")
+    const keysCollection = db.collection<IOTTKey>("ottkeys")
 
     // Step 1: Check for expired pending payments (more than 48 hours)
+    // This ensures claims that were pending payment for too long are marked as failed.
     const fortyEightHoursAgo = new Date()
     fortyEightHoursAgo.setHours(fortyEightHoursAgo.getHours() - 48)
 
@@ -34,12 +36,16 @@ export async function POST(request: NextRequest) {
           $set: {
             paymentStatus: "failed",
             ottCodeStatus: "failed",
+            updatedAt: new Date(), // Ensure updatedAt is updated
           },
         },
       )
+      console.log(`Updated expired pending claim ${claim._id} to failed.`)
     }
 
     // Step 2: Get all claims with paid status that haven't been processed yet
+    // This is the core query for claims that need an OTT key assigned.
+    // It specifically targets claims that are paid and are awaiting key assignment or had a previous issue.
     const paidClaims = await claimsCollection
       .find({
         paymentStatus: "paid",
@@ -71,6 +77,7 @@ export async function POST(request: NextRequest) {
 
       try {
         // Step 3: Check if activation code exists in sales records
+        // This verifies the activation code provided in the claim against the sales records.
         const salesRecord = await salesCollection.findOne({
           activationCode: claim.activationCode,
         })
@@ -84,6 +91,7 @@ export async function POST(request: NextRequest) {
             {
               $set: {
                 ottCodeStatus: "activation_code_not_found",
+                updatedAt: new Date(),
               },
             },
           )
@@ -98,22 +106,24 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        // Step 4: Check if this activation code has already been claimed
+        // Step 4: Check if this activation code has already been claimed by another successful claim
+        // This prevents assigning the same key multiple times if a duplicate claim exists.
         const existingClaim = await claimsCollection.findOne({
           activationCode: claim.activationCode,
-          ottCodeStatus: "delivered",
-          _id: { $ne: claim._id },
+          ottCodeStatus: "delivered", // Check for already delivered claims
+          _id: { $ne: claim._id }, // Exclude the current claim being processed
         })
 
         if (existingClaim) {
           console.log(`Activation code ${claim.activationCode} already claimed by ${existingClaim.email}`)
 
-          // Update claim status to already_claimed
+          // Update current claim status to already_claimed
           await claimsCollection.updateOne(
             { _id: claim._id },
             {
               $set: {
                 ottCodeStatus: "already_claimed",
+                updatedAt: new Date(),
               },
             },
           )
@@ -129,6 +139,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Step 5: Find an available OTT key
+        // This finds an OTT key that is currently marked as 'available'.
         const availableKey = await keysCollection.findOne({
           status: "available",
         })
@@ -140,7 +151,8 @@ export async function POST(request: NextRequest) {
             { _id: claim._id },
             {
               $set: {
-                ottCodeStatus: "failed",
+                ottCodeStatus: "failed", // Mark claim as failed due to no available keys
+                updatedAt: new Date(),
               },
             },
           )
@@ -163,9 +175,11 @@ export async function POST(request: NextRequest) {
               status: "assigned",
               assignedEmail: claim.email,
               assignedDate: new Date(),
+              updatedAt: new Date(),
             },
           },
         )
+        console.log(`Assigned OTT key ${availableKey.activationCode} to ${claim.email}`)
 
         // Step 7: Update the claim with OTT code
         await claimsCollection.updateOne(
@@ -175,9 +189,11 @@ export async function POST(request: NextRequest) {
               ottCode: availableKey.activationCode,
               ottCodeStatus: "delivered",
               ottAssignedAt: new Date(),
+              updatedAt: new Date(),
             },
           },
         )
+        console.log(`Updated claim ${claim._id} with OTT code ${availableKey.activationCode}`)
 
         // Step 8: Update sales record status to claimed
         await salesCollection.updateOne(
@@ -187,9 +203,11 @@ export async function POST(request: NextRequest) {
               status: "claimed",
               claimedBy: claim.email,
               claimedDate: new Date(),
+              updatedAt: new Date(),
             },
           },
         )
+        console.log(`Updated sales record ${salesRecord._id} to claimed by ${claim.email}`)
 
         // Step 9: Send email to customer
         const emailSubject = "Your OTT Subscription Code - SYSTECH DIGITAL"
@@ -280,6 +298,7 @@ export async function POST(request: NextRequest) {
           {
             $set: {
               ottCodeStatus: "failed",
+              updatedAt: new Date(),
             },
           },
         )

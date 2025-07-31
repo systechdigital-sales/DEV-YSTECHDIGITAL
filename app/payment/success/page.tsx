@@ -4,7 +4,19 @@ import { Suspense, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { CheckCircle, Download, Mail, Phone, User, CreditCard, Hash, Calendar, Loader2 } from "lucide-react"
+import {
+  CheckCircle,
+  Download,
+  Mail,
+  Phone,
+  User,
+  CreditCard,
+  Hash,
+  Calendar,
+  Loader2,
+  Home,
+  LayoutDashboard,
+} from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
 function PaymentSuccessContent() {
@@ -247,6 +259,24 @@ Your OTT subscription will be activated within 24 hours.
             className="border-2 border-gray-300 hover:border-gray-400 px-8 py-3 rounded-lg font-semibold transform transition-all duration-200 hover:scale-105"
           >
             Make Another Claim
+          </Button>
+
+          {/* New buttons */}
+          <Button
+            onClick={() => (window.location.href = "/")}
+            variant="outline"
+            className="border-2 border-gray-300 hover:border-gray-400 px-8 py-3 rounded-lg font-semibold transform transition-all duration-200 hover:scale-105"
+          >
+            <Home className="w-5 h-5 mr-2" />
+            Go to Home
+          </Button>
+          <Button
+            onClick={() => (window.location.href = "/customer-dashboard")}
+            variant="outline"
+            className="border-2 border-gray-300 hover:border-gray-400 px-8 py-3 rounded-lg font-semibold transform transition-all duration-200 hover:scale-105"
+          >
+            <LayoutDashboard className="w-5 h-5 mr-2" />
+            Go to Dashboard
           </Button>
         </div>
 

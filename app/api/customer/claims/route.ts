@@ -1,50 +1,56 @@
-import { NextResponse } from "next/server"
-import { getDatabase } from "@/lib/mongodb"
-import type { Collection } from "mongodb"
-import type { IClaimResponse } from "@/models/ClaimResponse"
+import { type NextRequest, NextResponse } from "next/server"
+import dbConnect from "@/lib/dbConnect"
+import ClaimResponse from "@/models/ClaimResponse"
 
-export async function GET(req: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url)
+    const { searchParams } = new URL(request.url)
     const email = searchParams.get("email")
 
     if (!email) {
-      return NextResponse.json({ message: "Email parameter is required" }, { status: 400 })
+      return NextResponse.json({ success: false, message: "Email parameter is required" }, { status: 400 })
     }
 
-    const normalizedEmail = email.toLowerCase().trim()
+    await dbConnect()
 
-    let db
-    try {
-      const { db: connectedDb } = await getDatabase()
-      db = connectedDb
-    } catch (dbError) {
-      console.error("Error connecting to database for customer claims:", dbError)
-      return NextResponse.json({ message: "Database connection failed. Please try again later." }, { status: 500 })
+    // Find all claims for the specific email
+    const claims = await ClaimResponse.find({
+      email: email.toLowerCase(),
+    }).sort({ createdAt: -1 }) // Sort by newest first
+
+    if (!claims || claims.length === 0) {
+      return NextResponse.json({
+        success: true,
+        claims: [],
+        message: "No claims found for this email address",
+      })
     }
 
-    const claimsCollection: Collection<IClaimResponse> = db.collection("claimresponses")
-    let claim: IClaimResponse | null = null
-    try {
-      claim = await claimsCollection.findOne({ email: normalizedEmail })
-      console.log(`Fetched claim for email ${normalizedEmail}:`, !!claim)
-    } catch (queryError) {
-      console.error(`Error querying claims for ${normalizedEmail}:`, queryError)
-      return NextResponse.json(
-        { message: "Failed to retrieve your claim data. Please try again later." },
-        { status: 500 },
-      )
-    }
+    // Format the response data
+    const formattedClaims = claims.map((claim) => ({
+      _id: claim._id.toString(),
+      firstName: claim.firstName,
+      lastName: claim.lastName,
+      email: claim.email,
+      phoneNumber: claim.phoneNumber,
+      activationCode: claim.activationCode,
+      purchaseDate: claim.createdAt, // Using createdAt as purchase date for now
+      ottCodeStatus: claim.ottCodeStatus,
+      paymentStatus: claim.paymentStatus,
+      ottCode: claim.ottCode || null,
+      createdAt: claim.createdAt,
+      updatedAt: claim.updatedAt,
+    }))
 
-    if (!claim) {
-      return NextResponse.json({ message: "No claim found for this email." }, { status: 404 })
-    }
-
-    return NextResponse.json({ claim }, { status: 200 })
+    return NextResponse.json({
+      success: true,
+      claims: formattedClaims,
+      total: formattedClaims.length,
+    })
   } catch (error) {
-    console.error("Unexpected error in customer claims API:", error)
+    console.error("Error fetching customer claims:", error)
     return NextResponse.json(
-      { message: "An unexpected error occurred while fetching claims. Please try again later." },
+      { success: false, message: "Failed to fetch claims. Please try again later." },
       { status: 500 },
     )
   }

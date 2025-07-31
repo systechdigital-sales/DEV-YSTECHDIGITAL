@@ -47,7 +47,7 @@ export default function OTTClaimPage() {
     state: "",
     postalCode: "",
     country: "India",
-    purchaseType: "",
+    purchaseType: "", // Initialize with empty string
     activationCode: "",
     purchaseDate: "",
     invoiceNumber: "",
@@ -62,7 +62,7 @@ export default function OTTClaimPage() {
 
   const handleInputChange = (field: keyof FormData, value: string | boolean | File | null) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
-    if (error) setError("")
+    if (error) setError("") // Clear error when input changes
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -74,11 +74,13 @@ export default function OTTClaimPage() {
 
       if (!allowedTypes.includes(file.type)) {
         setError("Please upload a valid file (JPG, PNG, or PDF)")
+        handleInputChange("billFile", null) // Clear file if invalid
         return
       }
 
       if (file.size > maxSize) {
         setError("File size must be less than 5MB")
+        handleInputChange("billFile", null) // Clear file if invalid
         return
       }
     }
@@ -86,7 +88,9 @@ export default function OTTClaimPage() {
   }
 
   const validateForm = (): boolean => {
-    const requiredFields = [
+    console.log("Starting form validation...")
+
+    const requiredFields: (keyof FormData)[] = [
       "firstName",
       "lastName",
       "email",
@@ -101,8 +105,24 @@ export default function OTTClaimPage() {
     ]
 
     for (const field of requiredFields) {
-      if (!formData[field as keyof FormData]) {
-        setError(`Please fill in the ${field.replace(/([A-Z])/g, " $1").toLowerCase()} field`)
+      if (!formData[field]) {
+        const fieldName = field.replace(/([A-Z])/g, " $1").toLowerCase()
+        setError(`Please fill in the ${fieldName} field`)
+        console.log(`Validation failed: ${fieldName} is empty.`)
+        return false
+      }
+    }
+
+    // Conditional validation for hardware purchase
+    if (formData.purchaseType === "hardware") {
+      if (!formData.invoiceNumber) {
+        setError("Invoice Number is required for Hardware Purchase")
+        console.log("Validation failed: Invoice Number is empty for Hardware Purchase.")
+        return false
+      }
+      if (!formData.sellerName) {
+        setError("Seller Name is required for Hardware Purchase")
+        console.log("Validation failed: Seller Name is empty for Hardware Purchase.")
         return false
       }
     }
@@ -111,6 +131,7 @@ export default function OTTClaimPage() {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(formData.email)) {
       setError("Please enter a valid email address")
+      console.log("Validation failed: Invalid email format.")
       return false
     }
 
@@ -118,26 +139,34 @@ export default function OTTClaimPage() {
     const phoneRegex = /^[6-9]\d{9}$/
     if (!phoneRegex.test(formData.phoneNumber)) {
       setError("Please enter a valid 10-digit Indian mobile number")
+      console.log("Validation failed: Invalid phone number format.")
       return false
     }
 
     // Terms agreement
     if (!formData.agreeToTerms) {
       setError("Please agree to the terms and conditions")
+      console.log("Validation failed: Terms and conditions not agreed.")
       return false
     }
 
+    console.log("Form validation successful.")
     return true
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log("Attempting to submit form...")
 
-    if (!validateForm()) return
+    if (!validateForm()) {
+      console.log("Form validation failed, stopping submission.")
+      return
+    }
 
     setLoading(true)
     setError("")
     setSuccess("")
+    console.log("Validation passed. Setting loading state and clearing messages.")
 
     try {
       const submitData = new FormData()
@@ -150,27 +179,34 @@ export default function OTTClaimPage() {
           submitData.append(key, String(value))
         }
       })
+      console.log("FormData prepared:", Object.fromEntries(submitData.entries()))
 
       const response = await fetch("/api/ott-claim/submit", {
         method: "POST",
         body: submitData,
       })
+      console.log("API response received. Status:", response.status)
 
       const data = await response.json()
+      console.log("API response data:", data)
 
       if (data.success) {
         setSuccess("Claim submitted successfully! Redirecting to payment...")
+        console.log("Claim submission successful. Redirecting to:", data.redirectUrl)
         setTimeout(() => {
-          router.push(`/payment?claimId=${data.claimId}`)
+          // Use the full redirectUrl provided by the API
+          router.push(data.redirectUrl)
         }, 2000)
       } else {
         setError(data.message || "Failed to submit claim. Please try again.")
+        console.error("Claim submission failed:", data.message)
       }
     } catch (error) {
       console.error("Error submitting claim:", error)
       setError("Network error. Please check your connection and try again.")
     } finally {
       setLoading(false)
+      console.log("Submission process finished. Loading state reset.")
     }
   }
 
@@ -417,10 +453,8 @@ export default function OTTClaimPage() {
                       <SelectValue placeholder="Select purchase type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="online">Online Purchase</SelectItem>
-                      <SelectItem value="retail">Retail Store</SelectItem>
-                      <SelectItem value="distributor">Distributor</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
+                      <SelectItem value="hardware">Hardware Purchase</SelectItem>
+                      <SelectItem value="software">Software Purchase</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -449,7 +483,9 @@ export default function OTTClaimPage() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="invoiceNumber">Invoice Number (Optional)</Label>
+                    <Label htmlFor="invoiceNumber">
+                      Invoice Number {formData.purchaseType === "hardware" ? "*" : "(Optional)"}
+                    </Label>
                     <Input
                       id="invoiceNumber"
                       type="text"
@@ -461,7 +497,9 @@ export default function OTTClaimPage() {
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="sellerName">Seller Name (Optional)</Label>
+                  <Label htmlFor="sellerName">
+                    Seller Name {formData.purchaseType === "hardware" ? "*" : "(Optional)"}
+                  </Label>
                   <Input
                     id="sellerName"
                     type="text"

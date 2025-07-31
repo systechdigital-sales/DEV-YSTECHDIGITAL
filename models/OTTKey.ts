@@ -1,34 +1,37 @@
-import { Schema, model, models } from "mongoose"
+import mongoose, { Schema, type Document } from "mongoose"
 
-export interface IOTTKey {
-  ottCode: string
-  status: "available" | "assigned" | "redeemed" | "expired"
-  assignedTo?: string // Email of the customer it's assigned to
-  assignedAt?: Date
-  redeemedAt?: Date
-  platform?: string // e.g., "Hotstar", "SonyLIV"
-  validityDays?: number
+export interface IOTTKey extends Document {
+  activationCode: string
+  product: string
+  productSubCategory: string
+  status: "available" | "assigned" | "expired"
+  assignedEmail?: string
+  assignedDate?: Date
   createdAt: Date
   updatedAt: Date
 }
 
-const OTTKeySchema = new Schema<IOTTKey>(
+const OTTKeySchema: Schema = new Schema(
   {
-    ottCode: { type: String, required: true, unique: true },
+    activationCode: { type: String, required: true, unique: true },
+    product: { type: String, required: true },
+    productSubCategory: { type: String, required: true },
     status: {
       type: String,
-      enum: ["available", "assigned", "redeemed", "expired"],
+      enum: ["available", "assigned", "expired"],
       default: "available",
     },
-    assignedTo: { type: String, sparse: true }, // Use sparse to allow nulls and still index unique non-nulls
-    assignedAt: { type: Date },
-    redeemedAt: { type: Date },
-    platform: { type: String },
-    validityDays: { type: Number },
+    assignedEmail: { type: String },
+    assignedDate: { type: Date },
   },
   { timestamps: true },
 )
 
-const OTTKey = models.OTTKey || model<IOTTKey>("OTTKey", OTTKeySchema)
+// Create indexes for better query performance
+OTTKeySchema.index({ status: 1 })
+OTTKeySchema.index({ assignedEmail: 1 })
+OTTKeySchema.index({ activationCode: 1 })
+
+const OTTKey = mongoose.models.OTTKey || mongoose.model<IOTTKey>("OTTKey", OTTKeySchema)
 
 export default OTTKey

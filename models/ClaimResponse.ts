@@ -1,52 +1,54 @@
-import { Schema, model, models } from "mongoose"
+import mongoose, { Schema, type Document } from "mongoose"
 
-export interface IClaimResponse {
-  name: string
+export interface IClaimResponse extends Document {
+  firstName: string
+  lastName: string
   email: string
-  phone: string
-  ottCode: string // The OTT code assigned to this claim
-  status: "pending" | "approved" | "rejected" | "delivered"
-  claimedAt: Date
-  approvedAt?: Date
-  rejectedAt?: Date
-  rejectionReason?: string
-  deliveryMethod?: string // e.g., "email", "SMS"
-  deliveryStatus?: "sent" | "failed"
-  deliveredAt?: Date
-  paymentStatus?: "pending" | "paid" | "failed"
-  paymentId?: string
-  orderId?: string
-  signature?: string
-  createdAt?: Date
-  updatedAt?: Date
+  phoneNumber: string
+  activationCode: string
+  paymentStatus: "pending" | "paid" | "failed"
+  ottCode: string
+  ottCodeStatus: "pending" | "delivered" | "failed" | "already_claimed" | "activation_code_not_found"
+  ottAssignedAt?: Date
+  razorpayPaymentId?: string
+  razorpayOrderId?: string
+  amount?: number
+  createdAt: Date
+  updatedAt: Date
 }
 
-const ClaimResponseSchema = new Schema<IClaimResponse>(
+const ClaimResponseSchema: Schema = new Schema(
   {
-    name: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
-    phone: { type: String, required: true },
-    ottCode: { type: String, required: true, unique: true },
-    status: {
+    firstName: { type: String, required: true },
+    lastName: { type: String, required: true },
+    email: { type: String, required: true },
+    phoneNumber: { type: String, required: true },
+    activationCode: { type: String, required: true },
+    paymentStatus: {
       type: String,
-      enum: ["pending", "approved", "rejected", "delivered"],
+      enum: ["pending", "paid", "failed"],
       default: "pending",
     },
-    claimedAt: { type: Date, default: Date.now },
-    approvedAt: { type: Date },
-    rejectedAt: { type: Date },
-    rejectionReason: { type: String },
-    deliveryMethod: { type: String },
-    deliveryStatus: { type: String, enum: ["sent", "failed"] },
-    deliveredAt: { type: Date },
-    paymentStatus: { type: String, enum: ["pending", "paid", "failed"], default: "pending" },
-    paymentId: { type: String },
-    orderId: { type: String },
-    signature: { type: String },
+    ottCode: { type: String, default: "" },
+    ottCodeStatus: {
+      type: String,
+      enum: ["pending", "delivered", "failed", "already_claimed", "activation_code_not_found"],
+      default: "pending",
+    },
+    ottAssignedAt: { type: Date },
+    razorpayPaymentId: { type: String },
+    razorpayOrderId: { type: String },
+    amount: { type: Number },
   },
   { timestamps: true },
 )
 
-const ClaimResponse = models.ClaimResponse || model<IClaimResponse>("ClaimResponse", ClaimResponseSchema)
+// Create compound index for better query performance
+ClaimResponseSchema.index({ activationCode: 1, ottCodeStatus: 1 })
+ClaimResponseSchema.index({ paymentStatus: 1, ottCodeStatus: 1 })
+ClaimResponseSchema.index({ email: 1 })
+
+const ClaimResponse =
+  mongoose.models.ClaimResponse || mongoose.model<IClaimResponse>("ClaimResponse", ClaimResponseSchema)
 
 export default ClaimResponse

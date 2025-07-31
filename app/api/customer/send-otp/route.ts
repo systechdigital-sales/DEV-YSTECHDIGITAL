@@ -1,99 +1,154 @@
-import { NextResponse } from "next/server"
-import { getDatabase } from "@/lib/mongodb"
+import { type NextRequest, NextResponse } from "next/server"
+import { connectToDatabase } from "@/lib/mongodb"
 import { sendEmail } from "@/lib/email"
-import type { Collection } from "mongodb"
 
-interface OTPRecord {
-  email: string
-  otp: string
-  createdAt: Date
-}
+// Rate limiting storage (in production, use Redis or database)
+const otpAttempts = new Map<string, { count: number; resetTime: number }>()
 
-export async function POST(req: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const { email } = await req.json()
+    const { email } = await request.json()
 
     if (!email) {
-      return NextResponse.json({ message: "Email is required" }, { status: 400 })
+      return NextResponse.json({ success: false, message: "Email is required" }, { status: 400 })
     }
 
-    // Validate email format
+    const normalizedEmail = email.toLowerCase().trim()
+
+    // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
-      return NextResponse.json({ message: "Invalid email format" }, { status: 400 })
+    if (!emailRegex.test(normalizedEmail)) {
+      return NextResponse.json({ success: false, message: "Please enter a valid email address" }, { status: 400 })
     }
 
+    // Rate limiting check
+    const now = Date.now()
+    const attemptKey = normalizedEmail
+    const attempts = otpAttempts.get(attemptKey)
+
+    if (attempts && attempts.count >= 3 && now < attempts.resetTime) {
+      const remainingTime = Math.ceil((attempts.resetTime - now) / 1000 / 60)
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Too many OTP requests. Please try again in ${remainingTime} minutes.`,
+        },
+        { status: 429 },
+      )
+    }
+
+    // Reset attempts if time window has passed
+    if (attempts && now >= attempts.resetTime) {
+      otpAttempts.delete(attemptKey)
+    }
+
+    // Connect to database
     let db
     try {
-      const { db: connectedDb } = await getDatabase()
-      db = connectedDb
+      ;({ db } = await connectToDatabase())
+      console.log("Database connection established for send-otp route.")
     } catch (dbError) {
-      console.error("Error connecting to database for OTP:", dbError)
-      return NextResponse.json({ message: "Database connection failed. Please try again later." }, { status: 500 })
-    }
-
-    // Check if the email exists in the 'ottkeys' collection (Assigned To field)
-    const ottKeysCollection: Collection = db.collection("ottkeys")
-    try {
-      const userExists = await ottKeysCollection.findOne({ "Assigned To": email })
-
-      if (!userExists) {
-        console.warn(`Attempted OTP request for unregistered email: ${email}`)
-        return NextResponse.json(
-          { message: "Email not found. Please check your email address or sign up." },
-          { status: 404 },
-        )
-      }
-    } catch (queryError) {
-      console.error(`Error querying ottkeys collection for email ${email}:`, queryError)
+      console.error("Database connection error in send-otp route:", dbError)
       return NextResponse.json(
-        { message: "An error occurred while verifying your email. Please try again later." },
+        { success: false, message: "Failed to connect to the database. Please try again later." },
         { status: 500 },
       )
     }
 
-    // Generate OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString() // 6-digit OTP
-
-    // Store OTP in a temporary collection (e.g., 'otps') with an expiry
-    const otpsCollection: Collection<OTPRecord> = db.collection("otps")
+    // Check if email exists in ottkeys collection
+    let ottKey
     try {
-      await otpsCollection.insertOne({
-        email,
+      // Corrected: Changed "Assigned To" to "assignedEmail" and added \s* for robust matching
+      ottKey = await db.collection("ottkeys").findOne({
+        assignedEmail: { $regex: new RegExp(`^\\s*${normalizedEmail}\\s*$`, "i") },
+      })
+      console.log(`Database query for email '${normalizedEmail}' completed. Found OTT key:`, !!ottKey)
+    } catch (queryError) {
+      console.error("Error querying ottkeys collection:", queryError)
+      return NextResponse.json(
+        { success: false, message: "Failed to retrieve OTT key information. Please try again later." },
+        { status: 500 },
+      )
+    }
+
+    if (!ottKey) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "No OTT key found for this email address. Please contact support if you believe this is an error.",
+        },
+        { status: 404 },
+      )
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString()
+    const otpExpiryMinutes = 10 // Define OTP expiry in minutes
+
+    // Store OTP in database with expiration (10 minutes)
+    const otpExpiry = new Date(Date.now() + otpExpiryMinutes * 60 * 1000)
+
+    try {
+      await db.collection("customer_otps").deleteMany({ email: normalizedEmail })
+      await db.collection("customer_otps").insertOne({
+        email: normalizedEmail,
         otp,
+        expiresAt: otpExpiry,
+        attempts: 0,
         createdAt: new Date(),
       })
-      // Ensure TTL index exists for automatic cleanup (e.g., 5 minutes)
-      await otpsCollection.createIndex({ createdAt: 1 }, { expireAfterSeconds: 300 }) // 300 seconds = 5 minutes
-    } catch (otpStoreError) {
-      console.error(`Error storing OTP for ${email}:`, otpStoreError)
-      return NextResponse.json({ message: "Failed to generate OTP. Please try again later." }, { status: 500 })
-    }
-
-    // Send OTP via email
-    const emailSent = await sendEmail({
-      to: email,
-      subject: "Your OTP for Systech OTT Platform",
-      text: `Your One-Time Password (OTP) is: ${otp}. This OTP is valid for 5 minutes.`,
-      html: `<p>Your One-Time Password (OTP) is: <strong>${otp}</strong>.</p><p>This OTP is valid for 5 minutes.</p><p>If you did not request this, please ignore this email.</p>`,
-    })
-
-    if (emailSent) {
+      console.log(`OTP stored for ${normalizedEmail}.`)
+    } catch (otpDbError) {
+      console.error("Error storing OTP in database:", otpDbError)
       return NextResponse.json(
-        { message: "OTP sent successfully! Please check your inbox and spam folder." },
-        { status: 200 },
-      )
-    } else {
-      console.error(`Email sending failed for ${email}. Check email service configuration.`)
-      return NextResponse.json(
-        { message: "Failed to send OTP email. Please check your email configuration and try again later." },
+        { success: false, message: "Failed to store OTP. Please try again later." },
         { status: 500 },
       )
     }
+
+    // Send OTP email
+    const emailSent = await sendEmail({
+      to: normalizedEmail,
+      subject: "Your SYSTECH DIGITAL Login Code", // Updated subject
+      template: "otp_login_code", // Use the new template
+      data: {
+        otp: otp,
+        otpExpiryMinutes: otpExpiryMinutes,
+      },
+    })
+
+    if (!emailSent) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Failed to send OTP email. Please check your email address and spam folder, or try again later.",
+        },
+        { status: 500 },
+      )
+    }
+
+    // Update rate limiting
+    const currentAttempts = otpAttempts.get(attemptKey)
+    if (currentAttempts) {
+      otpAttempts.set(attemptKey, {
+        count: currentAttempts.count + 1,
+        resetTime: currentAttempts.resetTime,
+      })
+    } else {
+      otpAttempts.set(attemptKey, {
+        count: 1,
+        resetTime: now + 15 * 60 * 1000, // 15 minutes
+      })
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "OTP sent successfully to your email address",
+    })
   } catch (error) {
-    console.error("Unexpected error in send-otp API:", error)
+    console.error("An unexpected error occurred in send-otp route:", error)
     return NextResponse.json(
-      { message: "An unexpected error occurred while sending OTP. Please try again later." },
+      { success: false, message: "An unexpected error occurred while sending OTP. Please try again later." },
       { status: 500 },
     )
   }

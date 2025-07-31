@@ -24,6 +24,7 @@ import {
   Trash2,
   Lock,
   X,
+  Send,
 } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
@@ -34,10 +35,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select" // Added for manual assignment
 import type { ClaimResponse, SalesRecord, OTTKey } from "@/lib/models"
 import { DashboardSidebar } from "@/components/dashboard-sidebar"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import Image from "next/image"
+import { toast } from "@/hooks/use-toast" // Added for toast notifications
 
 export default function AdminPage() {
   const [claimResponses, setClaimResponses] = useState<ClaimResponse[]>([])
@@ -56,6 +59,13 @@ export default function AdminPage() {
   const [deleting, setDeleting] = useState(false)
   const [selectedRecords, setSelectedRecords] = useState<Set<string>>(new Set())
   const router = useRouter()
+
+  // State for Manual Assignment
+  const [manualAssignDialogOpen, setManualAssignDialogOpen] = useState(false)
+  const [selectedClaimForManualAssign, setSelectedClaimForManualAssign] = useState<ClaimResponse | null>(null)
+  const [selectedKeyForManualAssign, setSelectedKeyForManualAssign] = useState<string>("") // Stores OTT Key _id
+  const [manualAssignPassword, setManualAssignPassword] = useState("")
+  const [assigning, setAssigning] = useState(false)
 
   useEffect(() => {
     // Check authentication
@@ -136,13 +146,27 @@ export default function AdminPage() {
 
       if (response.ok) {
         setMessage(result.message || `${type} data uploaded successfully`)
+        toast({
+          title: "Upload Successful",
+          description: result.message || `${type} data uploaded successfully.`,
+        })
         fetchData() // Refresh data
       } else {
         setError(result.error || "Upload failed")
+        toast({
+          title: "Upload Failed",
+          description: result.error || "Failed to upload data.",
+          variant: "destructive",
+        })
       }
     } catch (error) {
       console.error("Upload error:", error)
       setError("Upload failed")
+      toast({
+        title: "Upload Error",
+        description: "An unexpected error occurred during upload.",
+        variant: "destructive",
+      })
     } finally {
       setUploading(false)
       // Reset file input
@@ -165,12 +189,26 @@ export default function AdminPage() {
         window.URL.revokeObjectURL(url)
         document.body.removeChild(a)
         setMessage("Data exported successfully")
+        toast({
+          title: "Export Successful",
+          description: "All data exported to CSV.",
+        })
       } else {
         setError("Failed to export data")
+        toast({
+          title: "Export Failed",
+          description: "Failed to export data.",
+          variant: "destructive",
+        })
       }
     } catch (error) {
       console.error("Export error:", error)
       setError("Export failed")
+      toast({
+        title: "Export Error",
+        description: "An unexpected error occurred during export.",
+        variant: "destructive",
+      })
     }
   }
 
@@ -184,6 +222,11 @@ export default function AdminPage() {
   const handleBulkDeleteClick = (type: string) => {
     if (selectedRecords.size === 0) {
       setError("Please select records to delete")
+      toast({
+        title: "No Records Selected",
+        description: "Please select at least one record to perform bulk delete.",
+        variant: "destructive",
+      })
       return
     }
     setBulkDeleteIds(Array.from(selectedRecords))
@@ -195,6 +238,11 @@ export default function AdminPage() {
   const handleDeleteConfirm = async (isBulk = false) => {
     if (!recordToDelete || deletePassword !== "Admin@12345") {
       setError("Invalid password. Please enter the correct admin password.")
+      toast({
+        title: "Invalid Password",
+        description: "Please enter the correct admin password to proceed.",
+        variant: "destructive",
+      })
       return
     }
 
@@ -221,6 +269,10 @@ export default function AdminPage() {
 
       if (response.ok) {
         setMessage(result.message || "Record(s) deleted successfully")
+        toast({
+          title: "Deletion Successful",
+          description: result.message || "Record(s) deleted successfully.",
+        })
         if (isBulk) {
           setBulkDeleteDialogOpen(false)
           setSelectedRecords(new Set())
@@ -233,10 +285,20 @@ export default function AdminPage() {
         fetchData() // Refresh data
       } else {
         setError(result.error || "Delete failed")
+        toast({
+          title: "Deletion Failed",
+          description: result.error || "Failed to delete record(s).",
+          variant: "destructive",
+        })
       }
     } catch (error) {
       console.error("Delete error:", error)
       setError("Delete operation failed")
+      toast({
+        title: "Deletion Error",
+        description: "An unexpected error occurred during deletion.",
+        variant: "destructive",
+      })
     } finally {
       setDeleting(false)
     }
@@ -278,6 +340,8 @@ export default function AdminPage() {
       case "failed":
       case "used":
       case "expired":
+      case "already_claimed": // Added for automation status
+      case "activation_code_not_found": // Added for automation status
         return <Badge className="bg-red-100 text-red-800 border-red-300">{status.toUpperCase()}</Badge>
       default:
         return <Badge variant="outline">{status.toUpperCase()}</Badge>
@@ -295,6 +359,76 @@ export default function AdminPage() {
     availableKeys: ottKeys?.filter((k) => k.status === "available")?.length || 0,
     assignedKeys: ottKeys?.filter((k) => k.status === "assigned")?.length || 0,
     usedKeys: ottKeys?.filter((k) => k.status === "used")?.length || 0,
+  }
+
+  // Manual Assignment Handlers
+  const handleManualAssignClick = (claim: ClaimResponse) => {
+    setSelectedClaimForManualAssign(claim)
+    setSelectedKeyForManualAssign("") // Reset selected key
+    setManualAssignPassword("") // Reset password
+    setManualAssignDialogOpen(true)
+  }
+
+  const handleManualAssignConfirm = async () => {
+    if (!selectedClaimForManualAssign || !selectedKeyForManualAssign || manualAssignPassword !== "Admin@12345") {
+      setError("Invalid input or password. Please select a key and enter the correct admin password.")
+      toast({
+        title: "Assignment Failed",
+        description: "Invalid input or password. Please select a key and enter the correct admin password.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setAssigning(true)
+    setError("")
+    setMessage("")
+
+    try {
+      const response = await fetch("/api/admin/manual-assign-key", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          claimId: selectedClaimForManualAssign._id || selectedClaimForManualAssign.id,
+          ottKeyId: selectedKeyForManualAssign,
+          adminPassword: manualAssignPassword,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (response.ok) {
+        setMessage(result.message || "OTT Key manually assigned successfully!")
+        toast({
+          title: "Assignment Successful",
+          description: result.message || "OTT Key manually assigned successfully!",
+        })
+        setManualAssignDialogOpen(false)
+        setSelectedClaimForManualAssign(null)
+        setSelectedKeyForManualAssign("")
+        setManualAssignPassword("")
+        fetchData() // Refresh data
+      } else {
+        setError(result.error || "Manual assignment failed.")
+        toast({
+          title: "Assignment Failed",
+          description: result.error || "Manual assignment failed.",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Manual assignment error:", error)
+      setError("An unexpected error occurred during manual assignment.")
+      toast({
+        title: "Assignment Error",
+        description: "An unexpected error occurred during manual assignment.",
+        variant: "destructive",
+      })
+    } finally {
+      setAssigning(false)
+    }
   }
 
   if (loading) {
@@ -404,7 +538,8 @@ export default function AdminPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-600">OTT Keys</p>
-                      <p className="text-3xl font-bold text-gray-900">{stats.totalClaims + stats.totalSales}</p>
+                      <p className="text-3xl font-bold">{ottKeys?.length || 0}</p>{" "}
+                      {/* Corrected to show actual key count */}
                       <p className="text-sm text-gray-500">{stats.availableKeys} available</p>
                     </div>
                     <div className="p-3 bg-purple-100 rounded-full">
@@ -625,7 +760,7 @@ export default function AdminPage() {
                               <TableCell className="text-sm text-gray-600">
                                 {claim.createdAt ? new Date(claim.createdAt).toLocaleDateString() : "N/A"}
                               </TableCell>
-                              <TableCell>
+                              <TableCell className="flex gap-2">
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -635,6 +770,23 @@ export default function AdminPage() {
                                   className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
                                 >
                                   <Trash2 className="w-4 h-4" />
+                                </Button>
+                                {/* Manual Assign Button */}
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleManualAssignClick(claim)}
+                                  disabled={claim.ottCodeStatus === "delivered" || claim.paymentStatus !== "paid"} // Disable if already delivered or not paid
+                                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200"
+                                  title={
+                                    claim.ottCodeStatus === "delivered"
+                                      ? "Key already assigned"
+                                      : claim.paymentStatus !== "paid"
+                                        ? "Claim not paid"
+                                        : "Manually assign OTT Key"
+                                  }
+                                >
+                                  <Send className="w-4 h-4" />
                                 </Button>
                               </TableCell>
                             </TableRow>
@@ -957,6 +1109,92 @@ export default function AdminPage() {
                     <>
                       <Trash2 className="w-4 h-4 mr-2" />
                       Delete {bulkDeleteIds.length} Records
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Manual Assign Key Dialog */}
+          <Dialog open={manualAssignDialogOpen} onOpenChange={setManualAssignDialogOpen}>
+            <DialogContent className="sm:max-w-[475px]">
+              <DialogHeader>
+                <DialogTitle className="flex items-center text-blue-600">
+                  <Send className="w-5 h-5 mr-2" />
+                  Manually Assign OTT Key
+                </DialogTitle>
+                <DialogDescription className="text-gray-600">
+                  Assign an OTT key to claim for <strong>{selectedClaimForManualAssign?.email || "N/A"}</strong>{" "}
+                  (Activation Code: <strong>{selectedClaimForManualAssign?.activationCode || "N/A"}</strong>).
+                  <br />
+                  This will update the claim, sales record, and OTT key status, and send an email.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="ott-key-select" className="text-sm font-medium">
+                    Select Available OTT Key
+                  </Label>
+                  <Select onValueChange={setSelectedKeyForManualAssign} value={selectedKeyForManualAssign}>
+                    <SelectTrigger id="ott-key-select" className="w-full">
+                      <SelectValue placeholder="Choose an available OTT key" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ottKeys
+                        .filter((key) => key.status === "available")
+                        .map((key) => (
+                          <SelectItem key={key._id || key.id} value={key._id || key.id}>
+                            {key.activationCode} ({key.product} - {key.productSubCategory})
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  {ottKeys.filter((key) => key.status === "available").length === 0 && (
+                    <p className="text-sm text-red-500">No available OTT keys found. Please upload more keys.</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="manual-assign-password" className="text-sm font-medium">
+                    Admin Password
+                  </Label>
+                  <Input
+                    id="manual-assign-password"
+                    type="password"
+                    placeholder="Enter admin password"
+                    value={manualAssignPassword}
+                    onChange={(e) => setManualAssignPassword(e.target.value)}
+                    className="border-blue-200 focus:border-blue-500"
+                  />
+                  <p className="text-xs text-gray-500">Required password: Admin@12345</p>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setManualAssignDialogOpen(false)
+                    setSelectedClaimForManualAssign(null)
+                    setSelectedKeyForManualAssign("")
+                    setManualAssignPassword("")
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleManualAssignConfirm}
+                  disabled={assigning || !selectedKeyForManualAssign || manualAssignPassword !== "Admin@12345"}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {assigning ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Assigning...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4 mr-2" />
+                      Assign Key
                     </>
                   )}
                 </Button>

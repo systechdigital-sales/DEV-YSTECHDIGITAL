@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense } from "react"
+import { Suspense, useEffect } from "react" // Import useEffect
 import { useSearchParams } from "next/navigation"
 import PaymentClient from "@/components/payment-client"
 import { Loader2 } from "lucide-react"
@@ -12,6 +12,15 @@ function PaymentContent() {
   const customerName = searchParams.get("customerName") || ""
   const customerEmail = searchParams.get("customerEmail") || ""
   const customerPhone = searchParams.get("customerPhone") || ""
+
+  // Add logging to inspect received parameters
+  useEffect(() => {
+    console.log("Payment Page - Received Search Params:")
+    console.log("claimId:", claimId)
+    console.log("customerName:", customerName)
+    console.log("customerEmail:", customerEmail)
+    console.log("customerPhone:", customerPhone)
+  }, [claimId, customerName, customerEmail, customerPhone])
 
   if (!claimId || !customerName || !customerEmail) {
     return (
