@@ -40,7 +40,7 @@ export default function HomePage() {
     {
       icon: <Tv className="w-8 h-8 text-blue-600" />,
       title: "Premium OTT Content",
-      description: "Access to 15+ premium OTT platforms including Netflix, Amazon Prime, Disney+ and more",
+      description: "Access to 30+ premium OTT platforms and more",
     },
     {
       icon: <Smartphone className="w-8 h-8 text-green-600" />,
@@ -60,12 +60,39 @@ export default function HomePage() {
   ]
 
   const benefits = [
-    "15+ Premium OTT Platforms",
-    "4K Ultra HD Streaming",
-    "Offline Download Support",
-    "Ad-Free Experience",
-    "Multi-Language Content",
-    "Live TV Channels",
+    "OTT Pack",
+    "SonyLiv",
+    "Zee5",
+    "Fancode",
+    "LIONSGATE PLAY",
+    "STAGE",
+    "DistroTV",
+    "ShemarooMe",
+    "Hubhopper",
+    "ALTT",
+    "aha Tamil",
+    "Red hot",
+    "Runn Tv",
+    "OM TV",
+    "Dangal Play",
+    "Premiumflix",
+    "CHAUPAL",
+    "ShortsTV",
+    "Sun NXT",
+    "Playflix",
+    "Shemaroo Gujarati",
+    "Dollywood Play",
+    "Nammaflix",
+    "Chaupal Bhojpuri",
+    "ShemarooBhakti",
+    "ETV Win",
+    "aha",
+    "VROTT",
+    "Shortfundly",
+    "Atrangi",
+    "Bhaktiflix",
+    "Fridaay",
+    "Gurjari",
   ]
 
   const testimonials = [
@@ -141,7 +168,7 @@ export default function HomePage() {
                   </span>
                 </h2>
                 <p className="text-xl text-gray-600 leading-relaxed">
-                  Get instant access to 15+ premium OTT platforms with our exclusive OTTplay Power Play Pack. Stream
+                  Get instant access to 30+ premium OTT platforms with our exclusive OTTplay Power Play Pack. Stream
                   unlimited movies, shows, and live content across all your devices.
                 </p>
               </div>
@@ -277,19 +304,19 @@ export default function HomePage() {
                   </div>
                   <div className="space-y-4">
                     <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                      <span className="text-gray-600">Netflix Premium</span>
+                      <span className="text-gray-600">Access to 30+ Premium OTT Platforms</span>
                       <CheckCircle className="w-5 h-5 text-green-600" />
                     </div>
                     <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                      <span className="text-gray-600">Amazon Prime Video</span>
+                      <span className="text-gray-600">4K Ultra HD Streaming</span>
                       <CheckCircle className="w-5 h-5 text-green-600" />
                     </div>
                     <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                      <span className="text-gray-600">Disney+ Hotstar</span>
+                      <span className="text-gray-600">Offline Download Support</span>
                       <CheckCircle className="w-5 h-5 text-green-600" />
                     </div>
                     <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                      <span className="text-gray-600">+ 12 More Platforms</span>
+                      <span className="text-gray-600">Ad-Free Experience</span>
                       <CheckCircle className="w-5 h-5 text-green-600" />
                     </div>
                   </div>
@@ -464,7 +491,7 @@ export default function HomePage() {
                   <MapPin className="w-5 h-5 text-blue-400 mr-3" />
                   <div>
                     <p className="text-white">India</p>
-                    <p className="text-gray-400 text-sm">Serving Nationwide</p>
+                    <p className="text-400 text-sm">Serving Nationwide</p>
                   </div>
                 </div>
               </div>
