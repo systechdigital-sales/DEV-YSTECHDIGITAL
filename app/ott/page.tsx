@@ -192,7 +192,7 @@ export default function OTTClaimPage() {
 
       if (data.success) {
         setSuccess("Claim submitted successfully! Redirecting to payment...")
-        console.log("Claim submission successful. Redirecting to:", data.redirectUrl)
+        console.log("Claim submission successful. Redirecting...")
         setTimeout(() => {
           // Use the full redirectUrl provided by the API
           router.push(data.redirectUrl)
@@ -217,6 +217,13 @@ export default function OTTClaimPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
+              <Image src="/logo.png" alt="SYSTECH DIGITAL Logo" width={40} height={40} className="rounded-full mr-3" />
+              <div>
+                <h1 className="text-3xl font-bold text-white">OTT Subscription Claim</h1>
+                <p className="text-sm text-red-200 mt-1">Get your OTTplay Power Play Pack activation code</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
               <Button
                 variant="ghost"
                 size="sm"
@@ -226,13 +233,6 @@ export default function OTTClaimPage() {
                 <Home className="w-4 h-4 mr-2" />
                 Home
               </Button>
-              <Image src="/logo.png" alt="SYSTECH DIGITAL Logo" width={40} height={40} className="rounded-full mr-3" />
-              <div>
-                <h1 className="text-3xl font-bold text-white">OTT Subscription Claim</h1>
-                <p className="text-sm text-red-200 mt-1">Get your OTTplay Power Play Pack activation code</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-3">
               <Button
                 variant="ghost"
                 size="sm"
