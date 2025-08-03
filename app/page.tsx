@@ -222,7 +222,7 @@ export default function HomePage() {
             <div className="relative">
               <div className="relative z-10">
                 <Image
-                  src="/ottplay-banner.png"
+                  src="/B2B_1050x600.png"
                   alt="OTTplay Banner"
                   width={600}
                   height={400}
