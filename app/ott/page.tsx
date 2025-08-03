@@ -219,8 +219,8 @@ export default function OTTClaimPage() {
             <div className="flex items-center">
               <Image src="/logo.png" alt="SYSTECH DIGITAL Logo" width={40} height={40} className="rounded-full mr-3" />
               <div>
-                <h1 className="text-3xl font-bold text-white">OTT Subscription Claim</h1>
-                <p className="text-sm text-red-200 mt-1">Get your OTTplay Power Play Pack activation code</p>
+                <h1 className="text-3xl font-bold text-white">Systech Digital</h1>
+                <p className="text-sm text-red-200 mt-1">Simplifying the Digital Experience</p>
               </div>
             </div>
             <div className="flex items-center space-x-3">
