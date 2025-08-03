@@ -236,7 +236,7 @@ export default function TermsAndConditions() {
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <h4 className="font-semibold text-green-900 mb-2">Subscription Benefits</h4>
               <ul className="text-sm text-green-700 space-y-1">
-                <li>• 12-month access to 32+ OTT platforms</li>
+                <li>• 12-month access to 29+ OTT platform from the date of activation of OTT subscription</li>
                 <li>• Powered by OTTplay premium service</li>
                 <li>• HD/4K streaming where available</li>
                 <li>• Multi-device access support</li>
