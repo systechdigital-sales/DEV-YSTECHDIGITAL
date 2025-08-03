@@ -47,7 +47,7 @@ export default function PrivacyPolicyPage() {
             Back
           </Button>
           <h2 className="text-3xl font-bold text-gray-900 mb-2">Privacy Policy</h2>
-          <p className="text-gray-600">Last updated: January 2025</p>
+          <p className="text-gray-600">Last updated: July 2025</p>
         </div>
 
         <div className="space-y-6">
