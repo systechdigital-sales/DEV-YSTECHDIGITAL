@@ -459,7 +459,7 @@ export default function OTTClaimPage() {
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="activationCode">Activation Code *</Label>
+                  <Label htmlFor="activationCode">Activation Code/Product Serial Number/IMEI Number *</Label>
                   <Input
                     id="activationCode"
                     type="text"
