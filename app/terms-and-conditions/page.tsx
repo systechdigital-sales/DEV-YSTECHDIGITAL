@@ -532,7 +532,7 @@ export default function TermsAndConditions() {
               </p>
               <div className="bg-white border border-gray-200 rounded-lg p-4">
                 <p className="text-sm text-gray-600">
-                  <strong>Document Version:</strong> 2.1 | <strong>Last Review:</strong> January 23, 2025 |
+                  <strong>Document Version:</strong> 2.1 | <strong>Last Review:</strong> July 23, 2025 |
                   <strong>Next Review:</strong> July 23, 2025
                 </p>
               </div>
