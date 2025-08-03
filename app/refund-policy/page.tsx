@@ -47,7 +47,7 @@ export default function RefundPolicy() {
             </CardTitle>
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
               <p className="text-sm text-gray-700">
-                <strong>Last Updated:</strong> January 23, 2025 | <strong>Effective Date:</strong> January 1, 2025
+                <strong>Last Updated:</strong> July 23, 2025 | <strong>Effective Date:</strong> August 1, 2025
               </p>
               <p className="text-sm text-gray-600 mt-2">
                 This refund policy outlines the terms and conditions for refunds on all products and services offered by
