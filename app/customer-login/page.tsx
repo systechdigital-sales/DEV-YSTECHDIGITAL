@@ -324,14 +324,7 @@ export default function CustomerLogin() {
           </CardContent>
         </Card>
 
-        {/* Help Section */}
-        <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600 mb-2">Need help?</p>
-          <div className="flex justify-center space-x-4 text-xs text-gray-500">
-            <span>📞 +91 7709803412</span>
-            <span>✉️ sales.systechdigital@gmail.com</span>
-          </div>
-        </div>
+
       </div>
     </div>
   )
