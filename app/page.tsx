@@ -40,7 +40,7 @@ export default function HomePage() {
     {
       icon: <Tv className="w-8 h-8 text-blue-600" />,
       title: "Premium OTT Content",
-      description: "Access to 30+ premium OTT platforms and more",
+      description: "Access to 29 premium OTT platforms and more",
     },
     {
       icon: <Smartphone className="w-8 h-8 text-green-600" />,
@@ -168,7 +168,7 @@ export default function HomePage() {
                   </span>
                 </h2>
                 <p className="text-xl text-gray-600 leading-relaxed">
-                  Get instant access to 30+ premium OTT platforms with our exclusive OTTplay Power Play Pack. Stream
+                  Get instant access to 29 premium OTT platforms with our exclusive OTTplay Power Play Pack. Stream
                   unlimited movies, shows, and live content across all your devices.
                 </p>
               </div>
@@ -304,7 +304,7 @@ export default function HomePage() {
                   </div>
                   <div className="space-y-4">
                     <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                      <span className="text-gray-600">Access to 30+ Premium OTT Platforms</span>
+                      <span className="text-gray-600">Access to 29 Premium OTT Platforms</span>
                       <CheckCircle className="w-5 h-5 text-green-600" />
                     </div>
                     <div className="flex justify-between items-center py-2 border-b border-gray-100">
