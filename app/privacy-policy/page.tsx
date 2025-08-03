@@ -24,8 +24,8 @@ export default function PrivacyPolicyPage() {
                 }}
               />
               <div style={{ display: "none" }}>
-                <h1 className="text-3xl font-bold text-white">SYSTECH DIGITAL</h1>
-                <p className="text-sm text-red-200 mt-1">Privacy Policy</p>
+                <h1 className="text-3xl font-bold text-white">Systech Digital</h1>
+                <p className="text-sm text-red-200 mt-1">Simplifying the Digital Experience</p>
               </div>
             </div>
             <Badge variant="secondary" className="bg-red-100 text-red-800 px-4 py-2 border border-red-300">
