@@ -125,8 +125,8 @@ export default function HomePage() {
             <div className="flex items-center">
               <Image src="/logo.png" alt="SYSTECH DIGITAL Logo" width={50} height={50} className="rounded-full mr-4" />
               <div>
-                <h1 className="text-3xl font-bold text-white">SYSTECH DIGITAL</h1>
-                <p className="text-sm text-red-200">Premium OTT Subscription Services</p>
+                <h1 className="text-3xl font-bold text-white">Systech Digital</h1>
+                <p className="text-sm text-red-200">Simplifying the Digital Experience</p>
               </div>
             </div>
             <div className="flex items-center space-x-4">
