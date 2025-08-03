@@ -143,25 +143,23 @@ export default function CustomerLogin() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Header */}
-        <div className="text-center mb-8">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => router.push("/")}
-            className="mb-4 text-gray-600 hover:text-gray-900"
-          >
-            <Home className="w-4 h-4 mr-2" />
-            Back to Home
-          </Button>
-          <Image
-            src="/logo.png"
-            alt="SYSTECH DIGITAL Logo"
-            width={60}
-            height={60}
-            className="rounded-full mx-auto mb-4"
-          />
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Customer Login</h1>
-          <p className="text-gray-600">Access your OTT activation code</p>
+        <div className="mb-8 w-full">
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center">
+              <Image src="/logo.png" alt="SYSTECH DIGITAL Logo" width={40} height={40} className="rounded-full mr-2" />
+              <h1 className="text-2xl font-bold text-gray-900">Customer Login</h1>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.push("/")}
+              className="text-gray-600 hover:text-gray-900 flex items-center"
+            >
+              <Home className="w-4 h-4 mr-1" />
+              Back to Home
+            </Button>
+          </div>
+          <p className="text-center text-gray-600">Access your OTT activation code</p>
         </div>
 
         <Card className="shadow-2xl border-0">
