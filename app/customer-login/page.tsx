@@ -143,25 +143,34 @@ export default function CustomerLogin() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Header */}
-        <div className="mb-8 w-full">
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center">
-              <Image src="/logo.png" alt="SYSTECH DIGITAL Logo" width={40} height={40} className="rounded-full mr-2" />
-              <h1 className="text-2xl font-bold text-gray-900">Customer Login</h1>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push("/")}
-              className="text-gray-600 hover:text-gray-900 flex items-center"
-            >
-              <Home className="w-4 h-4 mr-1" />
-              Back to Home
-            </Button>
-          </div>
-          <p className="text-center text-gray-600">Access your OTT activation code</p>
+        <header className="fixed top-0 left-0 right-0 bg-gradient-to-r from-black via-red-900 to-black shadow-lg z-50">
+  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="flex items-center justify-between">
+      <div className="flex items-center">
+        <Image src="/logo.png" alt="SYSTECH DIGITAL Logo" width={50} height={50} className="rounded-full mr-4" />
+        <div>
+          <h1 className="text-3xl font-bold text-white">Systech Digital</h1>
+          <p className="text-sm text-red-200">Simplifying the Digital Experience</p>
         </div>
+      </div>
+      <div className="flex items-center space-x-4">
 
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.push("/")}
+          className="text-gray-600 hover:text-gray-900 flex items-center border border-white/30"
+        >
+          <Home className="w-4 h-4 mr-1" />
+          Back to Home
+        </Button>
+
+      </div>
+    </div>
+  </div>
+</header>
+
+<p className="text-center text-gray-600 mb-4">Access your OTT activation code</p>
         <Card className="shadow-2xl border-0">
           <CardHeader className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-lg">
             <CardTitle className="flex items-center justify-center">

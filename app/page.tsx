@@ -22,6 +22,7 @@ import {
   User,
 } from "lucide-react"
 import Image from "next/image"
+import Footer from "@/components/footer"
 
 export default function HomePage() {
   const router = useRouter()
@@ -55,7 +56,7 @@ export default function HomePage() {
     {
       icon: <Shield className="w-8 h-8 text-red-600" />,
       title: "Secure & Reliable",
-      description: "100% secure activation process with 24/7 customer support and money-back guarantee",
+      description: "100% secure activation process with 24/7 customer support",
     },
   ]
 
@@ -394,143 +395,7 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div className="col-span-1 md:col-span-2">
-              <div className="flex items-center mb-6">
-                <Image
-                  src="/logo.png"
-                  alt="SYSTECH DIGITAL Logo"
-                  width={40}
-                  height={40}
-                  className="rounded-full mr-3"
-                />
-                <div>
-                  <h4 className="text-2xl font-bold">SYSTECH DIGITAL</h4>
-                  <p className="text-gray-400">Premium OTT Solutions</p>
-                </div>
-              </div>
-              <p className="text-gray-400 mb-6 max-w-md">
-                Your trusted partner for premium OTT subscriptions. We provide genuine activation codes and exceptional
-                customer service to enhance your entertainment experience.
-              </p>
-              <div className="flex space-x-4">
-                <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
-                  <span className="text-white font-bold">f</span>
-                </div>
-                <div className="w-10 h-10 bg-blue-400 rounded-full flex items-center justify-center">
-                  <span className="text-white font-bold">t</span>
-                </div>
-                <div className="w-10 h-10 bg-pink-600 rounded-full flex items-center justify-center">
-                  <span className="text-white font-bold">i</span>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <h5 className="text-lg font-semibold mb-6">Quick Links</h5>
-              <ul className="space-y-3">
-                <li>
-                  <Button
-                    variant="ghost"
-                    className="text-gray-400 hover:text-white p-0 h-auto font-normal"
-                    onClick={() => router.push("/ott")}
-                  >
-                    Claim OTT Code
-                  </Button>
-                </li>
-                <li>
-                  <Button
-                    variant="ghost"
-                    className="text-gray-400 hover:text-white p-0 h-auto font-normal"
-                    onClick={handleCustomerDashboard}
-                  >
-                    Customer Dashboard
-                  </Button>
-                </li>
-                <li>
-                  <Button
-                    variant="ghost"
-                    className="text-gray-400 hover:text-white p-0 h-auto font-normal"
-                    onClick={() => router.push("/terms-and-conditions")}
-                  >
-                    Terms & Conditions
-                  </Button>
-                </li>
-                <li>
-                  <Button
-                    variant="ghost"
-                    className="text-gray-400 hover:text-white p-0 h-auto font-normal"
-                    onClick={() => router.push("/privacy-policy")}
-                  >
-                    Privacy Policy
-                  </Button>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h5 className="text-lg font-semibold mb-6">Contact Info</h5>
-              <div className="space-y-4">
-                <div className="flex items-center">
-                  <Phone className="w-5 h-5 text-blue-400 mr-3" />
-                  <div>
-                    <p className="text-white">+91 7709803412</p>
-                    <p className="text-gray-400 text-sm">Mon-Sat: 9 AM - 6 PM IST</p>
-                  </div>
-                </div>
-                <div className="flex items-center">
-                  <Mail className="w-5 h-5 text-blue-400 mr-3" />
-                  <div>
-                    <p className="text-white">sales.systechdigital@gmail.com</p>
-                    <p className="text-gray-400 text-sm">24/7 Email Support</p>
-                  </div>
-                </div>
-                <div className="flex items-center">
-                  <MapPin className="w-5 h-5 text-blue-400 mr-3" />
-                  <div>
-                    <p className="text-white">India</p>
-                    <p className="text-400 text-sm">Serving Nationwide</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="border-t border-gray-800 mt-12 pt-8">
-            <div className="flex flex-col md:flex-row justify-between items-center">
-              <p className="text-gray-400 text-sm">© 2024 SYSTECH DIGITAL. All rights reserved.</p>
-              <div className="flex items-center space-x-6 mt-4 md:mt-0">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-gray-400 hover:text-white"
-                  onClick={() => router.push("/terms-and-conditions")}
-                >
-                  Terms
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-gray-400 hover:text-white"
-                  onClick={() => router.push("/privacy-policy")}
-                >
-                  Privacy
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-gray-400 hover:text-white"
-                  onClick={() => router.push("/refund-policy")}
-                >
-                  Refunds
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   )
 }

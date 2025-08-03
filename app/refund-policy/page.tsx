@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { CreditCard, Clock, AlertTriangle, CheckCircle, XCircle, Phone, Mail } from "lucide-react"
 import Image from "next/image"
+import Footer from "@/components/footer"
 
 export default function RefundPolicy() {
   return (
@@ -485,13 +486,7 @@ export default function RefundPolicy() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-                <Phone className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-                <h4 className="font-semibold text-blue-900 mb-2">Phone Support</h4>
-                <p className="text-sm text-blue-700">+91 7709803412</p>
-                <p className="text-xs text-blue-600 mt-1">Mon-Sat: 9 AM - 6 PM IST</p>
-                <p className="text-xs text-blue-600">For urgent refund queries</p>
-              </div>
+              
               <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
                 <Mail className="w-8 h-8 text-green-600 mx-auto mb-2" />
                 <h4 className="font-semibold text-green-900 mb-2">Email Support</h4>
@@ -545,82 +540,7 @@ export default function RefundPolicy() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-gradient-to-r from-black via-red-900 to-black text-white py-8 border-t border-red-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div className="flex items-center md:items-start">
-              <div className="relative h-10 w-10 mr-3 hidden md:block">
-                <Image src="/logo.png" alt="SYSTECH DIGITAL Logo" width={40} height={40} className="rounded-full" />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold mb-2 text-white">SYSTECH DIGITAL</h3>
-                <p className="text-red-200 text-sm">Your trusted partner for IT Solutions & Mobile Technology</p>
-              </div>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-3 text-white">Quick Links</h4>
-              <ul className="space-y-2 text-sm">
-                <li>
-                  <button
-                    onClick={() => (window.location.href = "/")}
-                    className="text-red-200 hover:text-white transition-colors"
-                  >
-                    Home
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() => (window.location.href = "/ott")}
-                    className="text-red-200 hover:text-white transition-colors"
-                  >
-                    OTT Claim Form
-                  </button>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-3 text-white">Legal</h4>
-              <ul className="space-y-2 text-sm">
-                <li>
-                  <button
-                    onClick={() => (window.location.href = "/terms-and-conditions")}
-                    className="text-red-200 hover:text-white transition-colors"
-                  >
-                    Terms & Conditions
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() => (window.location.href = "/cookie-policy")}
-                    className="text-red-200 hover:text-white transition-colors"
-                  >
-                    Cookie Policy
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() => (window.location.href = "/privacy-policy")}
-                    className="text-red-200 hover:text-white transition-colors"
-                  >
-                    Privacy Policy
-                  </button>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-3 text-white">Contact Us</h4>
-              <ul className="space-y-2 text-sm text-red-200">
-                <li>📞 +91 7709803412</li>
-                <li>📧 sales.systechdigital@gmail.com</li>
-                <li>🌐 www.systechdigital.co.in</li>
-              </ul>
-            </div>
-          </div>
-          <div className="border-t border-red-800 mt-8 pt-8 text-center">
-            <p className="text-sm text-red-200">© 2025 Systech IT Solutions Limited. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+      <Footer/>
     </div>
   )
 }
