@@ -227,7 +227,7 @@ export default function TermsAndConditions() {
               <h4 className="font-semibold text-indigo-900 mb-2">Eligibility & Validity</h4>
               <ul className="text-sm text-indigo-700 space-y-1">
                 <li>• Valid only for purchases between July 1, 2025 - September 30, 2025</li>
-                <li>• One subscription per product serial number</li>
+                <li>• One subscription per Activation Code/Product Serial Number/IMEI Number</li>
                 <li>• Claims must be submitted before September 30, 2025</li>
                 <li>• Processing fee of ₹99 required for claim processing</li>
               </ul>
