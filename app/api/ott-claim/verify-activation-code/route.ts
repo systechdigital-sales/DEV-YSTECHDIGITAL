@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
 import type { Collection } from "mongodb"
+import { parse } from "path";
 
 // Basic in-memory rate limiter
 const ipAttempts = new Map<string, { count: number; lastAttempt: number }>()
@@ -35,20 +36,48 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Activation code is required." }, { status: 400 })
     }
 
-    const activationCode = String(activationCodeRaw).trim()
+    const activationCodestring = String(activationCodeRaw).trim()
+     const activationCode = parseInt(activationCodestring, 10)
 
     const db = await getDatabase()
     const salesCollection: Collection = db.collection("salesrecords")
 
     console.log("Searching for code:", activationCode)
 
-    const salesRecord = await salesCollection.findOne({
-      activationCode: { $regex: `^${activationCode}$`, $options: "i" },
-    })
+    const salesRecord = await salesCollection.findOne({activationCode: activationCode})
+    console.log("Sales records found",salesRecord)
+    // ({
+    //   activationCode: { $regex: `^${activationCode}$`, $options: "i" },
+    // })
 
+    
     if (!salesRecord) {
+      const salesRecord2 = await salesCollection.findOne({activationCode: activationCodestring})
+      if (!salesRecord2) {
       return NextResponse.json({ success: false, error: "Activation code not found." }, { status: 404 })
+      }
+      
+    if (salesRecord2.status?.toLowerCase() === "claimed") {
+      return NextResponse.json(
+        { success: false, error: "This activation code has already been claimed." },
+        { status: 409 },
+      )
     }
+
+    if (salesRecord2.status?.toLowerCase() !== "available") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Activation code status is '${salesRecord2.status}'. It must be 'available' to proceed.`,
+        },
+        { status: 400 },
+      )
+    }
+
+    return NextResponse.json({ success: true, message: "Activation code is valid and available." })
+      
+    }
+
 
     if (salesRecord.status?.toLowerCase() === "claimed") {
       return NextResponse.json(
