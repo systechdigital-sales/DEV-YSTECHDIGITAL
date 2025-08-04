@@ -208,27 +208,33 @@ export default function OTTClaimPage() {
         const data = await response.json()
 
         if (data.success) {
-          setActivationCodeValidationMessage("Activation code is valid and available.")
+          setActivationCodeValidationMessage("Activation code is valid and available. You can proceed.")
           setActivationCodeValidationStatus("success")
           setFailedValidationAttempts(0) // Reset attempts on success
           setShowCaptcha(false) // Hide captcha on success
+          setCaptchaChecked(false) // Reset captcha check
         } else {
           setActivationCodeValidationMessage(data.message || "Activation code validation failed.")
           setActivationCodeValidationStatus("error")
-          setFailedValidationAttempts((prev) => prev + 1)
-          if (failedValidationAttempts + 1 >= 3) {
-            // Show captcha after 3 failed attempts
-            setShowCaptcha(true)
-          }
+          setFailedValidationAttempts((prev) => {
+            const newAttempts = prev + 1
+            if (newAttempts >= 3) {
+              setShowCaptcha(true) // Show captcha after 3 failed attempts
+            }
+            return newAttempts
+          })
         }
       } catch (err) {
         console.error("Error verifying activation code:", err)
         setActivationCodeValidationMessage("Network error during code verification.")
         setActivationCodeValidationStatus("error")
-        setFailedValidationAttempts((prev) => prev + 1)
-        if (failedValidationAttempts + 1 >= 3) {
-          setShowCaptcha(true)
-        }
+        setFailedValidationAttempts((prev) => {
+          const newAttempts = prev + 1
+          if (newAttempts >= 3) {
+            setShowCaptcha(true)
+          }
+          return newAttempts
+        })
       }
     },
     [failedValidationAttempts],
@@ -295,13 +301,6 @@ export default function OTTClaimPage() {
     if (!postalCodeRegex.test(formData.postalCode)) {
       setError("Please enter a valid 6-digit postal code.")
       console.log("Validation failed: Invalid postal code format.")
-      return false
-    }
-
-    // Terms agreement
-    if (!formData.agreeToTerms) {
-      setError("Please agree to the terms and conditions")
-      console.log("Validation failed: Terms and conditions not agreed.")
       return false
     }
 
@@ -585,7 +584,9 @@ export default function OTTClaimPage() {
                     <Label htmlFor="postalCode">Postal Code *</Label>
                     <Input
                       id="postalCode"
-                      type="number" // Changed to number
+                      type="text" // Changed to text to allow maxLength, validation handles numeric
+                      inputMode="numeric" // Suggest numeric keyboard on mobile
+                      pattern="[0-9]*" // Only allow numbers
                       value={formData.postalCode}
                       onChange={(e) => handleInputChange("postalCode", e.target.value)}
                       className="mt-1"

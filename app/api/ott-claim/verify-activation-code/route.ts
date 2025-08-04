@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     if (entry.count > MAX_REQUESTS_PER_WINDOW) {
       console.warn(`Rate limit exceeded for IP: ${ip}`)
       return NextResponse.json(
-        { success: false, message: "Too many requests. Please try again later." },
+        { success: false, message: "Too many requests from your location. Please try again later." },
         { status: 429 },
       )
     }
