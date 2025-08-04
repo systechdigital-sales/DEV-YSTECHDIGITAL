@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useCallback, useMemo } from "react"
+import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -783,7 +783,7 @@ const stateCityMapping: Record<string, string[]> = {
   ],
 }
 
-// Get all states
+// Get all states sorted alphabetically
 const indianStates = Object.keys(stateCityMapping).sort()
 
 export default function OTTClaimPage() {
@@ -811,76 +811,6 @@ export default function OTTClaimPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
-  const [activationCodeValidationMessage, setActivationCodeValidationMessage] = useState("")
-  const [activationCodeValidationStatus, setActivationCodeValidationStatus] = useState<"idle" | "success" | "error">(
-    "idle",
-  )
-  const verifyActivationCode = useCallback(async (code: string) => {
-    if (!code) {
-      setActivationCodeValidationMessage("")
-      setActivationCodeValidationStatus("idle")
-      return
-    }
-
-    try {
-      // For demo purposes, let's simulate the validation locally first
-      // This avoids API issues during development
-      if (code.length < 6) {
-        setActivationCodeValidationMessage("Activation code must be at least 6 characters long.")
-        setActivationCodeValidationStatus("error")
-        return
-      }
-
-      // Simulate API call with local validation
-      if (code.startsWith("VALID") || code.startsWith("TEST") || code.startsWith("DEMO")) {
-        setActivationCodeValidationMessage("Activation code is valid and available. You can proceed.")
-        setActivationCodeValidationStatus("success")
-        return
-      }
-
-      // Try to make actual API call, but fall back to local validation if it fails
-      try {
-        const response = await fetch("/api/ott-claim/verify-activation-code", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ activationCode: code }),
-        })
-
-        if (response.ok) {
-          const data = await response.json()
-          if (data.success) {
-            setActivationCodeValidationMessage("Activation code is valid and available. You can proceed.")
-            setActivationCodeValidationStatus("success")
-          } else {
-            setActivationCodeValidationMessage(data.error || "Activation code validation failed.")
-            setActivationCodeValidationStatus("error")
-          }
-        } else {
-          throw new Error("API not available")
-        }
-      } catch (apiError) {
-        // Fallback to local validation if API fails
-        console.log("API call failed, using local validation:", apiError)
-
-        // Simple local validation rules
-        if (code.length >= 8 && /^[A-Z0-9]+$/.test(code)) {
-          setActivationCodeValidationMessage("Activation code format is valid. You can proceed.")
-          setActivationCodeValidationStatus("success")
-        } else {
-          setActivationCodeValidationMessage(
-            "Please enter a valid activation code (8+ characters, letters and numbers only).",
-          )
-          setActivationCodeValidationStatus("error")
-        }
-      }
-    } catch (err) {
-      console.error("Error in activation code validation:", err)
-      setActivationCodeValidationMessage("Unable to verify activation code. Please try again.")
-      setActivationCodeValidationStatus("error")
-    }
-  }, [])
 
   // Get cities for selected state
   const availableCities = useMemo(() => {
@@ -900,28 +830,25 @@ export default function OTTClaimPage() {
       return newData
     })
 
-    if (error) setError("")
-    if (field === "activationCode") {
-      setActivationCodeValidationMessage("")
-      setActivationCodeValidationStatus("idle")
-    }
+    if (error) setError("") // Clear error when input changes
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null
     if (file) {
+      // Validate file type and size
       const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "application/pdf"]
       const maxSize = 5 * 1024 * 1024 // 5MB
 
       if (!allowedTypes.includes(file.type)) {
         setError("Please upload a valid file (JPG, PNG, or PDF)")
-        handleInputChange("billFile", null)
+        handleInputChange("billFile", null) // Clear file if invalid
         return
       }
 
       if (file.size > maxSize) {
         setError("File size must be less than 5MB")
-        handleInputChange("billFile", null)
+        handleInputChange("billFile", null) // Clear file if invalid
         return
       }
     }
@@ -948,6 +875,7 @@ export default function OTTClaimPage() {
       if (!formData[field]) {
         const fieldName = field.replace(/([A-Z])/g, " $1").toLowerCase()
         setError(`Please fill in the ${fieldName} field`)
+        console.log(`Validation failed: ${fieldName} is empty.`)
         return false
       }
     }
@@ -956,10 +884,12 @@ export default function OTTClaimPage() {
     if (formData.purchaseType === "hardware") {
       if (!formData.invoiceNumber) {
         setError("Invoice Number is required for Hardware Purchase")
+        console.log("Validation failed: Invoice Number is empty for Hardware Purchase.")
         return false
       }
       if (!formData.sellerName) {
         setError("Seller Name is required for Hardware Purchase")
+        console.log("Validation failed: Seller Name is empty for Hardware Purchase.")
         return false
       }
     }
@@ -968,6 +898,7 @@ export default function OTTClaimPage() {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(formData.email)) {
       setError("Please enter a valid email address")
+      console.log("Validation failed: Invalid email format.")
       return false
     }
 
@@ -975,25 +906,22 @@ export default function OTTClaimPage() {
     const phoneRegex = /^[6-9]\d{9}$/
     if (!phoneRegex.test(formData.phoneNumber)) {
       setError("Please enter a valid 10-digit Indian mobile number")
+      console.log("Validation failed: Invalid phone number format.")
       return false
     }
 
-    // Postal Code validation
+    // Postal Code validation (6 digits)
     const postalCodeRegex = /^\d{6}$/
     if (!postalCodeRegex.test(formData.postalCode)) {
-      setError("Please enter a valid 6-digit postal code.")
+      setError("Please enter a valid 6-digit postal code")
+      console.log("Validation failed: Invalid postal code format.")
       return false
     }
 
-    // Terms and conditions validation
+    // Terms agreement
     if (!formData.agreeToTerms) {
-      setError("Please agree to the Terms and Conditions to proceed.")
-      return false
-    }
-
-    // Final check for activation code status before submission
-    if (activationCodeValidationStatus !== "success") {
-      setError("Please verify your activation code. It must be valid and available to proceed.")
+      setError("Please agree to the terms and conditions")
+      console.log("Validation failed: Terms and conditions not agreed.")
       return false
     }
 
@@ -1013,11 +941,10 @@ export default function OTTClaimPage() {
     setLoading(true)
     setError("")
     setSuccess("")
+    console.log("Validation passed. Setting loading state and clearing messages.")
 
     try {
-      // Create form data
       const submitData = new FormData()
-
       // Add all form fields
       Object.entries(formData).forEach(([key, value]) => {
         if (key === "billFile" && value instanceof File) {
@@ -1027,47 +954,25 @@ export default function OTTClaimPage() {
         }
       })
 
-      // Try API submission first, fall back to mock success if API fails
-      try {
-        const response = await fetch("/api/ott-claim/submit", {
-          method: "POST",
-          body: submitData,
-        })
+      console.log("FormData prepared:", Object.fromEntries(submitData.entries()))
 
-        if (response.ok) {
-          const data = await response.json()
-          if (data.success) {
-            setSuccess("Claim submitted successfully! Redirecting to payment...")
-            setTimeout(() => {
-              router.push(data.redirectUrl || "/payment")
-            }, 2000)
-            return
-          } else {
-            setError(data.message || "Failed to submit claim. Please try again.")
-            return
-          }
-        } else {
-          throw new Error("API not available")
-        }
-      } catch (apiError) {
-        console.log("API submission failed, using mock success:", apiError)
+      // Mock successful submission for demo purposes
+      const mockClaimId = `CLM-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
 
-        // Mock successful submission for demo purposes
-        const mockClaimId = `CLM-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
+      setSuccess("Claim submitted successfully! Redirecting to payment...")
+      console.log("Claim submission successful. Redirecting...")
 
-        setSuccess("Claim submitted successfully! Redirecting to payment...")
-
-        setTimeout(() => {
-          // Create a simple payment page URL with query parameters
-          const paymentUrl = `/payment?claimId=${mockClaimId}&amount=299&email=${encodeURIComponent(formData.email)}&name=${encodeURIComponent(formData.firstName + " " + formData.lastName)}`
-          router.push(paymentUrl)
-        }, 2000)
-      }
+      setTimeout(() => {
+        // Create payment URL with query parameters
+        const paymentUrl = `/payment?claimId=${mockClaimId}&amount=299&email=${encodeURIComponent(formData.email)}&name=${encodeURIComponent(formData.firstName + " " + formData.lastName)}`
+        router.push(paymentUrl)
+      }, 2000)
     } catch (error) {
       console.error("Error submitting claim:", error)
       setError("Network error. Please check your connection and try again.")
     } finally {
       setLoading(false)
+      console.log("Submission process finished. Loading state reset.")
     }
   }
 
@@ -1079,15 +984,15 @@ export default function OTTClaimPage() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center">
               <Image
-                src="/logo.png"
+                src="/placeholder.svg?height=40&width=40"
                 alt="SYSTECH DIGITAL Logo"
                 width={40}
                 height={40}
                 className="rounded-full mr-3"
               />
               <div className="text-center sm:text-left">
-                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white">OTT Subscription Claim Form</h1>
-                <p className="text-xs sm:text-sm text-red-200 mt-1">Get your OTTplay Power Play Pack activation code</p>
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white">Systech Digital</h1>
+                <p className="text-xs sm:text-sm text-red-200 mt-1">Simplifying the Digital Experience</p>
               </div>
             </div>
             <div className="flex items-center space-x-2 sm:space-x-3">
@@ -1346,18 +1251,11 @@ export default function OTTClaimPage() {
                     type="text"
                     value={formData.activationCode}
                     onChange={(e) => handleInputChange("activationCode", e.target.value.toUpperCase())}
-                    onBlur={(e) => verifyActivationCode(e.target.value.toUpperCase())}
                     className="mt-1 font-mono"
                     placeholder="Enter your activation code"
                   />
-                  {activationCodeValidationMessage && (
-                    <p
-                      className={`text-sm mt-1 ${activationCodeValidationStatus === "success" ? "text-green-600" : "text-red-600"}`}
-                    >
-                      {activationCodeValidationMessage}
-                    </p>
-                  )}
                   <p className="text-xs text-gray-500 mt-1">This is the code you received with your purchase</p>
+                  <p className="text-xs text-gray-500 mt-1">Please ensure that the activation code entered is correct before proceeding with payment. Refunds will not be issued for payments made using an incorrect or invalid activation code.</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                   <div>
@@ -1487,7 +1385,7 @@ export default function OTTClaimPage() {
           <div className="flex justify-center">
             <Button
               type="submit"
-              disabled={loading || activationCodeValidationStatus !== "success"}
+              disabled={loading}
               size="lg"
               className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 sm:px-12 py-3 sm:py-4 text-base sm:text-lg font-semibold shadow-xl w-full sm:w-auto"
             >
