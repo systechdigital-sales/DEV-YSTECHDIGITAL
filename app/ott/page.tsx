@@ -815,9 +815,52 @@ export default function OTTClaimPage() {
   const [activationCodeValidationStatus, setActivationCodeValidationStatus] = useState<"idle" | "success" | "error">(
     "idle",
   )
-  const [failedValidationAttempts, setFailedValidationAttempts] = useState(0)
-  const [showCaptcha, setShowCaptcha] = useState(false)
-  const [captchaChecked, setCaptchaChecked] = useState(false)
+  const verifyActivationCode = useCallback(async (code: string) => {
+    if (!code) {
+      setActivationCodeValidationMessage("")
+      setActivationCodeValidationStatus("idle")
+      return
+    }
+
+    try {
+      const response = await fetch("/api/ott-claim/verify-activation-code", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ activationCode: code }),
+      })
+
+      // Check if response is ok before parsing JSON
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const text = await response.text()
+      let data
+
+      try {
+        data = JSON.parse(text)
+      } catch (parseError) {
+        console.error("JSON parse error:", parseError, "Response text:", text)
+        setActivationCodeValidationMessage("Invalid response from server. Please try again.")
+        setActivationCodeValidationStatus("error")
+        return
+      }
+
+      if (data.success) {
+        setActivationCodeValidationMessage("Activation code is valid and available. You can proceed.")
+        setActivationCodeValidationStatus("success")
+      } else {
+        setActivationCodeValidationMessage(data.error || "Activation code validation failed.")
+        setActivationCodeValidationStatus("error")
+      }
+    } catch (err) {
+      console.error("Error verifying activation code:", err)
+      setActivationCodeValidationMessage("Network error during code verification. Please try again.")
+      setActivationCodeValidationStatus("error")
+    }
+  }, [])
 
   // Get cities for selected state
   const availableCities = useMemo(() => {
@@ -865,55 +908,6 @@ export default function OTTClaimPage() {
     handleInputChange("billFile", file)
   }
 
-  const verifyActivationCode = useCallback(async (code: string) => {
-    if (!code) {
-      setActivationCodeValidationMessage("")
-      setActivationCodeValidationStatus("idle")
-      return
-    }
-
-    try {
-      const response = await fetch("/api/ott-claim/verify-activation-code", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ activationCode: code }),
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        setActivationCodeValidationMessage("Activation code is valid and available. You can proceed.")
-        setActivationCodeValidationStatus("success")
-        setFailedValidationAttempts(0)
-        setShowCaptcha(false)
-        setCaptchaChecked(false)
-      } else {
-        setActivationCodeValidationMessage(data.error || "Activation code validation failed.")
-        setActivationCodeValidationStatus("error")
-        setFailedValidationAttempts((prev) => {
-          const newAttempts = prev + 1
-          if (newAttempts >= 3) {
-            setShowCaptcha(true)
-          }
-          return newAttempts
-        })
-      }
-    } catch (err) {
-      console.error("Error verifying activation code:", err)
-      setActivationCodeValidationMessage("Network error during code verification.")
-      setActivationCodeValidationStatus("error")
-      setFailedValidationAttempts((prev) => {
-        const newAttempts = prev + 1
-        if (newAttempts >= 3) {
-          setShowCaptcha(true)
-        }
-        return newAttempts
-      })
-    }
-  }, [])
-
   const validateForm = (): boolean => {
     console.log("Starting form validation...")
     const requiredFields: (keyof FormData)[] = [
@@ -934,7 +928,6 @@ export default function OTTClaimPage() {
       if (!formData[field]) {
         const fieldName = field.replace(/([A-Z])/g, " $1").toLowerCase()
         setError(`Please fill in the ${fieldName} field`)
-        console.log(`Validation failed: ${fieldName} is empty.`)
         return false
       }
     }
@@ -943,12 +936,10 @@ export default function OTTClaimPage() {
     if (formData.purchaseType === "hardware") {
       if (!formData.invoiceNumber) {
         setError("Invoice Number is required for Hardware Purchase")
-        console.log("Validation failed: Invoice Number is empty for Hardware Purchase.")
         return false
       }
       if (!formData.sellerName) {
         setError("Seller Name is required for Hardware Purchase")
-        console.log("Validation failed: Seller Name is empty for Hardware Purchase.")
         return false
       }
     }
@@ -957,7 +948,6 @@ export default function OTTClaimPage() {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(formData.email)) {
       setError("Please enter a valid email address")
-      console.log("Validation failed: Invalid email format.")
       return false
     }
 
@@ -965,7 +955,6 @@ export default function OTTClaimPage() {
     const phoneRegex = /^[6-9]\d{9}$/
     if (!phoneRegex.test(formData.phoneNumber)) {
       setError("Please enter a valid 10-digit Indian mobile number")
-      console.log("Validation failed: Invalid phone number format.")
       return false
     }
 
@@ -973,27 +962,18 @@ export default function OTTClaimPage() {
     const postalCodeRegex = /^\d{6}$/
     if (!postalCodeRegex.test(formData.postalCode)) {
       setError("Please enter a valid 6-digit postal code.")
-      console.log("Validation failed: Invalid postal code format.")
       return false
     }
 
     // Terms and conditions validation
     if (!formData.agreeToTerms) {
       setError("Please agree to the Terms and Conditions to proceed.")
-      console.log("Validation failed: Terms and conditions not agreed.")
       return false
     }
 
     // Final check for activation code status before submission
     if (activationCodeValidationStatus !== "success") {
       setError("Please verify your activation code. It must be valid and available to proceed.")
-      console.log("Validation failed: Activation code not verified or invalid.")
-      return false
-    }
-
-    if (showCaptcha && !captchaChecked) {
-      setError("Please complete the captcha to proceed.")
-      console.log("Validation failed: Captcha not completed.")
       return false
     }
 
@@ -1013,7 +993,6 @@ export default function OTTClaimPage() {
     setLoading(true)
     setError("")
     setSuccess("")
-    console.log("Validation passed. Setting loading state and clearing messages.")
 
     try {
       const submitData = new FormData()
@@ -1027,33 +1006,39 @@ export default function OTTClaimPage() {
         }
       })
 
-      console.log("FormData prepared:", Object.fromEntries(submitData.entries()))
-
       const response = await fetch("/api/ott-claim/submit", {
         method: "POST",
         body: submitData,
       })
 
-      console.log("API response received. Status:", response.status)
-      const data = await response.json()
-      console.log("API response data:", data)
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const text = await response.text()
+      let data
+
+      try {
+        data = JSON.parse(text)
+      } catch (parseError) {
+        console.error("JSON parse error:", parseError, "Response text:", text)
+        setError("Invalid response from server. Please try again.")
+        return
+      }
 
       if (data.success) {
         setSuccess("Claim submitted successfully! Redirecting to payment...")
-        console.log("Claim submission successful. Redirecting...")
         setTimeout(() => {
-          router.push(data.redirectUrl)
+          router.push(data.redirectUrl || "/payment")
         }, 2000)
       } else {
         setError(data.message || "Failed to submit claim. Please try again.")
-        console.error("Claim submission failed:", data.message)
       }
     } catch (error) {
       console.error("Error submitting claim:", error)
       setError("Network error. Please check your connection and try again.")
     } finally {
       setLoading(false)
-      console.log("Submission process finished. Loading state reset.")
     }
   }
 
@@ -1430,8 +1415,6 @@ export default function OTTClaimPage() {
             </CardContent>
           </Card>
 
-          
-
           {/* Terms and Conditions */}
           <Card className="shadow-xl border-0">
             <CardContent className="p-4 sm:p-6">
@@ -1475,7 +1458,7 @@ export default function OTTClaimPage() {
           <div className="flex justify-center">
             <Button
               type="submit"
-              disabled={loading ||  activationCodeValidationStatus !== "success"}
+              disabled={loading || activationCodeValidationStatus !== "success"}
               size="lg"
               className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 sm:px-12 py-3 sm:py-4 text-base sm:text-lg font-semibold shadow-xl w-full sm:w-auto"
             >
