@@ -43,7 +43,7 @@ export default function HomePage() {
     {
       icon: <Tv className="w-8 h-8 text-blue-600" />,
       title: "Premium OTT Content",
-      description: "Access to 29 premium OTT platforms and more",
+      description: "Access to 31 premium OTT platforms and more",
     },
     {
       icon: <Smartphone className="w-8 h-8 text-green-600" />,

@@ -11,7 +11,7 @@ type OttGridSectionProps = {
 
 const ottPlatforms = [
   { name: 'Sony LIV', image: '/Sony LIV.png' },
-  { name: 'Zee5', image: '/Zee.png' },
+  { name: 'Zee5', image: '/Z5.jpg' },
   { name: 'Fancode', image: '/Fancode.png' },
   { name: 'LIONSGATE PLAY', image: '/Lionsgate Play.png' },
   { name: 'STAGE', image: '/Stage.png' },
@@ -31,15 +31,15 @@ const ottPlatforms = [
   { name: 'Shemaroo Gujarati', image: '/Shemaroo_Gujarati_16X9_logo.png' },
   { name: 'Dollywood Play', image: '/Dollywood Play.png' },
   { name: 'Nammaflix', image: '/Nammaflix.png' },
-  { name: 'Chaupal Bhojpuri', image: '/placeholder-logo.png' },
+  { name: 'Chaupal Bhojpuri', image: '/chaupalbhojpuri.jpeg' },
   { name: 'ShemarooBhakti', image: '/Shemaroo Bhakti_2X3_logo.png' },
   { name: 'ETV Win', image: '/ETV WIN.png' },
   { name: 'aha', image: '/aha telugu.png' },
   { name: 'VROTT', image: '/VR.png' },
   { name: 'Shortfundly', image: '/Shortfundly.png' },
-  { name: 'Atrangi', image: '/Atrangi.png' },
+  { name: 'Atrangi', image: '/Atrangi1.png' },
   { name: 'Bhaktiflix', image: '/BHAKTI FLIX.png' },
-  { name: 'Fridaay', image: '/placeholder-logo.png' },
+  { name: 'Fridaay', image: '/Fridaay.jpeg' },
   { name: 'Gurjari', image: '/Gurjari.png' },
 ];
 

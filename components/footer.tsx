@@ -34,7 +34,7 @@ export default function Footer() {
             </div>
             <p className="text-gray-400 mb-6 max-w-md text-sm">
               Systech Digital streamlines technology—offering secure, efficient software and digital services
-              for a smarter, frictionless experience
+              for a smarter, frictionless experience.
             </p>
             
           </div>
