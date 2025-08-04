@@ -147,7 +147,7 @@ export default function CustomerLogin() {
   <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
     <div className="flex items-center justify-between">
       <div className="flex items-center">
-        <Image src="/logo.png" alt="SYSTECH DIGITAL Logo" width={50} height={50} className="rounded-full mr-4" />
+        <Image src="/Logo.png" alt="SYSTECH DIGITAL Logo" width={50} height={50} className="rounded-full mr-4" />
         <div>
           <h1 className="text-3xl font-bold text-white">Systech Digital</h1>
           <p className="text-sm text-red-200">Simplifying the Digital Experience</p>

@@ -1,7 +1,7 @@
 import { MongoClient, type Db } from "mongodb"
 
 const uri = process.env.MONGODB_URI
-let client: MongoClient
+export let client: MongoClient
 let clientPromise: Promise<MongoClient>
 let cachedDb: Db | null = null // Cache the database instance
 

@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer"
+import { IClaimResponse } from "./models"
 
 interface EmailOptions {
   to: string
@@ -182,7 +183,7 @@ const emailTemplates = {
   default: (data: any) => `<p>This is a default email. Subject: ${data.subject}</p>`,
 }
 
-export async function sendEmail(options: EmailOptions): Promise<boolean> {
+export async function sendEmail(email: string | undefined, p0: string, p1: string, claimData: Partial<IClaimResponse>, p2: { to: string; subject: string; template: string; data: Partial<IClaimResponse> }, options: EmailOptions): Promise<boolean> {
   const user = process.env.GMAIL_USER
   const pass = process.env.GMAIL_APP_PASSWORD
 

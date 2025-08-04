@@ -78,7 +78,7 @@ export default function CustomerDashboard() {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div className="flex items-center space-x-4">
-            <Image src="/logo.png" alt="SYSTECH DIGITAL Logo" width={50} height={50} className="rounded-full" />
+            <Image src="/Logo.png" alt="SYSTECH DIGITAL Logo" width={50} height={50} className="rounded-full" />
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Customer Dashboard</h1>
               <p className="text-gray-600">Welcome, {customerEmail}</p>

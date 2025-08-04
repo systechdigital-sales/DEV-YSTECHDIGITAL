@@ -55,7 +55,7 @@
     "mongodb": "latest",
     "mongodb-client-encryption": "latest",
     "mongoose": "latest",
-    "next": "14.2.16",
+    "next": "^14.2.31",
     "next-themes": "latest",
     "nodemailer": "latest",
     "razorpay": "latest",
