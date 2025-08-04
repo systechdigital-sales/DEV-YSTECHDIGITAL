@@ -158,8 +158,7 @@ export default function PrivacyPolicyPage() {
                     <strong>Email:</strong> sales.systechdigital@gmail.com
                   </p>
                   <p>
-                    <strong>Address:</strong> Unit NO H-04, 4th Floor, SOLUS No 2, JC Road, Bangalore South, Karnataka -
-                    560027
+                    <strong>Address:</strong> Systech IT Solution Pvt. Ltd. Address: #23/1,1st floor , J.C.1st cross, JC Rd, Near Poornima Theatre, Bengaluru, Karnataka 560027
                   </p>
                 </div>
               </div>

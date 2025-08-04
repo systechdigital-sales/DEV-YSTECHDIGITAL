@@ -87,8 +87,9 @@ export default function TermsAndConditions() {
                 <div className="flex items-start">
                   <MapPin className="w-4 h-4 mr-2 text-gray-500 mt-0.5" />
                   <div className="text-sm text-gray-700">
-                    <p>Unit NO H-04, 4th Floor, SOLUS No 2</p>
-                    <p>JC Road, Bangalore South</p>
+                    <p>Systech IT Solution Pvt. Ltd</p>
+                    <p>#23/1, 1st floor , J.C.1st cross</p>
+                    <p>JC Road , Near Poornima Theatre , Bangaluru</p>
                     <p>Karnataka, India - 560027</p>
                   </div>
                 </div>
@@ -221,7 +222,7 @@ export default function TermsAndConditions() {
         {/* OTT Subscription Terms */}
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle>5. OTT Subscription Terms</CardTitle>
+            <CardTitle>5. OTTplay Subscription Terms</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
@@ -237,7 +238,7 @@ export default function TermsAndConditions() {
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <h4 className="font-semibold text-green-900 mb-2">Subscription Benefits</h4>
               <ul className="text-sm text-green-700 space-y-1">
-                <li>• 12-month access to 29+ OTT platform from the date of activation of OTT subscription</li>
+                <li>• 12-month access to 31+ OTT platform from the date of activation of OTTplay Power Play subscription</li>
                 <li>• Powered by OTTplay premium service</li>
                 <li>• HD/4K streaming where available</li>
                 <li>• Multi-device access support</li>
@@ -511,9 +512,10 @@ export default function TermsAndConditions() {
               <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 text-center">
                 <MapPin className="w-8 h-8 text-purple-600 mx-auto mb-2" />
                 <h4 className="font-semibold text-purple-900 mb-2">Office Address</h4>
-                <p className="text-sm text-purple-700">Unit H-04, 4th Floor</p>
-                <p className="text-sm text-purple-700">SOLUS No 2, JC Road</p>
-                <p className="text-xs text-purple-600 mt-1">Bangalore - 560027</p>
+                <p className="text-sm text-purple-700">Systech IT Solution Pvt. Ltd</p>
+                <p className="text-sm text-purple-700">#23/1, 1st floor , J.C.1st cross</p>
+                <p className="text-sm text-purple-700">JC Road , Near Poornima Theatre , Bangaluru</p>
+                <p className="text-xs text-purple-600 mt-1">Karnataka, India - 560027</p>
               </div>
             </div>
           </CardContent>
