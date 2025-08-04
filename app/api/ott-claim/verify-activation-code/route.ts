@@ -37,7 +37,10 @@ export async function POST(request: NextRequest) {
     const db = await getDatabase()
     const salesCollection: Collection = db.collection("salesrecords")
 
-    const salesRecord = await salesCollection.findOne({ activationCode })
+    // Perform a case-insensitive search for the activation code
+    const salesRecord = await salesCollection.findOne({
+      activationCode: { $regex: new RegExp(`^${activationCode}$`, "i") },
+    })
 
     if (!salesRecord) {
       return NextResponse.json({ success: false, error: "Activation code not found." }, { status: 404 })
@@ -50,7 +53,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (salesRecord.status !== "available") {
+    if (salesRecord.status !== "sold") {
+      // Changed from 'available' to 'sold' based on SalesRecordSchema enum
       // Handle other statuses like 'expired', 'pending_activation', etc.
       return NextResponse.json(
         { success: false, error: `Activation code status is '${salesRecord.status}'.` },
