@@ -268,169 +268,108 @@ export default function HomePage() {
       </section>
 
       {/* Benefits Section */}
-{/* Benefits Section */}
-<section className="py-20 bg-gradient-to-r from-blue-50 to-purple-50">
-  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-      <div>
-        <h3 className="text-4xl font-bold text-gray-900 mb-8">What You Get</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          {[
-            { name: "Sony LIV", image: "/Sony LIV.png" },
-            { name: "Zee5", image: "/Zee.png" },
-            { name: "Fancode", image: "/Fancode.png" },
-            { name: "LIONSGATE PLAY", image: "/Lionsgate Play.png" },
-            { name: "STAGE", image: "/Stage.png" },
-            { name: "DistroTV", image: "/Distro TV.png" },
-            { name: "ShemarooMe", image: "/Shemaroo Me.png" },
-            { name: "Hubhopper", image: "/placeholder.jpg" },
-            { name: "ALTT", image: "/Altt.png" },
-            { name: "aha Tamil", image: "/Aha Tamil.png" },
-            { name: "Red hot", image: "/Shemaroo Redhot_2X3_logo.png" },
-            { name: "Runn Tv", image: "/RUnn.png" },
-            { name: "OM TV", image: "/OM Tv.png" },
-            { name: "Dangal Play", image: "/Dangal play logo.png" },
-            { name: "Premiumflix", image: "/Premiumflix Logo_Color.png" },
-            { name: "CHAUPAL", image: "/chaupal hd logo.png" },
-            { name: "ShortsTV", image: "/Shorts TV.png" },
-            { name: "Sun NXT", image: "/Sun NXT.png" },
-            { name: "Playflix", image: "/playflix_logo.png" },
-            { name: "Shemaroo Gujarati", image: "/Shemaroo_Gujarati_16X9_logo.png" },
-            { name: "Dollywood Play", image: "/Dollywood Play.png" },
-            { name: "Nammaflix", image: "/Nammaflix.png" },
-            { name: "Chaupal Bhojpuri", image: "/placeholder-logo.png" },
-            { name: "ShemarooBhakti", image: "/Shemaroo Bhakti_2X3_logo.png" },
-            { name: "ETV Win", image: "/ETV WIN.png" },
-            { name: "aha", image: "/aha telugu.png" },
-            { name: "VROTT", image: "/VR.png" },
-            { name: "Shortfundly", image: "/Shortfundly.png" },
-            { name: "Atrangi", image: "/Atrangi.png" },
-            { name: "Bhaktiflix", image: "/BHAKTI FLIX.png" },
-            { name: "Fridaay", image: "/placeholder-logo.png" },
-            { name: "Gurjari", image: "/Gurjari.png" },
-          ].map((benefit, index) => (
-            <div key={index} className="flex items-center space-x-4">
-              <Image
-                src={benefit.image}
-                alt={benefit.name}
-                width={40}
-                height={40}
-                className="rounded-md shadow"
-              />
-              <span className="text-gray-700 font-medium">{benefit.name}</span>
-            </div>
-          ))}
-        </div>
+        <section className="py-20 bg-gradient-to-r from-blue-50 to-purple-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+              <div>
+                <h3 className="text-4xl font-bold text-gray-900 mb-8">What You Get</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  {[
+                    { name: "Sony LIV", image: "/Sony LIV.png" },
+                    { name: "Zee5", image: "/Zee.png" },
+                    { name: "Fancode", image: "/Fancode.png" },
+                    { name: "LIONSGATE PLAY", image: "/Lionsgate Play.png" },
+                    { name: "STAGE", image: "/Stage.png" },
+                    { name: "DistroTV", image: "/Distro TV.png" },
+                    { name: "ShemarooMe", image: "/Shemaroo Me.png" },
+                    { name: "Hubhopper", image: "/placeholder.jpg" },
+                    { name: "ALTT", image: "/Altt.png" },
+                    { name: "aha Tamil", image: "/Aha Tamil.png" },
+                    { name: "Red hot", image: "/Shemaroo Redhot_2X3_logo.png" },
+                    { name: "Runn Tv", image: "/RUnn.png" },
+                    { name: "OM TV", image: "/OM Tv.png" },
+                    { name: "Dangal Play", image: "/Dangal play logo.png" },
+                    { name: "Premiumflix", image: "/Premiumflix Logo_Color.png" },
+                    { name: "CHAUPAL", image: "/chaupal hd logo.png" },
+                    { name: "ShortsTV", image: "/Shorts TV.png" },
+                    { name: "Sun NXT", image: "/Sun NXT.png" },
+                    { name: "Playflix", image: "/playflix_logo.png" },
+                    { name: "Shemaroo Gujarati", image: "/Shemaroo_Gujarati_16X9_logo.png" },
+                    { name: "Dollywood Play", image: "/Dollywood Play.png" },
+                    { name: "Nammaflix", image: "/Nammaflix.png" },
+                    { name: "Chaupal Bhojpuri", image: "/placeholder-logo.png" },
+                    { name: "ShemarooBhakti", image: "/Shemaroo Bhakti_2X3_logo.png" },
+                    { name: "ETV Win", image: "/ETV WIN.png" },
+                    { name: "aha", image: "/aha telugu.png" },
+                    { name: "VROTT", image: "/VR.png" },
+                    { name: "Shortfundly", image: "/Shortfundly.png" },
+                    { name: "Atrangi", image: "/Atrangi.png" },
+                    { name: "Bhaktiflix", image: "/BHAKTI FLIX.png" },
+                    { name: "Fridaay", image: "/placeholder-logo.png" },
+                    { name: "Gurjari", image: "/Gurjari.png" },
+                  ].map((benefit, index) => (
+                    <div key={index} className="flex items-center space-x-4">
+                      <Image
+                        src={benefit.image}
+                        alt={benefit.name}
+                        width={40}
+                        height={40}
+                        className="rounded-md shadow"
+                      />
+                      <span className="text-gray-700 font-medium">{benefit.name}</span>
+                    </div>
+                  ))}
+                </div>
 
-        <div className="mt-8">
-          <Button
-            onClick={handleGetStarted}
-            size="lg"
-            className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white px-8 py-4 text-lg font-semibold"
-          >
-            <Zap className="w-5 h-5 mr-2" />
-            Get Started Now
-          </Button>
-        </div>
-      </div>
+                <div className="mt-8">
+                  <Button
+                    onClick={handleGetStarted}
+                    size="lg"
+                    className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white px-8 py-4 text-lg font-semibold"
+                  >
+                    <Zap className="w-5 h-5 mr-2" />
+                    Get Started Now
+                  </Button>
+                </div>
+              </div>
 
-      {/* Right Side Card */}
-      <div className="relative">
-        <Card className="border-0 shadow-2xl">
-          <CardContent className="p-8">
-            <div className="text-center mb-6">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full mb-4">
-                <Gift className="w-8 h-8 text-white" />
-              </div>
-              <h4 className="text-2xl font-bold text-gray-900">OTTplay Power Play Pack</h4>
-              <p className="text-gray-600 mt-2">Premium subscription bundle</p>
-            </div>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                <span className="text-gray-600">Access to 29 Premium OTT Platforms</span>
-                <CheckCircle className="w-5 h-5 text-green-600" />
-              </div>
-              <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                <span className="text-gray-600">4K Ultra HD Streaming</span>
-                <CheckCircle className="w-5 h-5 text-green-600" />
-              </div>
-              <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                <span className="text-gray-600">Offline Download Support</span>
-                <CheckCircle className="w-5 h-5 text-green-600" />
-              </div>
-              <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                <span className="text-gray-600">Ad-Free Experience</span>
-                <CheckCircle className="w-5 h-5 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  </div>
-</section>
-
-
-      <section className="py-20 bg-gradient-to-r from-blue-50 to-purple-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <h3 className="text-4xl font-bold text-gray-900 mb-8">What You Get</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {benefits.map((benefit, index) => (
-                  <div key={index} className="flex items-center space-x-3">
-                    <div className="flex-shrink-0">
-                      <CheckCircle className="w-6 h-6 text-green-600" />
+              {/* Right Side Card */}
+              <div className="relative">
+                <Card className="border-0 shadow-2xl">
+                  <CardContent className="p-8">
+                    <div className="text-center mb-6">
+                      <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full mb-4">
+                        <Gift className="w-8 h-8 text-white" />
+                      </div>
+                      <h4 className="text-2xl font-bold text-gray-900">OTTplay Power Play Pack</h4>
+                      <p className="text-gray-600 mt-2">Premium subscription bundle</p>
                     </div>
-                    <span className="text-gray-700 font-medium">{benefit}</span>
-                  </div>
-                ))}
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                        <span className="text-gray-600">Access to 29 Premium OTT Platforms</span>
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                      </div>
+                      <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                        <span className="text-gray-600">4K Ultra HD Streaming</span>
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                      </div>
+                      <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                        <span className="text-gray-600">Offline Download Support</span>
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                      </div>
+                      <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                        <span className="text-gray-600">Ad-Free Experience</span>
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
-              <div className="mt-8">
-                <Button
-                  onClick={handleGetStarted}
-                  size="lg"
-                  className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white px-8 py-4 text-lg font-semibold"
-                >
-                  <Zap className="w-5 h-5 mr-2" />
-                  Get Started Now
-                </Button>
-              </div>
-            </div>
-            <div className="relative">
-              <Card className="border-0 shadow-2xl">
-                <CardContent className="p-8">
-                  <div className="text-center mb-6">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full mb-4">
-                      <Gift className="w-8 h-8 text-white" />
-                    </div>
-                    <h4 className="text-2xl font-bold text-gray-900">OTTplay Power Play Pack</h4>
-                    <p className="text-gray-600 mt-2">Premium subscription bundle</p>
-                  </div>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                      <span className="text-gray-600">Access to 29 Premium OTT Platforms</span>
-                      <CheckCircle className="w-5 h-5 text-green-600" />
-                    </div>
-                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                      <span className="text-gray-600">4K Ultra HD Streaming</span>
-                      <CheckCircle className="w-5 h-5 text-green-600" />
-                    </div>
-                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                      <span className="text-gray-600">Offline Download Support</span>
-                      <CheckCircle className="w-5 h-5 text-green-600" />
-                    </div>
-                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                      <span className="text-gray-600">Ad-Free Experience</span>
-                      <CheckCircle className="w-5 h-5 text-green-600" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+
+
 
       {/* Testimonials Section */}
       <section className="py-20 bg-white">
