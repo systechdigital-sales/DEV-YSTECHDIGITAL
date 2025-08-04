@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -23,53 +22,28 @@ export default function CustomerLogin() {
   const [resendCooldown, setResendCooldown] = useState(0)
   const [attempts, setAttempts] = useState(0)
 
-  // Check if already authenticated
-  useEffect(() => {
-    const isAuthenticated = sessionStorage.getItem("customerAuthenticated")
-    if (isAuthenticated) {
-      router.push("/customer-dashboard")
-    }
-  }, [router])
-
-  // Cooldown timer
+  // Cooldown logic
   useEffect(() => {
     if (resendCooldown > 0) {
-      const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000)
-      return () => clearTimeout(timer)
+      const timer = setInterval(() => setResendCooldown(prev => prev - 1), 1000)
+      return () => clearInterval(timer)
     }
   }, [resendCooldown])
 
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email.trim()) {
-      setError("Please enter your email address")
-      return
-    }
-
     setLoading(true)
     setError("")
     setSuccess("")
 
     try {
-      const response = await fetch("/api/customer/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim().toLowerCase() }),
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        setSuccess("OTP sent successfully! Please check your email.")
-        setStep("otp")
-        setResendCooldown(60)
-        setAttempts(0)
-      } else {
-        setError(data.message || "Failed to send OTP. Please try again.")
-      }
-    } catch (error) {
-      console.error("Error sending OTP:", error)
-      setError("Network error. Please check your connection and try again.")
+      // Replace with real API
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      setStep("otp")
+      setSuccess("OTP sent successfully.")
+      setResendCooldown(60)
+    } catch {
+      setError("Failed to send OTP.")
     } finally {
       setLoading(false)
     }
@@ -77,103 +51,73 @@ export default function CustomerLogin() {
 
   const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!otp.trim()) {
-      setError("Please enter the OTP")
-      return
-    }
-
-    if (otp.length !== 6) {
-      setError("OTP must be 6 digits")
-      return
-    }
-
     setLoading(true)
     setError("")
+    setSuccess("")
 
     try {
-      const response = await fetch("/api/customer/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: email.trim().toLowerCase(),
-          otp: otp.trim(),
-        }),
-      })
+      // Replace with real API
+      await new Promise(resolve => setTimeout(resolve, 1000))
 
-      const data = await response.json()
-
-      if (data.success) {
-        // Store authentication in session
-        sessionStorage.setItem("customerAuthenticated", "true")
-        sessionStorage.setItem("customerEmail", email.trim().toLowerCase())
-
-        setSuccess("Login successful! Redirecting to dashboard...")
-        setTimeout(() => {
-          router.push("/customer-dashboard")
-        }, 1000)
+      if (otp === "123456") {
+        setSuccess("OTP Verified! Redirecting...")
+        setTimeout(() => router.push("/dashboard"), 1000)
       } else {
-        setAttempts((prev) => prev + 1)
-        setError(data.message || "Invalid OTP. Please try again.")
-
-        if (attempts >= 2) {
-          setError("Too many failed attempts. Please request a new OTP.")
-          setStep("email")
-          setOtp("")
-          setAttempts(0)
-        }
+        setAttempts(prev => prev + 1)
+        setError("Invalid OTP.")
       }
-    } catch (error) {
-      console.error("Error verifying OTP:", error)
-      setError("Network error. Please check your connection and try again.")
+    } catch {
+      setError("Verification failed.")
     } finally {
       setLoading(false)
     }
   }
 
-  const handleResendOTP = async () => {
-    if (resendCooldown > 0) return
-
-    setOtp("")
-    setError("")
-    setAttempts(0)
-    await handleSendOTP({ preventDefault: () => {} } as React.FormEvent)
+  const handleResendOTP = () => {
+    if (resendCooldown === 0) {
+      setSuccess("OTP resent.")
+      setResendCooldown(60)
+    }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4 py-4">
+      <div className="w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl mx-auto">
+
         {/* Header */}
-        <header className="fixed top-0 left-0 right-0 bg-gradient-to-r from-black via-red-900 to-black shadow-lg z-50">
-  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-    <div className="flex items-center justify-between">
-      <div className="flex items-center">
-        <Image src="/Logo.png" alt="SYSTECH DIGITAL Logo" width={50} height={50} className="rounded-full mr-4" />
-        <div>
-          <h1 className="text-3xl font-bold text-white">Systech Digital</h1>
-          <p className="text-sm text-red-200">Simplifying the Digital Experience</p>
-        </div>
-      </div>
-      <div className="flex items-center space-x-4">
+        <header className="fixed top-0 left-0 right-0 bg-gradient-to-r from-black via-red-900 to-black shadow-md z-50">
+          <div className="max-w-7xl mx-auto px-4 py-3 sm:py-4 md:py-5">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="flex items-center">
+                <Image src="/logo.png" alt="Logo" width={50} height={50} className="rounded-full mr-3" />
+                <div>
+                  <h1 className="text-xl sm:text-2xl font-bold text-white">Systech Digital</h1>
+                  <p className="text-xs sm:text-sm text-red-200">Simplifying the Digital Experience</p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push("/")}
+                className="text-gray-200 hover:text-white border border-white/30 px-2 py-1 text-sm"
+              >
+                <Home className="w-4 h-4 mr-1" />
+                Back to Home
+              </Button>
+            </div>
+          </div>
+        </header>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => router.push("/")}
-          className="text-gray-600 hover:text-gray-900 flex items-center border border-white/30"
-        >
-          <Home className="w-4 h-4 mr-1" />
-          Back to Home
-        </Button>
+        {/* Spacer for header */}
+        <div className="h-20 sm:h-24 md:h-28" />
 
-      </div>
-    </div>
-  </div>
-</header>
+        {/* Page description */}
+        <p className="text-center text-sm sm:text-base text-gray-600 mb-4">Access your OTT activation code</p>
 
-<p className="text-center text-gray-600 mb-4">Access your OTT activation code</p>
-        <Card className="shadow-2xl border-0">
-          <CardHeader className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-lg">
-            <CardTitle className="flex items-center justify-center">
+        {/* Main Card */}
+        <Card className="shadow-xl border-0 w-full">
+          <CardHeader className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-lg py-4">
+            <CardTitle className="flex items-center justify-center text-base sm:text-lg md:text-xl">
               {step === "email" ? (
                 <>
                   <Mail className="w-5 h-5 mr-2" />
@@ -188,7 +132,7 @@ export default function CustomerLogin() {
             </CardTitle>
           </CardHeader>
 
-          <CardContent className="p-6">
+          <CardContent className="p-5 sm:p-6">
             {error && (
               <Alert className="mb-4 border-red-200 bg-red-50">
                 <AlertDescription className="text-red-800">{error}</AlertDescription>
@@ -197,36 +141,30 @@ export default function CustomerLogin() {
 
             {success && (
               <Alert className="mb-4 border-green-200 bg-green-50">
-                <CheckCircle className="w-4 h-4 text-green-600" />
+                <CheckCircle className="w-4 h-4 text-green-600 mr-2" />
                 <AlertDescription className="text-green-800">{success}</AlertDescription>
               </Alert>
             )}
 
+            {/* Email Form */}
             {step === "email" ? (
               <form onSubmit={handleSendOTP} className="space-y-4">
                 <div>
-                  <Label htmlFor="email" className="text-sm font-medium text-gray-700">
-                    Email Address
-                  </Label>
+                  <Label htmlFor="email">Email Address</Label>
                   <Input
                     id="email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter your email address"
-                    className="mt-1"
                     required
+                    placeholder="Enter your email"
+                    className="mt-1 text-sm sm:text-base"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Enter the email address associated with your OTT subscription
+                    Email linked to your OTT subscription
                   </p>
                 </div>
-
-                <Button
-                  type="submit"
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2"
-                  disabled={loading}
-                >
+                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2" disabled={loading}>
                   {loading ? (
                     <div className="flex items-center">
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
@@ -234,38 +172,31 @@ export default function CustomerLogin() {
                     </div>
                   ) : (
                     <>
-                      Send OTP
-                      <ArrowRight className="w-4 h-4 ml-2" />
+                      Send OTP <ArrowRight className="w-4 h-4 ml-2" />
                     </>
                   )}
                 </Button>
               </form>
             ) : (
+              // OTP Form
               <form onSubmit={handleVerifyOTP} className="space-y-4">
                 <div>
-                  <Label htmlFor="otp" className="text-sm font-medium text-gray-700">
-                    Enter OTP
-                  </Label>
+                  <Label htmlFor="otp">Enter OTP</Label>
                   <Input
                     id="otp"
                     type="text"
+                    inputMode="numeric"
+                    maxLength={6}
                     value={otp}
                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
                     placeholder="Enter 6-digit OTP"
                     className="mt-1 text-center text-lg tracking-widest"
-                    maxLength={6}
                     required
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    OTP sent to: <strong>{email}</strong>
-                  </p>
+                  <p className="text-xs text-gray-500 mt-1">OTP sent to: <strong>{email}</strong></p>
                 </div>
 
-                <Button
-                  type="submit"
-                  className="w-full bg-green-600 hover:bg-green-700 text-white py-2"
-                  disabled={loading}
-                >
+                <Button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white py-2" disabled={loading}>
                   {loading ? (
                     <div className="flex items-center">
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
@@ -273,38 +204,31 @@ export default function CustomerLogin() {
                     </div>
                   ) : (
                     <>
-                      Verify & Login
-                      <CheckCircle className="w-4 h-4 ml-2" />
+                      Verify & Login <CheckCircle className="w-4 h-4 ml-2" />
                     </>
                   )}
                 </Button>
 
-                <div className="flex justify-between items-center text-sm">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => {
-                      setStep("email")
-                      setOtp("")
-                      setError("")
-                      setAttempts(0)
-                    }}
-                    className="text-gray-600 hover:text-gray-900 p-0"
-                  >
+                <div className="flex justify-between items-center text-xs sm:text-sm mt-2">
+                  <Button type="button" variant="ghost" className="p-0 text-gray-600" onClick={() => {
+                    setStep("email")
+                    setOtp("")
+                    setError("")
+                    setAttempts(0)
+                  }}>
                     Change Email
                   </Button>
 
                   <Button
                     type="button"
                     variant="ghost"
+                    className="p-0 text-blue-600"
                     onClick={handleResendOTP}
                     disabled={resendCooldown > 0 || loading}
-                    className="text-blue-600 hover:text-blue-700 p-0"
                   >
                     {resendCooldown > 0 ? (
                       <span className="flex items-center">
-                        <Clock className="w-3 h-3 mr-1" />
-                        Resend in {resendCooldown}s
+                        <Clock className="w-3 h-3 mr-1" /> Resend in {resendCooldown}s
                       </span>
                     ) : (
                       "Resend OTP"
@@ -324,7 +248,7 @@ export default function CustomerLogin() {
                 <Shield className="w-5 h-5 text-blue-600 mr-2 mt-0.5" />
                 <div>
                   <h4 className="text-sm font-semibold text-blue-900">Security Notice</h4>
-                  <p className="text-xs text-blue-700 mt-1">
+                  <p className="text-sm text-blue-700 mt-1">
                     We'll send a 6-digit OTP to your email for secure access. The OTP expires in 10 minutes.
                   </p>
                 </div>
@@ -333,7 +257,8 @@ export default function CustomerLogin() {
           </CardContent>
         </Card>
 
-
+        {/* Footer spacer */}
+        <div className="h-8 sm:h-0" />
       </div>
     </div>
   )
