@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if the status is explicitly "AVAILABLE"
-    if (salesRecord.status !== "AVAILABLE") {
+    if (salesRecord.status !== "available") {
       return NextResponse.json(
         {
           success: false,
