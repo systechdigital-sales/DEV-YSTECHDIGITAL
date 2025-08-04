@@ -1,28 +1,31 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
 import type { ClaimResponse, ISalesRecord } from "@/lib/models"
-import { sendClaimConfirmationEmail } from "@/lib/email"
+import { sendEmail } from "@/lib/email" // Assuming sendEmail is the correct function
 import { ObjectId } from "mongodb"
 
 export async function POST(request: NextRequest) {
   try {
+    console.log("OTT Claim submission started")
+
     const formData = await request.formData()
+    console.log("Form data received")
 
     const firstName = formData.get("firstName") as string
     const lastName = formData.get("lastName") as string
     const email = formData.get("email") as string
     const phoneNumber = formData.get("phoneNumber") as string
     const streetAddress = formData.get("streetAddress") as string
-    const addressLine2 = formData.get("addressLine2") as string
+    const addressLine2 = (formData.get("addressLine2") as string) || undefined
     const city = formData.get("city") as string
     const state = formData.get("state") as string
     const postalCode = formData.get("postalCode") as string
     const country = formData.get("country") as string
     const purchaseType = formData.get("purchaseType") as string
-    const activationCode = formData.get("activationCode") as string
+    const activationCode = (formData.get("activationCode") as string).toUpperCase() // Ensure uppercase
     const purchaseDate = formData.get("purchaseDate") as string
-    const invoiceNumber = formData.get("invoiceNumber") as string
-    const sellerName = formData.get("sellerName") as string
+    const invoiceNumber = (formData.get("invoiceNumber") as string) || undefined
+    const sellerName = (formData.get("sellerName") as string) || undefined
     const billFile = formData.get("billFile") as File | null // This will be a File object or null
     const agreeToTerms = formData.get("agreeToTerms") === "true"
 
@@ -86,6 +89,7 @@ export async function POST(request: NextRequest) {
 
     const db = await getDatabase()
     const salesRecordsCollection = db.collection<ISalesRecord>("salesrecords")
+    const claimsCollection = db.collection<ClaimResponse>("claims") // Use 'claims' as per previous context
 
     // Start a session for transaction
     const session = db.client.startSession()
@@ -93,10 +97,7 @@ export async function POST(request: NextRequest) {
 
     try {
       // 1. Verify Activation Code and Status within the transaction
-      const salesRecord = await salesRecordsCollection.findOne(
-        { activationCode: activationCode.toUpperCase() },
-        { session },
-      )
+      const salesRecord = await salesRecordsCollection.findOne({ activationCode: activationCode }, { session })
 
       if (!salesRecord) {
         await session.abortTransaction()
@@ -106,7 +107,7 @@ export async function POST(request: NextRequest) {
       if (salesRecord.status === "claimed") {
         await session.abortTransaction()
         return NextResponse.json(
-          { success: false, message: "This activation code has already been claimed." },
+          { success: false, message: "This activation code has already been claimed by someone else." },
           { status: 409 },
         )
       }
@@ -119,25 +120,31 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // 2. Update SalesRecord status to 'claimed'
-      const updateResult = await salesRecordsCollection.updateOne(
-        { _id: salesRecord._id, status: "available" }, // Ensure we only update if still available
-        { $set: { status: "claimed", claimedBy: email, claimedAt: new Date() } },
+      // Check if a *paid* claim already exists for this email and activation code
+      const existingPaidClaim = await claimsCollection.findOne(
+        {
+          email: email,
+          activationCode: activationCode,
+          paymentStatus: "paid", // Only block if payment was successful
+        },
         { session },
       )
 
-      if (updateResult.matchedCount === 0) {
-        // This means another process claimed it between findOne and updateOne
+      if (existingPaidClaim) {
         await session.abortTransaction()
         return NextResponse.json(
-          { success: false, message: "Activation code was just claimed by another user. Please try again." },
-          { status: 409 },
+          {
+            success: false,
+            error: "duplicate_claim",
+            message: "You have already submitted a successful claim for this activation code.",
+          },
+          { status: 400 },
         )
       }
 
       // Handle bill file upload (if provided)
       let billFileUrl: string | null = null
-      if (billFile) {
+      if (billFile && billFile.size > 0) {
         // In a real application, you would upload this file to a cloud storage (e.g., Vercel Blob, S3)
         // For this example, we'll simulate a URL.
         // const blob = await put(billFile.name, billFile, { access: 'public' });
@@ -146,72 +153,111 @@ export async function POST(request: NextRequest) {
         billFileUrl = `/uploads/${Date.now()}-${billFile.name}` // Placeholder URL
       }
 
-      // 3. Create new ClaimResponse
-      const newClaimResponse = {
-        _id: new ObjectId().toHexString(), // Generate a new ObjectId for the claim
+      // Generate unique claim ID
+      const claimId = new ObjectId().toHexString() // Use ObjectId for _id
+
+      // 2. Create new ClaimResponse
+      const newClaimResponse: ClaimResponse = {
+        _id: claimId,
         firstName,
         lastName,
         email,
         phoneNumber,
-        address: {
-          streetAddress,
-          addressLine2,
-          city,
-          state,
-          postalCode,
-          country,
-        },
-        purchaseDetails: {
-          purchaseType,
-          activationCode: activationCode.toUpperCase(),
-          purchaseDate: new Date(purchaseDate),
-          invoiceNumber: purchaseType === "hardware" ? invoiceNumber : undefined,
-          sellerName: purchaseType === "hardware" ? sellerName : undefined,
-          billFileUrl,
-        },
-        claimStatus: "Pending Payment", // Initial status
-        submissionDate: new Date(),
-        paymentStatus: "Pending",
-        assignedOTTKey: null, // Will be assigned after payment and processing
+        streetAddress,
+        addressLine2,
+        city,
+        state,
+        postalCode,
+        country,
+        purchaseType,
+        activationCode,
+        purchaseDate,
+        invoiceNumber,
+        sellerName,
+        billFileName: billFile ? billFile.name : undefined, // Store original file name
+        billFileUrl, // Store the URL if uploaded
+        claimSubmissionDate: new Date().toISOString(),
+        paymentStatus: "pending",
+        ottCodeStatus: "pending",
+        createdAt: new Date(),
+        updatedAt: new Date(),
       }
 
-      const claimResponsesCollection = db.collection<ClaimResponse>("claimresponses")
-      await claimResponsesCollection.insertOne(newClaimResponse, { session })
+      const insertClaimResult = await claimsCollection.insertOne(newClaimResponse, { session })
+
+      if (!insertClaimResult.insertedId) {
+        await session.abortTransaction()
+        console.error("Failed to insert claim after sales record update.")
+        return NextResponse.json({ success: false, error: "Failed to save claim data" }, { status: 500 })
+      }
+
+      // 3. Update SalesRecord status to 'claimed' and link to the new claim
+      const updateSalesResult = await salesRecordsCollection.updateOne(
+        { _id: salesRecord._id, status: "available" }, // Ensure it's still available
+        {
+          $set: {
+            status: "claimed",
+            claimedBy: email,
+            claimedDate: new Date(),
+            assignedToClaimId: new ObjectId(claimId), // Link to the new claim's ObjectId
+          },
+        },
+        { session },
+      )
+
+      if (updateSalesResult.matchedCount === 0) {
+        // This means another process claimed it between findOne and updateOne
+        await session.abortTransaction()
+        return NextResponse.json(
+          { success: false, message: "Activation code was just claimed by another user. Please try again." },
+          { status: 409 }, // Conflict
+        )
+      }
 
       // Commit the transaction
       await session.commitTransaction()
+      console.log("Claim and SalesRecord updated successfully in transaction.")
 
       // Send confirmation email (outside transaction, as it's not critical for data integrity)
       try {
-        await sendClaimConfirmationEmail(email, {
-          firstName,
-          activationCode: activationCode.toUpperCase(),
-          claimStatus: "Pending Payment",
-          paymentLink: `${process.env.NEXT_PUBLIC_BASE_URL}/payment?claimId=${newClaimResponse._id}`, // Example payment link
+        console.log("Sending claim submission confirmation email...")
+        // Assuming sendEmail function takes an object with 'to', 'subject', 'template', 'data'
+        await sendEmail({
+          to: email,
+          subject: "Your OTT Claim Submission Confirmation - SYSTECH DIGITAL",
+          template: "claim_submission_confirmation",
+          data: { claimData: newClaimResponse }, // Pass the entire claimData object
         })
+        console.log("Claim submission confirmation email sent successfully")
       } catch (emailError) {
-        console.error("Failed to send claim confirmation email:", emailError)
-        // Log error but don't block response
+        console.error("Failed to send claim submission confirmation email:", emailError)
+        // Don't fail the request if email fails
       }
 
-      // Redirect to payment page with claim ID
+      console.log("OTT Claim submission completed successfully")
+      // Ensure customerName is always a string, even if parts are undefined
+      const customerFullName = `${firstName || ""} ${lastName || ""}`.trim()
+
       return NextResponse.json({
         success: true,
-        message: "Claim submitted successfully. Proceed to payment.",
-        redirectUrl: `/payment?claimId=${newClaimResponse._id}`,
+        claimId: claimId,
+        message: "Claim submitted successfully",
+        redirectUrl: `/payment?claimId=${claimId}&customerName=${encodeURIComponent(
+          customerFullName,
+        )}&customerEmail=${encodeURIComponent(email)}&customerPhone=${encodeURIComponent(phoneNumber)}`,
       })
     } catch (transactionError) {
       await session.abortTransaction()
       console.error("Transaction failed:", transactionError)
       return NextResponse.json(
-        { success: false, message: "Failed to submit claim due to a database error." },
+        { success: false, message: "Failed to process claim due to a database error. Please try again." },
         { status: 500 },
       )
     } finally {
       await session.endSession()
     }
   } catch (error: any) {
-    console.error("Error in OTT claim submission:", error)
+    console.error("Error in OTT claim submission (outside transaction):", error)
     return NextResponse.json({ success: false, message: "Internal server error." }, { status: 500 })
   }
 }
