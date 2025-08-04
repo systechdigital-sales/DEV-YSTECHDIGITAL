@@ -54,6 +54,7 @@ export async function POST(request: NextRequest) {
     }
 
     // IMPORTANT: Changed from 'available' to 'sold' based on SalesRecordSchema enum
+    // Only allow proceeding if the status is 'sold'
     if (salesRecord.status !== "sold") {
       // Handle other statuses like 'expired', 'pending_activation', etc.
       return NextResponse.json(
