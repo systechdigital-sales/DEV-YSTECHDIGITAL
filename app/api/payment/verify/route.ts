@@ -89,6 +89,30 @@ export async function POST(request: NextRequest) {
         console.error("Failed to send payment success email:", emailError)
         // Don't fail the payment verification if email fails
       }
+
+      // --- NEW: Trigger automation immediately after successful payment ---
+      try {
+        console.log(`Triggering automation for claim ID: ${claim_id}`)
+        const automationTriggerResponse = await fetch(
+          `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/api/webhook/claims-trigger`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            // Optionally send claim_id if the webhook needs to process a specific claim
+            // body: JSON.stringify({ claimId: claim_id }),
+          },
+        )
+        const automationResult = await automationTriggerResponse.json()
+        console.log("Automation trigger response:", automationResult)
+        if (!automationTriggerResponse.ok) {
+          console.error("Failed to trigger automation:", automationResult.error)
+        }
+      } catch (automationError) {
+        console.error("Error triggering automation webhook:", automationError)
+      }
+      // --- END NEW ---
     }
 
     return NextResponse.json({
