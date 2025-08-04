@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -34,6 +34,96 @@ interface FormData {
   agreeToTerms: boolean
 }
 
+// Hardcoded lists for Indian states and major cities
+const indianStates = [
+  "Andhra Pradesh",
+  "Arunachal Pradesh",
+  "Assam",
+  "Bihar",
+  "Chhattisgarh",
+  "Goa",
+  "Gujarat",
+  "Haryana",
+  "Himachal Pradesh",
+  "Jharkhand",
+  "Karnataka",
+  "Kerala",
+  "Madhya Pradesh",
+  "Maharashtra",
+  "Manipur",
+  "Meghalaya",
+  "Mizoram",
+  "Nagaland",
+  "Odisha",
+  "Punjab",
+  "Rajasthan",
+  "Sikkim",
+  "Tamil Nadu",
+  "Telangana",
+  "Tripura",
+  "Uttar Pradesh",
+  "Uttarakhand",
+  "West Bengal",
+  "Andaman and Nicobar Islands",
+  "Chandigarh",
+  "Dadra and Nagar Haveli and Daman and Diu",
+  "Delhi",
+  "Lakshadweep",
+  "Puducherry",
+]
+
+const majorIndianCities = [
+  "Mumbai",
+  "Delhi",
+  "Bangalore",
+  "Hyderabad",
+  "Ahmedabad",
+  "Chennai",
+  "Kolkata",
+  "Surat",
+  "Pune",
+  "Jaipur",
+  "Lucknow",
+  "Kanpur",
+  "Nagpur",
+  "Indore",
+  "Thane",
+  "Bhopal",
+  "Visakhapatnam",
+  "Pimpri-Chinchwad",
+  "Patna",
+  "Vadodara",
+  "Ghaziabad",
+  "Ludhiana",
+  "Agra",
+  "Nashik",
+  "Faridabad",
+  "Meerut",
+  "Rajkot",
+  "Kalyan-Dombivli",
+  "Vasai-Virar",
+  "Varanasi",
+  "Srinagar",
+  "Aurangabad",
+  "Dhanbad",
+  "Amritsar",
+  "Navi Mumbai",
+  "Allahabad",
+  "Howrah",
+  "Ranchi",
+  "Jabalpur",
+  "Coimbatore",
+  "Gwalior",
+  "Vijayawada",
+  "Jodhpur",
+  "Madurai",
+  "Raipur",
+  "Kota",
+  "Guwahati",
+  "Chandigarh",
+  "Mysore",
+]
+
 export default function OTTClaimPage() {
   const router = useRouter()
   const [formData, setFormData] = useState<FormData>({
@@ -59,10 +149,21 @@ export default function OTTClaimPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
+  const [activationCodeValidationMessage, setActivationCodeValidationMessage] = useState("")
+  const [activationCodeValidationStatus, setActivationCodeValidationStatus] = useState<"idle" | "success" | "error">(
+    "idle",
+  )
+  const [failedValidationAttempts, setFailedValidationAttempts] = useState(0)
+  const [showCaptcha, setShowCaptcha] = useState(false)
+  const [captchaChecked, setCaptchaChecked] = useState(false)
 
   const handleInputChange = (field: keyof FormData, value: string | boolean | File | null) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
     if (error) setError("") // Clear error when input changes
+    if (field === "activationCode") {
+      setActivationCodeValidationMessage("")
+      setActivationCodeValidationStatus("idle")
+    }
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -86,6 +187,52 @@ export default function OTTClaimPage() {
     }
     handleInputChange("billFile", file)
   }
+
+  const verifyActivationCode = useCallback(
+    async (code: string) => {
+      if (!code) {
+        setActivationCodeValidationMessage("")
+        setActivationCodeValidationStatus("idle")
+        return
+      }
+
+      try {
+        const response = await fetch("/api/ott-claim/verify-activation-code", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ activationCode: code }),
+        })
+
+        const data = await response.json()
+
+        if (data.success) {
+          setActivationCodeValidationMessage("Activation code is valid and available.")
+          setActivationCodeValidationStatus("success")
+          setFailedValidationAttempts(0) // Reset attempts on success
+          setShowCaptcha(false) // Hide captcha on success
+        } else {
+          setActivationCodeValidationMessage(data.message || "Activation code validation failed.")
+          setActivationCodeValidationStatus("error")
+          setFailedValidationAttempts((prev) => prev + 1)
+          if (failedValidationAttempts + 1 >= 3) {
+            // Show captcha after 3 failed attempts
+            setShowCaptcha(true)
+          }
+        }
+      } catch (err) {
+        console.error("Error verifying activation code:", err)
+        setActivationCodeValidationMessage("Network error during code verification.")
+        setActivationCodeValidationStatus("error")
+        setFailedValidationAttempts((prev) => prev + 1)
+        if (failedValidationAttempts + 1 >= 3) {
+          setShowCaptcha(true)
+        }
+      }
+    },
+    [failedValidationAttempts],
+  )
 
   const validateForm = (): boolean => {
     console.log("Starting form validation...")
@@ -143,10 +290,31 @@ export default function OTTClaimPage() {
       return false
     }
 
+    // Postal Code validation (ensure it's numeric and 6 digits)
+    const postalCodeRegex = /^\d{6}$/
+    if (!postalCodeRegex.test(formData.postalCode)) {
+      setError("Please enter a valid 6-digit postal code.")
+      console.log("Validation failed: Invalid postal code format.")
+      return false
+    }
+
     // Terms agreement
     if (!formData.agreeToTerms) {
       setError("Please agree to the terms and conditions")
       console.log("Validation failed: Terms and conditions not agreed.")
+      return false
+    }
+
+    // Final check for activation code status before submission
+    if (activationCodeValidationStatus !== "success") {
+      setError("Please verify your activation code. It must be valid and available to proceed.")
+      console.log("Validation failed: Activation code not verified or invalid.")
+      return false
+    }
+
+    if (showCaptcha && !captchaChecked) {
+      setError("Please complete the captcha to proceed.")
+      console.log("Validation failed: Captcha not completed.")
       return false
     }
 
@@ -219,8 +387,8 @@ export default function OTTClaimPage() {
             <div className="flex items-center">
               <Image src="/logo.png" alt="SYSTECH DIGITAL Logo" width={40} height={40} className="rounded-full mr-3" />
               <div>
-                <h1 className="text-3xl font-bold text-white">Systech Digital</h1>
-                <p className="text-sm text-red-200 mt-1">Simplifying the Digital Experience</p>
+                <h1 className="text-3xl font-bold text-white">OTT Subscription Claim</h1>
+                <p className="text-sm text-red-200 mt-1">Get your OTTplay Power Play Pack activation code</p>
               </div>
             </div>
             <div className="flex items-center space-x-3">
@@ -385,31 +553,39 @@ export default function OTTClaimPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div>
                     <Label htmlFor="city">City *</Label>
-                    <Input
-                      id="city"
-                      type="text"
-                      value={formData.city}
-                      onChange={(e) => handleInputChange("city", e.target.value)}
-                      className="mt-1"
-                      placeholder="Enter your city"
-                    />
+                    <Select value={formData.city} onValueChange={(value) => handleInputChange("city", value)}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Select your city" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {majorIndianCities.map((city) => (
+                          <SelectItem key={city} value={city}>
+                            {city}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <Label htmlFor="state">State *</Label>
-                    <Input
-                      id="state"
-                      type="text"
-                      value={formData.state}
-                      onChange={(e) => handleInputChange("state", e.target.value)}
-                      className="mt-1"
-                      placeholder="Enter your state"
-                    />
+                    <Select value={formData.state} onValueChange={(value) => handleInputChange("state", value)}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Select your state" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {indianStates.map((state) => (
+                          <SelectItem key={state} value={state}>
+                            {state}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <Label htmlFor="postalCode">Postal Code *</Label>
                     <Input
                       id="postalCode"
-                      type="text"
+                      type="number" // Changed to number
                       value={formData.postalCode}
                       onChange={(e) => handleInputChange("postalCode", e.target.value)}
                       className="mt-1"
@@ -465,9 +641,17 @@ export default function OTTClaimPage() {
                     type="text"
                     value={formData.activationCode}
                     onChange={(e) => handleInputChange("activationCode", e.target.value.toUpperCase())}
+                    onBlur={(e) => verifyActivationCode(e.target.value.toUpperCase())} // Verify on blur
                     className="mt-1 font-mono"
                     placeholder="Enter your activation code"
                   />
+                  {activationCodeValidationMessage && (
+                    <p
+                      className={`text-sm mt-1 ${activationCodeValidationStatus === "success" ? "text-green-600" : "text-red-600"}`}
+                    >
+                      {activationCodeValidationMessage}
+                    </p>
+                  )}
                   <p className="text-xs text-gray-500 mt-1">This is the code you received with your purchase</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -555,6 +739,32 @@ export default function OTTClaimPage() {
             </CardContent>
           </Card>
 
+          {/* Captcha (Simulated) */}
+          {showCaptcha && (
+            <Card className="shadow-xl border-0">
+              <CardHeader className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-t-lg border-b">
+                <CardTitle className="flex items-center text-xl">
+                  <Shield className="w-5 h-5 mr-3 text-orange-600" />
+                  Security Check
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="flex items-center space-x-3">
+                  <Checkbox
+                    id="captcha"
+                    checked={captchaChecked}
+                    onCheckedChange={(checked) => setCaptchaChecked(checked as boolean)}
+                    className="mt-1"
+                  />
+                  <Label htmlFor="captcha" className="cursor-pointer text-base">
+                    I am not a robot
+                  </Label>
+                </div>
+                <p className="text-sm text-gray-500 mt-2">Please complete this security check to proceed.</p>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Terms and Conditions */}
           <Card className="shadow-xl border-0">
             <CardContent className="p-6">
@@ -598,7 +808,7 @@ export default function OTTClaimPage() {
           <div className="flex justify-center">
             <Button
               type="submit"
-              disabled={loading}
+              disabled={loading || (showCaptcha && !captchaChecked) || activationCodeValidationStatus !== "success"}
               size="lg"
               className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-12 py-4 text-lg font-semibold shadow-xl"
             >
