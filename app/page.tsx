@@ -37,40 +37,6 @@ export default function HomePage() {
     router.push("/customer-login")
   }
 
-const benefits = [
-  { name: "Sony LIV", image: "/ott-logos/Sony LIV.png" },
-  { name: "Zee5", image: "/ott-logos/Zee.png" },
-  { name: "Fancode", image: "/ott-logos/Fancode.png" },
-  { name: "LIONSGATE PLAY", image: "/ott-logos/Lionsgate Play.png" },
-  { name: "STAGE", image: "/ott-logos/Stage.png" },
-  { name: "DistroTV", image: "/ott-logos/Distro TV.png" },
-  { name: "ShemarooMe", image: "/ott-logos/Shemaroo Me.png" },
-  { name: "Hubhopper", image: "/ott-logos/placeholder.jpg" }, // example fallback
-  { name: "ALTT", image: "/ott-logos/Altt.png" },
-  { name: "aha Tamil", image: "/ott-logos/Aha Tamil.png" },
-  { name: "Red hot", image: "/ott-logos/Shemaroo Redhot_2X3_logo.png" },
-  { name: "Runn Tv", image: "/ott-logos/RUnn.png" },
-  { name: "OM TV", image: "/ott-logos/OM Tv.png" },
-  { name: "Dangal Play", image: "/ott-logos/Dangal play logo.png" },
-  { name: "Premiumflix", image: "/ott-logos/Premiumflix Logo_Color.png" },
-  { name: "CHAUPAL", image: "/ott-logos/chaupal hd logo.png" },
-  { name: "ShortsTV", image: "/ott-logos/Shorts TV.png" },
-  { name: "Sun NXT", image: "/ott-logos/Sun NXT.png" },
-  { name: "Playflix", image: "/ott-logos/playflix_logo.png" },
-  { name: "Shemaroo Gujarati", image: "/ott-logos/Shemaroo_Gujarati_16X9_logo.png" },
-  { name: "Dollywood Play", image: "/ott-logos/Dollywood Play.png" },
-  { name: "Nammaflix", image: "/ott-logos/Nammaflix.png" },
-  { name: "Chaupal Bhojpuri", image: "/ott-logos/placeholder-logo.png" },
-  { name: "ShemarooBhakti", image: "/ott-logos/Shemaroo Bhakti_2X3_logo.png" },
-  { name: "ETV Win", image: "/ott-logos/ETV WIN.png" },
-  { name: "aha", image: "/ott-logos/aha telugu.png" },
-  { name: "VROTT", image: "/ott-logos/VR.png" },
-  { name: "Shortfundly", image: "/ott-logos/Shortfundly.png" },
-  { name: "Atrangi", image: "/ott-logos/Atrangi.png" },
-  { name: "Bhaktiflix", image: "/ott-logos/BHAKTI FLIX.png" },
-  { name: "Fridaay", image: "/ott-logos/placeholder-logo.png" },
-  { name: "Gurjari", image: "/ott-logos/Gurjari.png" },
-]
 
   const features = [
     {
