@@ -53,8 +53,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // IMPORTANT: Changed from 'available' to 'sold' based on SalesRecordSchema enum
     if (salesRecord.status !== "sold") {
-      // Changed from 'available' to 'sold' based on SalesRecordSchema enum
       // Handle other statuses like 'expired', 'pending_activation', etc.
       return NextResponse.json(
         { success: false, error: `Activation code status is '${salesRecord.status}'.` },

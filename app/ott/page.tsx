@@ -237,7 +237,7 @@ export default function OTTClaimPage() {
         })
       }
     },
-    [failedValidationAttempts],
+    [], // Removed failedValidationAttempts from dependency array as it's updated inside the callback
   )
 
   const validateForm = (): boolean => {
