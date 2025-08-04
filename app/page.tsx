@@ -243,7 +243,7 @@ export default function HomePage() {
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h3 className="text-4xl font-bold text-gray-900 mb-4">Why Choose Ottplay</h3>
+            <h3 className="text-4xl font-bold text-gray-900 mb-4">Why Choose OTTplay?</h3>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
               Experience the best of entertainment with OTTplay subscription service designed for modern
               viewers.
