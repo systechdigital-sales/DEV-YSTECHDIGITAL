@@ -49,8 +49,11 @@ export default function Footer() {
               </div>
               <div className="flex items-start sm:items-center">
                 <MapPin className="w-5 h-5 text-blue-400 mr-3 mt-1 sm:mt-0" />
-                <p>India</p>
+                <p>Systech IT Solution Pvt. Ltd</p>
               </div>
+              <p className="text-gray-400">
+                #23/1, 1st floor, J.C.1st cross, JC Road, Near Poornima Theatre, Bengaluru, Karnataka, India - 560027
+              </p>
             </div>
           </div>
         </div>
@@ -65,7 +68,7 @@ export default function Footer() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-gray-400 hover:text-white"
+                className="text-gray-400  hover:text-gray-800"
                 onClick={() => router.push("/terms-and-conditions")}
               >
                 Terms & Conditions
@@ -73,7 +76,7 @@ export default function Footer() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-gray-400 hover:text-white"
+                className="text-gray-400 hover:text-gray-800"
                 onClick={() => router.push("/privacy-policy")}
               >
                 Privacy Policy
@@ -81,10 +84,18 @@ export default function Footer() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-gray-400 hover:text-white"
+                className="text-gray-400 hover:text-gray-800"
                 onClick={() => router.push("/refund-policy")}
               >
                 Refund Policy
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-gray-400 hover:text-gray-800"
+                onClick={() => router.push("/contact")}
+              >
+                Contact Us
               </Button>
             </div>
           </div>

@@ -99,7 +99,7 @@ export default function CustomerLogin() {
                 variant="ghost"
                 size="sm"
                 onClick={() => router.push("/")}
-                className="text-gray-200 hover:text-white border border-white/30 px-2 py-1 text-sm"
+                className="text-gray-200 hover:text-gray-800 border border-white/30 px-2 py-1 text-sm"
               >
                 <Home className="w-4 h-4 mr-1" />
                 Back to Home
