@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
   const attempts = ipAttempts.get(ip) || { count: 0, lastAttempt: now }
 
   if (now - attempts.lastAttempt > RATE_LIMIT_WINDOW_MS) {
-    attempts.count = 1 // Reset count if window passed
+    attempts.count = 1
   } else {
     attempts.count++
   }
@@ -28,37 +28,40 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { activationCode } = await request.json()
+    const body = await request.json()
+    const activationCodeRaw = body.activationCode
 
-    if (!activationCode) {
+    if (!activationCodeRaw) {
       return NextResponse.json({ success: false, error: "Activation code is required." }, { status: 400 })
     }
+
+    const activationCode = String(activationCodeRaw).trim()
 
     const db = await getDatabase()
     const salesCollection: Collection = db.collection("salesrecords")
 
-    // Perform a case-insensitive search for the activation code
+    console.log("Searching for code:", activationCode)
+
     const salesRecord = await salesCollection.findOne({
-      activationCode: { $regex: new RegExp(`^${activationCode}$`, "i") },
+      activationCode: { $regex: `^${activationCode}$`, $options: "i" },
     })
 
     if (!salesRecord) {
       return NextResponse.json({ success: false, error: "Activation code not found." }, { status: 404 })
     }
 
-    if (salesRecord.status === "claimed") {
+    if (salesRecord.status?.toLowerCase() === "claimed") {
       return NextResponse.json(
         { success: false, error: "This activation code has already been claimed." },
         { status: 409 },
       )
     }
 
-    // Check if the status is explicitly "AVAILABLE"
-    if (salesRecord.status !== "available") {
+    if (salesRecord.status?.toLowerCase() !== "available") {
       return NextResponse.json(
         {
           success: false,
-          error: `Activation code status is '${salesRecord.status}'. It must be 'AVAILABLE' to proceed.`,
+          error: `Activation code status is '${salesRecord.status}'. It must be 'available' to proceed.`,
         },
         { status: 400 },
       )
