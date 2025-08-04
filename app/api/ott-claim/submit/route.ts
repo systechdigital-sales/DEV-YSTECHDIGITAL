@@ -1,7 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
 import { sendEmail } from "@/lib/email"
-import type { IClaimResponse } from "@/lib/models"
+import type { IClaimResponse, ISalesRecord } from "@/lib/models"
+import { ObjectId } from "mongodb" // Import ObjectId
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,7 +23,7 @@ export async function POST(request: NextRequest) {
       postalCode: formData.get("postalCode") as string,
       country: formData.get("country") as string,
       purchaseType: formData.get("purchaseType") as string,
-      activationCode: formData.get("activationCode") as string,
+      activationCode: (formData.get("activationCode") as string).toUpperCase(), // Ensure uppercase
       purchaseDate: formData.get("purchaseDate") as string,
       claimSubmissionDate: new Date().toISOString(),
       invoiceNumber: (formData.get("invoiceNumber") as string) || undefined,
@@ -33,7 +34,11 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date(),
     }
 
-    console.log("Claim data prepared:", { email: claimData.email, phone: claimData.phone })
+    console.log("Claim data prepared:", {
+      email: claimData.email,
+      phone: claimData.phone,
+      activationCode: claimData.activationCode,
+    })
 
     // Handle file upload
     const billFile = formData.get("billFile") as File
@@ -78,9 +83,19 @@ export async function POST(request: NextRequest) {
 
     // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(claimData.email)) {
+    if (!emailRegex.test(claimData.email!)) {
       console.error("Invalid email format:", claimData.email)
       return NextResponse.json({ success: false, error: "Invalid email address" }, { status: 400 })
+    }
+
+    // Postal Code validation (ensure it's numeric and 6 digits)
+    const postalCodeRegex = /^\d{6}$/
+    if (!postalCodeRegex.test(claimData.postalCode!)) {
+      console.error("Invalid postal code format:", claimData.postalCode)
+      return NextResponse.json(
+        { success: false, error: "Invalid postal code. Must be a 6-digit number." },
+        { status: 400 },
+      )
     }
 
     // Connect to database
@@ -88,8 +103,30 @@ export async function POST(request: NextRequest) {
     const db = await getDatabase()
     console.log("Database connected")
 
-    // Check if a *paid* claim already exists for this email and activation code
     const claimsCollection = db.collection<IClaimResponse>("claims")
+    const salesRecordsCollection = db.collection<ISalesRecord>("salesrecords")
+
+    // --- Activation Code Validation and Update ---
+    console.log(`Verifying activation code ${claimData.activationCode} in sales records...`)
+    const salesRecord = await salesRecordsCollection.findOne({ activationCode: claimData.activationCode })
+
+    if (!salesRecord) {
+      console.warn(`Activation code ${claimData.activationCode} not found in sales records.`)
+      return NextResponse.json(
+        { success: false, message: "Activation code not found. Please check and try again." },
+        { status: 400 },
+      )
+    }
+
+    if (salesRecord.status === "claimed") {
+      console.warn(`Activation code ${claimData.activationCode} is already claimed by ${salesRecord.claimedBy}.`)
+      return NextResponse.json(
+        { success: false, message: "This activation code has already been claimed by another user." },
+        { status: 400 },
+      )
+    }
+
+    // Check if a *paid* claim already exists for this email and activation code
     const existingPaidClaim = await claimsCollection.findOne({
       email: claimData.email,
       activationCode: claimData.activationCode,
@@ -112,48 +149,88 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate unique claim ID
-    const claimId = `claim_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const claimId = new ObjectId().toHexString() // Use ObjectId for _id
     claimData._id = claimId as any
 
-    // Insert claim into database
-    const result = await claimsCollection.insertOne(claimData as IClaimResponse)
+    // Start a session for transaction to ensure atomicity
+    const session = db.client.startSession()
+    session.startTransaction()
 
-    console.log("Claim inserted:", result.insertedId)
-
-    if (!result.insertedId) {
-      console.error("Failed to insert claim")
-      return NextResponse.json({ success: false, error: "Failed to save claim data" }, { status: 500 })
-    }
-
-    // Send confirmation email
     try {
-      console.log("Sending confirmation email...")
-      await sendEmail(
-        claimData.email,
-        "OTT Claim Submitted Successfully - SYSTECH DIGITAL",
-        "claim_submitted",
-        claimData,
+      // Update SalesRecord status to 'claimed' and link to the new claim
+      const updateSalesResult = await salesRecordsCollection.updateOne(
+        { _id: salesRecord._id, status: "available" }, // Ensure it's still available
+        {
+          $set: {
+            status: "claimed",
+            claimedBy: claimData.email,
+            claimedDate: new Date(),
+            assignedToClaimId: new ObjectId(claimId), // Link to the new claim's ObjectId
+          },
+        },
+        { session },
       )
-      console.log("Confirmation email sent successfully")
-    } catch (emailError) {
-      console.error("Failed to send confirmation email:", emailError)
-      // Don't fail the request if email fails
+
+      if (updateSalesResult.matchedCount === 0) {
+        await session.abortTransaction()
+        console.error("Race condition: Activation code was claimed by another process.")
+        return NextResponse.json(
+          { success: false, message: "Activation code was just claimed. Please try again." },
+          { status: 409 }, // Conflict
+        )
+      }
+
+      // Insert claim into database
+      const insertClaimResult = await claimsCollection.insertOne(claimData as IClaimResponse, { session })
+
+      if (!insertClaimResult.insertedId) {
+        await session.abortTransaction()
+        console.error("Failed to insert claim after sales record update.")
+        return NextResponse.json({ success: false, error: "Failed to save claim data" }, { status: 500 })
+      }
+
+      await session.commitTransaction()
+      console.log("Claim and SalesRecord updated successfully in transaction.")
+
+      // Send confirmation email with all submitted data
+      try {
+        console.log("Sending claim submission confirmation email...")
+        await sendEmail({
+          to: claimData.email!,
+          subject: "Your OTT Claim Submission Confirmation - SYSTECH DIGITAL",
+          template: "claim_submission_confirmation",
+          data: { claimData: claimData as IClaimResponse }, // Pass the entire claimData object
+        })
+        console.log("Claim submission confirmation email sent successfully")
+      } catch (emailError) {
+        console.error("Failed to send claim submission confirmation email:", emailError)
+        // Don't fail the request if email fails
+      }
+
+      console.log("OTT Claim submission completed successfully")
+      // Ensure customerName is always a string, even if parts are undefined
+      const customerFullName = `${claimData.firstName || ""} ${claimData.lastName || ""}`.trim()
+
+      return NextResponse.json({
+        success: true,
+        claimId: claimId,
+        message: "Claim submitted successfully",
+        redirectUrl: `/payment?claimId=${claimId}&amount=99&customerName=${encodeURIComponent(
+          customerFullName,
+        )}&customerEmail=${encodeURIComponent(claimData.email!)}&customerPhone=${encodeURIComponent(claimData.phone!)}`,
+      })
+    } catch (transactionError) {
+      await session.abortTransaction()
+      console.error("Transaction failed:", transactionError)
+      return NextResponse.json(
+        { success: false, message: "Failed to process claim due to a database error. Please try again." },
+        { status: 500 },
+      )
+    } finally {
+      await session.endSession()
     }
-
-    console.log("OTT Claim submission completed successfully")
-    // Ensure customerName is always a string, even if parts are undefined
-    const customerFullName = `${claimData.firstName || ""} ${claimData.lastName || ""}`.trim()
-
-    return NextResponse.json({
-      success: true,
-      claimId: claimId,
-      message: "Claim submitted successfully",
-      redirectUrl: `/payment?claimId=${claimId}&amount=99&customerName=${encodeURIComponent(
-        customerFullName,
-      )}&customerEmail=${encodeURIComponent(claimData.email)}&customerPhone=${encodeURIComponent(claimData.phone)}`,
-    })
   } catch (error: any) {
-    console.error("Error submitting claim:", error)
+    console.error("Error submitting claim (outside transaction):", error)
     return NextResponse.json(
       {
         success: false,
