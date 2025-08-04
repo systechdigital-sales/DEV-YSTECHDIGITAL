@@ -188,45 +188,34 @@ export default function OTTClaimPage() {
     handleInputChange("billFile", file)
   }
 
-  const verifyActivationCode = useCallback(
-    async (code: string) => {
-      if (!code) {
-        setActivationCodeValidationMessage("")
-        setActivationCodeValidationStatus("idle")
-        return
-      }
+ const verifyActivationCode = useCallback(
+  async (code: string) => {
+    if (!code) {
+      setActivationCodeValidationMessage("")
+      setActivationCodeValidationStatus("idle")
+      return
+    }
 
-      try {
-        const response = await fetch("/api/ott-claim/verify-activation-code", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ activationCode: code }),
-        })
+    try {
+      const response = await fetch("/api/ott-claim/verify-activation-code", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ activationCode: code }),
+      })
 
-        const data = await response.json()
+      const data = await response.json()
 
-        if (data.success) {
-          setActivationCodeValidationMessage("Activation code is valid and available. You can proceed.")
-          setActivationCodeValidationStatus("success")
-          setFailedValidationAttempts(0) // Reset attempts on success
-          setShowCaptcha(false) // Hide captcha on success
-          setCaptchaChecked(false) // Reset captcha check
-        } else {
-          setActivationCodeValidationMessage(data.message || "Activation code validation failed.")
-          setActivationCodeValidationStatus("error")
-          setFailedValidationAttempts((prev) => {
-            const newAttempts = prev + 1
-            if (newAttempts >= 3) {
-              setShowCaptcha(true) // Show captcha after 3 failed attempts
-            }
-            return newAttempts
-          })
-        }
-      } catch (err) {
-        console.error("Error verifying activation code:", err)
-        setActivationCodeValidationMessage("Network error during code verification.")
+      if (data.success) {
+        setActivationCodeValidationMessage("Activation code is valid and available. You can proceed.")
+        setActivationCodeValidationStatus("success")
+        setFailedValidationAttempts(0)
+        setShowCaptcha(false)
+        setCaptchaChecked(false)
+      } else {
+        // FIXED HERE 👇
+        setActivationCodeValidationMessage(data.error || "Activation code validation failed.")
         setActivationCodeValidationStatus("error")
         setFailedValidationAttempts((prev) => {
           const newAttempts = prev + 1
@@ -236,9 +225,21 @@ export default function OTTClaimPage() {
           return newAttempts
         })
       }
-    },
-    [], // Removed failedValidationAttempts from dependency array as it's updated inside the callback
-  )
+    } catch (err) {
+      console.error("Error verifying activation code:", err)
+      setActivationCodeValidationMessage("Network error during code verification.")
+      setActivationCodeValidationStatus("error")
+      setFailedValidationAttempts((prev) => {
+        const newAttempts = prev + 1
+        if (newAttempts >= 3) {
+          setShowCaptcha(true)
+        }
+        return newAttempts
+      })
+    }
+  },
+  [], // No dependency needed
+)
 
   const validateForm = (): boolean => {
     console.log("Starting form validation...")
