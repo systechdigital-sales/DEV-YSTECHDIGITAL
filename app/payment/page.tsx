@@ -18,6 +18,12 @@ interface PaymentData {
   purchaseType?: string
 }
 
+declare global {
+  interface Window {
+    Razorpay: any
+  }
+}
+
 function PaymentContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -55,7 +61,7 @@ function PaymentContent() {
         customerPhone: !!customerPhone,
         amount: !!amount,
       })
-      setError("Invalid Payment Request\nMissing required payment information. Please go back and fill the form again.")
+      setError("Missing required payment information. Please go back and fill the form again.")
       return
     }
 
@@ -93,12 +99,20 @@ function PaymentContent() {
     // Load Razorpay script
     const script = document.createElement("script")
     script.src = "https://checkout.razorpay.com/v1/checkout.js"
-    script.onload = () => setRazorpayLoaded(true)
-    script.onerror = () => setError("Failed to load payment gateway. Please refresh and try again.")
+    script.onload = () => {
+      console.log("Razorpay script loaded successfully")
+      setRazorpayLoaded(true)
+    }
+    script.onerror = () => {
+      console.error("Failed to load Razorpay script")
+      setError("Failed to load payment gateway. Please refresh and try again.")
+    }
     document.body.appendChild(script)
 
     return () => {
-      document.body.removeChild(script)
+      if (document.body.contains(script)) {
+        document.body.removeChild(script)
+      }
     }
   }, [searchParams])
 
@@ -112,6 +126,8 @@ function PaymentContent() {
     setError("")
 
     try {
+      console.log("Creating Razorpay order...")
+
       // Create Razorpay order
       const orderResponse = await fetch("/api/payment/create-order", {
         method: "POST",
@@ -127,23 +143,24 @@ function PaymentContent() {
         }),
       })
 
-      if (!orderResponse.ok) {
-        throw new Error("Failed to create payment order")
-      }
-
       const orderData = await orderResponse.json()
+      console.log("Order response:", orderData)
 
-      if (!orderData.success) {
+      if (!orderResponse.ok || !orderData.success) {
         throw new Error(orderData.error || "Failed to create payment order")
       }
 
       // Get Razorpay key
+      console.log("Fetching Razorpay key...")
       const keyResponse = await fetch("/api/razorpay-key")
       const keyData = await keyResponse.json()
+      console.log("Key response:", keyData)
 
       if (!keyData.key) {
         throw new Error("Payment configuration error")
       }
+
+      console.log("Initializing Razorpay payment...")
 
       // Initialize Razorpay payment
       const options = {
@@ -162,6 +179,7 @@ function PaymentContent() {
           color: "#2563eb",
         },
         handler: async (response: any) => {
+          console.log("Payment successful:", response)
           try {
             // Verify payment
             const verifyResponse = await fetch("/api/payment/verify", {
@@ -178,22 +196,9 @@ function PaymentContent() {
             })
 
             const verifyData = await verifyResponse.json()
+            console.log("Verification response:", verifyData)
 
             if (verifyData.success) {
-              // Update claim status in systech_ott_platform.claims
-              await fetch("/api/payment/update-claim-status", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  claimId: paymentData.claimId,
-                  paymentStatus: "paid",
-                  paymentId: response.razorpay_payment_id,
-                  razorpayOrderId: response.razorpay_order_id,
-                }),
-              })
-
               // Redirect to success page
               router.push(
                 `/payment/success?claimId=${paymentData.claimId}&paymentId=${response.razorpay_payment_id}&amount=${paymentData.amount}`,
@@ -209,13 +214,21 @@ function PaymentContent() {
         },
         modal: {
           ondismiss: () => {
+            console.log("Payment modal dismissed")
             setLoading(false)
             setError("Payment was cancelled. You can try again.")
           },
         },
       }
 
-      const razorpay = new (window as any).Razorpay(options)
+      const razorpay = new window.Razorpay(options)
+      razorpay.on("payment.failed", (response: any) => {
+        console.error("Payment failed:", response.error)
+        setError(`Payment failed: ${response.error.description}`)
+        setLoading(false)
+      })
+
+      console.log("Opening Razorpay modal...")
       razorpay.open()
     } catch (error: any) {
       console.error("Payment error:", error)

@@ -8,22 +8,22 @@ const razorpay = new Razorpay({
 
 export async function POST(request: NextRequest) {
   try {
-    const { amount, currency = "INR", claimId, customerName, customerEmail } = await request.json()
+    const { amount, currency = "INR", claimId, customerEmail, customerPhone } = await request.json()
 
-    console.log("Creating order for:", { amount, claimId, customerName, customerEmail })
+    console.log("Creating order for:", { amount, claimId, customerEmail, customerPhone })
 
-    if (!amount || !claimId || !customerName || !customerEmail) {
+    if (!amount || !claimId || !customerEmail || !customerPhone) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
     const options = {
-      amount: amount * 100, // Convert to paise
+      amount: amount, // Amount should already be in paise
       currency,
       receipt: `receipt_${claimId}`,
       notes: {
         claimId,
-        customerName,
         customerEmail,
+        customerPhone,
       },
     }
 
@@ -32,14 +32,17 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      orderId: order.id,
-      amount: order.amount,
-      currency: order.currency,
+      order: {
+        id: order.id,
+        amount: order.amount,
+        currency: order.currency,
+      },
     })
   } catch (error) {
     console.error("Error creating Razorpay order:", error)
     return NextResponse.json(
       {
+        success: false,
         error: "Failed to create order",
         details: error instanceof Error ? error.message : "Unknown error",
       },

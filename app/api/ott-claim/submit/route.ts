@@ -1,22 +1,19 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getDatabase } from "@/lib/mongodb"
+import { connectToDatabase } from "@/lib/mongodb"
 import { sendEmail } from "@/lib/email"
-import type { IClaimResponse } from "@/lib/models"
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("OTT Claim submission started")
-
     const formData = await request.formData()
-    console.log("Form data received")
 
-    const claimData: Partial<IClaimResponse> = {
+    // Extract form data
+    const claimData = {
       firstName: formData.get("firstName") as string,
       lastName: formData.get("lastName") as string,
       email: formData.get("email") as string,
-      phone: formData.get("phoneNumber") as string, // Corrected to match frontend
+      phoneNumber: formData.get("phoneNumber") as string,
       streetAddress: formData.get("streetAddress") as string,
-      addressLine2: (formData.get("addressLine2") as string) || undefined,
+      addressLine2: formData.get("addressLine2") as string,
       city: formData.get("city") as string,
       state: formData.get("state") as string,
       postalCode: formData.get("postalCode") as string,
@@ -24,22 +21,9 @@ export async function POST(request: NextRequest) {
       purchaseType: formData.get("purchaseType") as string,
       activationCode: formData.get("activationCode") as string,
       purchaseDate: formData.get("purchaseDate") as string,
-      claimSubmissionDate: new Date().toISOString(),
-      invoiceNumber: (formData.get("invoiceNumber") as string) || undefined,
-      sellerName: (formData.get("sellerName") as string) || undefined,
-      paymentStatus: "pending",
-      ottCodeStatus: "pending",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }
-
-    console.log("Claim data prepared:", { email: claimData.email, phone: claimData.phone })
-
-    // Handle file upload
-    const billFile = formData.get("billFile") as File
-    if (billFile && billFile.size > 0) {
-      claimData.billFileName = `${claimData.activationCode}_${billFile.name}`
-      console.log("File uploaded:", claimData.billFileName)
+      invoiceNumber: formData.get("invoiceNumber") as string,
+      sellerName: formData.get("sellerName") as string,
+      agreeToTerms: formData.get("agreeToTerms") === "true",
     }
 
     // Validate required fields
@@ -47,154 +31,120 @@ export async function POST(request: NextRequest) {
       "firstName",
       "lastName",
       "email",
-      "phone",
+      "phoneNumber",
       "streetAddress",
       "city",
       "state",
       "postalCode",
-      "country",
       "purchaseType",
       "activationCode",
       "purchaseDate",
     ]
 
     for (const field of requiredFields) {
-      if (!claimData[field as keyof Partial<IClaimResponse>]) {
-        console.error(`Missing required field: ${field}`)
-        return NextResponse.json({ success: false, error: `${field} is required` }, { status: 400 })
+      if (!claimData[field as keyof typeof claimData]) {
+        return NextResponse.json({ success: false, message: `Missing required field: ${field}` }, { status: 400 })
       }
     }
 
-    // Additional validation for hardware purchases
-    if (claimData.purchaseType === "hardware") {
-      if (!claimData.invoiceNumber || !claimData.sellerName) {
-        console.error("Missing hardware purchase fields")
-        return NextResponse.json(
-          { success: false, error: "Invoice number and seller name are required for hardware purchases" },
-          { status: 400 },
-        )
-      }
+    // Generate claim ID
+    const claimId = `CLM-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
+
+    // Connect to database
+    const { db } = await connectToDatabase()
+    const claimsCollection = db.collection("claims")
+
+    // Create claim record
+    const claimRecord = {
+      claimId,
+      ...claimData,
+      status: "pending",
+      paymentStatus: "pending",
+      createdAt: new Date(),
+      updatedAt: new Date(),
     }
 
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(claimData.email ?? "")) {
-      console.error("Invalid email format:", claimData.email)
-      return NextResponse.json({ success: false, error: "Invalid email address" }, { status: 400 })
+    // Save to database
+    await claimsCollection.insertOne(claimRecord)
+
+    // Send order placed email
+    try {
+      await sendEmail({
+        to: claimData.email,
+        subject: "Order Placed Successfully - OTT Code Claim",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8fafc;">
+            <div style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
+              <h1 style="color: white; margin: 0; font-size: 28px; font-weight: bold;">Order Placed Successfully!</h1>
+              <p style="color: #dbeafe; margin: 10px 0 0 0; font-size: 16px;">Your OTT code claim has been received</p>
+            </div>
+            
+            <div style="background: white; padding: 30px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+              <div style="background: #eff6ff; padding: 20px; border-radius: 8px; margin-bottom: 25px; border-left: 4px solid #3b82f6;">
+                <h2 style="color: #1e40af; margin: 0 0 10px 0; font-size: 20px;">Order Details</h2>
+                <p style="margin: 5px 0; color: #374151;"><strong>Claim ID:</strong> ${claimId}</p>
+                <p style="margin: 5px 0; color: #374151;"><strong>Customer:</strong> ${claimData.firstName} ${claimData.lastName}</p>
+                <p style="margin: 5px 0; color: #374151;"><strong>Email:</strong> ${claimData.email}</p>
+                <p style="margin: 5px 0; color: #374151;"><strong>Phone:</strong> ${claimData.phoneNumber}</p>
+                <p style="margin: 5px 0; color: #374151;"><strong>Activation Code:</strong> ${claimData.activationCode}</p>
+              </div>
+
+              <div style="background: #f0fdf4; padding: 20px; border-radius: 8px; margin-bottom: 25px; border-left: 4px solid #22c55e;">
+                <h3 style="color: #15803d; margin: 0 0 15px 0; font-size: 18px;">Next Steps</h3>
+                <ol style="color: #374151; margin: 0; padding-left: 20px;">
+                  <li style="margin-bottom: 8px;">Complete the payment process (₹99)</li>
+                  <li style="margin-bottom: 8px;">Your claim will be processed within 24-48 hours</li>
+                  <li style="margin-bottom: 8px;">OTT code will be delivered to your email</li>
+                  <li>Enjoy your premium OTT subscription!</li>
+                </ol>
+              </div>
+
+              <div style="text-align: center; margin: 25px 0;">
+                <p style="color: #6b7280; margin: 0;">Processing Fee: <strong style="color: #1f2937; font-size: 24px;">₹99</strong></p>
+                <p style="color: #6b7280; margin: 5px 0 0 0; font-size: 14px;">One-time payment • Includes all taxes</p>
+              </div>
+
+              <div style="background: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                <p style="color: #92400e; margin: 0; font-size: 14px; text-align: center;">
+                  <strong>Important:</strong> Please complete the payment to process your claim. Your activation code will be verified and OTT access will be provided upon successful payment.
+                </p>
+              </div>
+
+              <div style="text-align: center; margin-top: 30px;">
+                <p style="color: #6b7280; font-size: 14px; margin: 0;">
+                  Need help? Contact us at <a href="mailto:support@systechdigital.in" style="color: #3b82f6;">support@systechdigital.in</a>
+                </p>
+              </div>
+            </div>
+          </div>
+        `,
+      })
+    } catch (emailError) {
+      console.error("Failed to send order placed email:", emailError)
+      // Don't fail the request if email fails
     }
 
-    // Connect to systech_ott_platform database
-    console.log("Connecting to systech_ott_platform database...")
-    const db = await getDatabase("systech_ott_platform")
-    console.log("Database connected")
-
-    // Check if a *paid* claim already exists for this email and activation code
-    const claimsCollection = db.collection<IClaimResponse>("claims")
-    const existingPaidClaim = await claimsCollection.findOne({
-      email: claimData.email,
+    // Create payment URL with all required parameters
+    const paymentParams = new URLSearchParams({
+      claimId,
+      customerName: `${claimData.firstName} ${claimData.lastName}`,
+      customerEmail: claimData.email,
+      customerPhone: claimData.phoneNumber,
+      amount: "99",
       activationCode: claimData.activationCode,
-      paymentStatus: "paid", // Only block if payment was successful
+      purchaseType: claimData.purchaseType,
     })
 
-    if (existingPaidClaim) {
-      console.warn("Duplicate paid claim detected:", {
-        email: claimData.email,
-        activationCode: claimData.activationCode,
-      })
-      return NextResponse.json(
-        {
-          success: false,
-          error: "duplicate_claim",
-          message: "You have already submitted a successful claim for this activation code.",
-        },
-        { status: 400 },
-      )
-    }
-
-    // Generate unique claim ID
-    const claimId = `claim_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    claimData._id = claimId as any
-
-    // Insert claim into systech_ott_platform.claims collection
-    console.log("Inserting claim into systech_ott_platform.claims collection...")
-    const result = await claimsCollection.insertOne(claimData as IClaimResponse)
-
-    console.log("Claim inserted into systech_ott_platform.claims:", result.insertedId)
-
-    if (!result.insertedId) {
-      console.error("Failed to insert claim into systech_ott_platform.claims")
-      return NextResponse.json({ success: false, error: "Failed to save claim data" }, { status: 500 })
-    }
-
-    // Send order placed confirmation email
-    try {
-      console.log("Sending order placed confirmation email...")
-      const customerFullName = `${claimData.firstName || ""} ${claimData.lastName || ""}`.trim()
-
-      await sendEmail(
-        claimData.email,
-        "Order Placed Successfully - OTT Code Claim - SYSTECH DIGITAL",
-        "order_placed",
-        claimData,
-        {
-          to: claimData.email ?? "",
-          subject: "Order Placed Successfully - OTT Code Claim - SYSTECH DIGITAL",
-          template: "order_placed",
-          data: {
-            customerName: customerFullName,
-            email: claimData.email,
-            phone: claimData.phone,
-            claimId: claimId,
-            activationCode: claimData.activationCode,
-            date: new Date().toLocaleDateString("en-IN", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            }),
-          },
-        },
-      )
-      console.log("Order placed confirmation email sent successfully")
-    } catch (emailError) {
-      console.error("Failed to send order placed confirmation email:", emailError)
-      // Don't fail the request if email fails
-    }
-
-    // Send confirmation email (existing functionality)
-    try {
-      console.log("Sending confirmation email...")
-      await sendEmail(claimData.email, "OTT Claim Submitted Successfully - SYSTECH DIGITAL", "custom", claimData, {
-        to: claimData.email ?? "",
-        subject: "OTT Claim Submitted Successfully - SYSTECH DIGITAL",
-        template: "custom",
-        data: claimData,
-      })
-      console.log("Confirmation email sent successfully")
-    } catch (emailError) {
-      console.error("Failed to send confirmation email:", emailError)
-      // Don't fail the request if email fails
-    }
-
-    console.log("OTT Claim submission completed successfully")
-    // Ensure customerName is always a string, even if parts are undefined
-    const customerFullName = `${claimData.firstName || ""} ${claimData.lastName || ""}`.trim()
+    const redirectUrl = `/payment?${paymentParams.toString()}`
 
     return NextResponse.json({
       success: true,
-      claimId: claimId,
-      message: "Claim submitted successfully and saved to systech_ott_platform.claims",
-      redirectUrl: `/payment?claimId=${claimId}&amount=99&customerName=${encodeURIComponent(
-        customerFullName,
-      )}&customerEmail=${encodeURIComponent(claimData.email ?? "")}&customerPhone=${encodeURIComponent(claimData.phone ?? "")}`,
+      message: "Claim submitted successfully",
+      claimId,
+      redirectUrl,
     })
-  } catch (error: any) {
-    console.error("Error submitting claim to systech_ott_platform.claims:", error)
-    return NextResponse.json(
-      {
-        success: false,
-        error: error.message || "Failed to submit claim to systech_ott_platform database",
-      },
-      { status: 500 },
-    )
+  } catch (error) {
+    console.error("Error submitting claim:", error)
+    return NextResponse.json({ success: false, message: "Failed to submit claim. Please try again." }, { status: 500 })
   }
 }
