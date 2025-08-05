@@ -824,61 +824,36 @@ export default function OTTClaimPage() {
     }
 
     try {
-      // For demo purposes, let's simulate the validation locally first
-      // This avoids API issues during development
+      // Basic client-side validation first
       if (code.length < 6) {
         setActivationCodeValidationMessage("Activation code must be at least 6 characters long.")
         setActivationCodeValidationStatus("error")
         return
       }
 
-      // Simulate API call with local validation
-      if (code.startsWith("VALID") || code.startsWith("TEST") || code.startsWith("DEMO")) {
+      // Make API call to verify activation code
+      const response = await fetch("/api/ott-claim/verify-activation-code", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ activationCode: code }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
         setActivationCodeValidationMessage("Activation code is valid and available. You can proceed.")
         setActivationCodeValidationStatus("success")
-        return
-      }
-
-      // Try to make actual API call, but fall back to local validation if it fails
-      try {
-        const response = await fetch("/api/ott-claim/verify-activation-code", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ activationCode: code }),
-        })
-
-        if (response.ok) {
-          const data = await response.json()
-          if (data.success) {
-            setActivationCodeValidationMessage("Activation code is valid and available. You can proceed.")
-            setActivationCodeValidationStatus("success")
-          } else {
-            setActivationCodeValidationMessage(data.error || "Activation code validation failed.")
-            setActivationCodeValidationStatus("error")
-          }
-        } else {
-          throw new Error("API not available")
-        }
-      } catch (apiError) {
-        // Fallback to local validation if API fails
-        console.log("API call failed, using local validation:", apiError)
-
-        // Simple local validation rules
-        if (code.length >= 8 && /^[A-Z0-9]+$/.test(code)) {
-          setActivationCodeValidationMessage("Activation code format is valid. You can proceed.")
-          setActivationCodeValidationStatus("success")
-        } else {
-          setActivationCodeValidationMessage(
-            "Please enter a valid activation code (8+ characters, letters and numbers only).",
-          )
-          setActivationCodeValidationStatus("error")
-        }
+      } else {
+        setActivationCodeValidationMessage(data.error || "Activation code validation failed.")
+        setActivationCodeValidationStatus("error")
       }
     } catch (err) {
       console.error("Error in activation code validation:", err)
-      setActivationCodeValidationMessage("Unable to verify activation code. Please try again.")
+      setActivationCodeValidationMessage(
+        "Unable to verify activation code. Please check your connection and try again.",
+      )
       setActivationCodeValidationStatus("error")
     }
   }, [])

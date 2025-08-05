@@ -1,7 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
 import type { Collection } from "mongodb"
-import { parse } from "path";
 
 // Basic in-memory rate limiter
 const ipAttempts = new Map<string, { count: number; lastAttempt: number }>()
@@ -36,49 +35,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Activation code is required." }, { status: 400 })
     }
 
-    const activationCodestring = String(activationCodeRaw).trim()
-     const activationCode = parseInt(activationCodestring, 10)
+    const activationCodeString = String(activationCodeRaw).trim()
+    console.log("Searching for activation code:", activationCodeString)
 
     const db = await getDatabase()
     const salesCollection: Collection = db.collection("salesrecords")
 
-    console.log("Searching for code:", activationCode)
+    // Search for the activation code in the database
+    // Try both string and number formats to handle different data types
+    const salesRecord = await salesCollection.findOne({
+      $or: [{ activationCode: activationCodeString }, { activationCode: Number.parseInt(activationCodeString, 10) }],
+    })
 
-    const salesRecord = await salesCollection.findOne({activationCode: activationCode})
-    console.log("Sales records found",salesRecord)
-    // ({
-    //   activationCode: { $regex: `^${activationCode}$`, $options: "i" },
-    // })
+    console.log("Sales record found:", salesRecord ? "Yes" : "No")
 
-    
     if (!salesRecord) {
-      const salesRecord2 = await salesCollection.findOne({activationCode: activationCodestring})
-      if (!salesRecord2) {
-      return NextResponse.json({ success: false, error: "Activation code not found." }, { status: 404 })
-      }
-      
-    if (salesRecord2.status?.toLowerCase() === "claimed") {
-      return NextResponse.json(
-        { success: false, error: "This activation code has already been claimed." },
-        { status: 409 },
-      )
-    }
-
-    if (salesRecord2.status?.toLowerCase() !== "available") {
       return NextResponse.json(
         {
           success: false,
-          error: `Activation code status is '${salesRecord2.status}'. It must be 'available' to proceed.`,
+          error: "Activation code not found in our records.",
         },
-        { status: 400 },
+        { status: 404 },
       )
     }
 
-    return NextResponse.json({ success: true, message: "Activation code is valid and available." })
-      
-    }
-
-
+    // Check if the activation code status is available
     if (salesRecord.status?.toLowerCase() === "claimed") {
       return NextResponse.json(
         { success: false, error: "This activation code has already been claimed." },
@@ -96,9 +77,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    return NextResponse.json({ success: true, message: "Activation code is valid and available." })
+    // If we reach here, the activation code is valid and available
+    console.log("Activation code validation successful for:", activationCodeString)
+    return NextResponse.json({
+      success: true,
+      message: "Activation code is valid and available. You can proceed.",
+    })
   } catch (error: any) {
     console.error("Error verifying activation code:", error)
-    return NextResponse.json({ success: false, error: error.message || "Internal server error." }, { status: 500 })
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Internal server error while verifying activation code.",
+      },
+      { status: 500 },
+    )
   }
 }
