@@ -88,10 +88,25 @@ export default function AdminPage() {
       // Fetch all data with error handling for each endpoint
       const fetchWithFallback = async (url: string, fallback: any[] = []) => {
         try {
-          const response = await fetch(`${url}?_=${timestamp}`)
+          const response = await fetch(`${url}?_=${timestamp}`, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          })
           if (response.ok) {
             const data = await response.json()
-            return Array.isArray(data) ? data : fallback
+            // Handle different response formats
+            if (Array.isArray(data)) {
+              return data
+            } else if (data.claims && Array.isArray(data.claims)) {
+              return data.claims
+            } else if (data.success && Array.isArray(data.data)) {
+              return data.data
+            } else {
+              console.warn(`Unexpected response format from ${url}:`, data)
+              return fallback
+            }
           } else {
             console.warn(`Failed to fetch from ${url}:`, response.status)
             return fallback
@@ -332,10 +347,12 @@ export default function AdminPage() {
       case "delivered":
       case "available":
       case "claimed":
+      case "completed":
         return <Badge className="bg-green-100 text-green-800 border-green-300">{status.toUpperCase()}</Badge>
       case "pending":
       case "assigned":
       case "sold":
+      case "processing":
         return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300">{status.toUpperCase()}</Badge>
       case "failed":
       case "used":
@@ -742,6 +759,7 @@ export default function AdminPage() {
                                 onCheckedChange={(checked) => handleSelectAll(claimResponses || [], checked as boolean)}
                               />
                             </TableHead>
+                            <TableHead className="font-bold text-gray-800">Claim ID</TableHead>
                             <TableHead className="font-bold text-gray-800">Name</TableHead>
                             <TableHead className="font-bold text-gray-800">Email</TableHead>
                             <TableHead className="font-bold text-gray-800">Phone</TableHead>
@@ -771,6 +789,7 @@ export default function AdminPage() {
                                   }
                                 />
                               </TableCell>
+                              <TableCell className="font-mono text-sm">{claim.claimId || "N/A"}</TableCell>
                               <TableCell className="font-medium">
                                 {`${claim.firstName || ""} ${claim.lastName || ""}`.trim() || "N/A"}
                               </TableCell>
@@ -784,7 +803,7 @@ export default function AdminPage() {
                               <TableCell>{claim.pincode || "N/A"}</TableCell>
                               <TableCell className="font-mono text-sm">{claim.activationCode || "N/A"}</TableCell>
                               <TableCell>{getStatusBadge(claim.paymentStatus)}</TableCell>
-                              <TableCell>{getStatusBadge(claim.ottCodeStatus)}</TableCell>
+                              <TableCell>{getStatusBadge(claim.ottCodeStatus || claim.ottStatus)}</TableCell>
                               <TableCell className="font-mono text-sm">
                                 {claim.ottCode || <span className="text-gray-400">-</span>}
                               </TableCell>
@@ -820,7 +839,7 @@ export default function AdminPage() {
                             </TableRow>
                           )) || (
                             <TableRow>
-                              <TableCell colSpan={13} className="text-center py-8 text-gray-500">
+                              <TableCell colSpan={15} className="text-center py-8 text-gray-500">
                                 No claims data available
                               </TableCell>
                             </TableRow>

@@ -1,102 +1,79 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { connectToDatabase } from "@/lib/mongodb"
+export const dynamic = "force-dynamic"
 
-export async function GET(request: NextRequest) {
+import { NextResponse } from "next/server"
+import { getDatabase } from "@/lib/mongodb"
+import type { IClaimResponse, ClaimResponse } from "@/lib/models"
+
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url)
-    const claimId = searchParams.get("claimId")
+    const db = await getDatabase()
 
-    if (!claimId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Claim ID is required",
-        },
-        { status: 400 },
-      )
-    }
+    // Sort by createdAt in descending order (-1)
+    const claims = await db.collection<IClaimResponse>("claims").find({}).sort({ createdAt: -1 }).toArray()
 
-    const { db } = await connectToDatabase()
-    const claimsCollection = db.collection("claims")
+    const formattedClaims: ClaimResponse[] = claims.map((claim) => ({
+      ...claim,
+      id: claim._id?.toString() || "",
+      _id: claim._id?.toString() || "",
+      createdAt: claim.createdAt ? claim.createdAt.toString() : new Date().toISOString(),
+      updatedAt: claim.updatedAt ? claim.updatedAt.toString() : "",
+    }))
 
-    const claim = await claimsCollection.findOne({ claimId })
+    console.log(`Fetched ${formattedClaims.length} claims from systech_ott_platform`)
 
-    if (!claim) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Claim not found",
-        },
-        { status: 404 },
-      )
-    }
-
-    return NextResponse.json({
-      success: true,
-      claim,
-    })
-  } catch (error) {
-    console.error("Error fetching claim:", error)
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to fetch claim",
-      },
-      { status: 500 },
-    )
+    return NextResponse.json(formattedClaims)
+  } catch (error: any) {
+    console.error("Error fetching claims:", error)
+    return NextResponse.json({ error: error.message || "Failed to fetch claims" }, { status: 500 })
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
-    const body = await request.json()
-    const { page = 1, limit = 10, status, search } = body
+    const db = await getDatabase()
 
-    const { db } = await connectToDatabase()
-    const claimsCollection = db.collection("claims")
+    // Get all claims for admin dashboard
+    const claims = await db.collection<IClaimResponse>("claims").find({}).sort({ createdAt: -1 }).toArray()
 
-    // Build query
-    const query: any = {}
-    if (status && status !== "all") {
-      query.paymentStatus = status
-    }
-    if (search) {
-      query.$or = [
-        { claimId: { $regex: search, $options: "i" } },
-        { email: { $regex: search, $options: "i" } },
-        { firstName: { $regex: search, $options: "i" } },
-        { lastName: { $regex: search, $options: "i" } },
-        { activationCode: { $regex: search, $options: "i" } },
-      ]
-    }
+    const formattedClaims: ClaimResponse[] = claims.map((claim) => ({
+      ...claim,
+      id: claim._id?.toString() || "",
+      _id: claim._id?.toString() || "",
+      createdAt: claim.createdAt ? claim.createdAt.toString() : new Date().toISOString(),
+      updatedAt: claim.updatedAt ? claim.updatedAt.toString() : "",
+      // Ensure all required fields are present
+      firstName: claim.firstName || "",
+      lastName: claim.lastName || "",
+      email: claim.email || "",
+      phoneNumber: claim.phoneNumber || claim.phone || "",
+      address: claim.address || "",
+      state: claim.state || "",
+      city: claim.city || "",
+      pincode: claim.pincode || "",
+      activationCode: claim.activationCode || "",
+      paymentStatus: claim.paymentStatus || "pending",
+      ottCodeStatus: claim.ottCodeStatus || claim.ottStatus || "pending",
+      ottCode: claim.ottCode || "",
+      razorpayOrderId: claim.razorpayOrderId || "",
+      paymentId: claim.paymentId || "",
+      claimId: claim.claimId || "",
+    }))
 
-    // Get total count
-    const total = await claimsCollection.countDocuments(query)
-
-    // Get claims with pagination
-    const claims = await claimsCollection
-      .find(query)
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .toArray()
+    console.log(`Admin fetched ${formattedClaims.length} claims from systech_ott_platform`)
 
     return NextResponse.json({
       success: true,
-      claims,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-      },
+      claims: formattedClaims,
+      total: formattedClaims.length,
     })
-  } catch (error) {
-    console.error("Error fetching claims:", error)
+  } catch (error: any) {
+    console.error("Error fetching admin claims:", error)
     return NextResponse.json(
       {
         success: false,
-        error: "Failed to fetch claims",
+        error: error.message || "Failed to fetch claims",
+        claims: [],
+        total: 0,
       },
       { status: 500 },
     )
