@@ -1,579 +1,509 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import {
-  Mail,
-  Search,
-  Filter,
-  Download,
-  Calendar,
-  User,
-  CheckCircle,
-  XCircle,
-  Clock,
-  AlertCircle,
-  RefreshCw,
-} from "lucide-react"
-import Image from "next/image"
-import { DashboardSidebar } from "@/components/dashboard-sidebar"
-import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
+import { Loader2, Search, Download, RefreshCw, Mail, AlertCircle, CheckCircle, Clock, XCircle } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
-interface EmailRecord {
+interface ClaimData {
   _id: string
+  claimId: string
   firstName: string
   lastName: string
   email: string
-  phoneNumber: string
-  address: string
-  state: string
-  city: string
-  pincode: string
+  phoneNumber?: string
+  phone?: string
   activationCode: string
-  paymentStatus: "pending" | "paid" | "failed"
-  ottCode: string
-  ottCodeStatus: "pending" | "delivered" | "failed" | "already_claimed" | "activation_code_not_found"
-  ottAssignedAt?: string
+  paymentStatus: string
+  ottStatus?: string
+  ottCodeStatus?: string
+  ottCode?: string
+  platform?: string
   createdAt: string
-  amount?: number
+  updatedAt: string
+  paidAt?: string
+  failureReason?: string
 }
 
 export default function EmailsPage() {
-  const [emails, setEmails] = useState<EmailRecord[]>([])
-  const [filteredEmails, setFilteredEmails] = useState<EmailRecord[]>([])
+  const [claims, setClaims] = useState<ClaimData[]>([])
+  const [filteredClaims, setFilteredClaims] = useState<ClaimData[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [paymentFilter, setPaymentFilter] = useState("all")
-  const router = useRouter()
+  const [debugInfo, setDebugInfo] = useState<any>(null)
 
-  useEffect(() => {
-    // Check authentication
-    const isAuthenticated = sessionStorage.getItem("adminAuthenticated")
-    if (!isAuthenticated) {
-      router.push("/login")
-      return
-    }
-
-    fetchEmails()
-  }, [router])
-
-  useEffect(() => {
-    filterEmails()
-  }, [emails, searchTerm, statusFilter, paymentFilter])
-
-  const fetchEmails = async () => {
+  const fetchClaims = async () => {
     try {
       setLoading(true)
-      const response = await fetch("/api/admin/claims")
-      if (response.ok) {
-        const data = await response.json()
-        setEmails(data)
+      setError(null)
+
+      console.log("🔄 Fetching claims data...")
+
+      const response = await fetch("/api/admin/claims", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      console.log("📡 Response status:", response.status)
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
       }
-    } catch (error) {
-      console.error("Error fetching emails:", error)
+
+      const data = await response.json()
+      console.log("📊 Raw response data:", data)
+
+      // Handle different response formats
+      let claimsData: ClaimData[] = []
+
+      if (data.success && Array.isArray(data.claims)) {
+        claimsData = data.claims
+      } else if (Array.isArray(data)) {
+        claimsData = data
+      } else if (data.data && Array.isArray(data.data)) {
+        claimsData = data.data
+      } else {
+        console.warn("⚠️ Unexpected data format:", data)
+        claimsData = []
+      }
+
+      console.log(`✅ Processed ${claimsData.length} claims`)
+
+      // Set debug info
+      setDebugInfo({
+        totalClaims: claimsData.length,
+        responseFormat: data.success ? "success format" : "direct array",
+        sampleClaim: claimsData[0] || null,
+        lastFetch: new Date().toLocaleTimeString(),
+      })
+
+      setClaims(claimsData)
+      setFilteredClaims(claimsData)
+    } catch (err) {
+      console.error("❌ Error fetching claims:", err)
+      setError(err instanceof Error ? err.message : "Failed to fetch claims data")
+      setClaims([])
+      setFilteredClaims([])
     } finally {
       setLoading(false)
     }
   }
 
-  const filterEmails = () => {
-    let filtered = emails
+  useEffect(() => {
+    fetchClaims()
+  }, [])
+
+  useEffect(() => {
+    let filtered = claims
 
     // Search filter
     if (searchTerm) {
       filtered = filtered.filter(
-        (email) =>
-          email.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          email.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          email.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          email.activationCode.toLowerCase().includes(searchTerm.toLowerCase()),
+        (claim) =>
+          claim.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          claim.claimId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          `${claim.firstName} ${claim.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          claim.activationCode?.toLowerCase().includes(searchTerm.toLowerCase()),
       )
     }
 
     // Status filter
     if (statusFilter !== "all") {
-      filtered = filtered.filter((email) => email.ottCodeStatus === statusFilter)
+      filtered = filtered.filter((claim) => {
+        const ottStatus = claim.ottStatus || claim.ottCodeStatus || "pending"
+        return ottStatus === statusFilter
+      })
     }
 
     // Payment filter
     if (paymentFilter !== "all") {
-      filtered = filtered.filter((email) => email.paymentStatus === paymentFilter)
+      filtered = filtered.filter((claim) => claim.paymentStatus === paymentFilter)
     }
 
-    setFilteredEmails(filtered)
+    setFilteredClaims(filtered)
+  }, [claims, searchTerm, statusFilter, paymentFilter])
+
+  const getStatusBadge = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case "delivered":
+      case "success":
+        return (
+          <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Delivered
+          </Badge>
+        )
+      case "failed":
+      case "error":
+        return (
+          <Badge className="bg-red-100 text-red-800 hover:bg-red-100">
+            <XCircle className="w-3 h-3 mr-1" />
+            Failed
+          </Badge>
+        )
+      case "pending":
+        return (
+          <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">
+            <Clock className="w-3 h-3 mr-1" />
+            Pending
+          </Badge>
+        )
+      default:
+        return (
+          <Badge variant="secondary">
+            <AlertCircle className="w-3 h-3 mr-1" />
+            Unknown
+          </Badge>
+        )
+    }
+  }
+
+  const getPaymentBadge = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case "paid":
+      case "success":
+        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Paid</Badge>
+      case "failed":
+        return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Failed</Badge>
+      case "pending":
+        return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Pending</Badge>
+      default:
+        return <Badge variant="secondary">Unknown</Badge>
+    }
   }
 
   const exportToCSV = () => {
     const headers = [
-      "Name",
+      "Claim ID",
+      "Customer Name",
       "Email",
       "Phone",
-      "Address",
-      "State",
-      "City",
-      "Pincode",
       "Activation Code",
       "Payment Status",
       "OTT Status",
       "OTT Code",
-      "Date Created",
-      "OTT Assigned Date",
+      "Platform",
+      "Created At",
+      "Updated At",
     ]
 
-    const csvData = filteredEmails.map((email) => [
-      `${email.firstName} ${email.lastName}`,
-      email.email,
-      email.phoneNumber,
-      email.address || "N/A",
-      email.state || "N/A",
-      email.city || "N/A",
-      email.pincode || "N/A",
-      email.activationCode,
-      email.paymentStatus,
-      email.ottCodeStatus,
-      email.ottCode || "Not assigned",
-      formatDateTime(email.createdAt),
-      email.ottAssignedAt ? formatDateTime(email.ottAssignedAt) : "Not assigned",
+    const csvData = filteredClaims.map((claim) => [
+      claim.claimId || "",
+      `${claim.firstName || ""} ${claim.lastName || ""}`.trim(),
+      claim.email || "",
+      claim.phoneNumber || claim.phone || "",
+      claim.activationCode || "",
+      claim.paymentStatus || "",
+      claim.ottStatus || claim.ottCodeStatus || "",
+      claim.ottCode || "",
+      claim.platform || "",
+      claim.createdAt ? new Date(claim.createdAt).toLocaleString("en-IN") : "",
+      claim.updatedAt ? new Date(claim.updatedAt).toLocaleString("en-IN") : "",
     ])
 
-    const csvContent = [headers, ...csvData].map((row) => row.join(",")).join("\n")
+    const csvContent = [headers, ...csvData].map((row) => row.map((cell) => `"${cell}"`).join(",")).join("\n")
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
     const link = document.createElement("a")
     const url = URL.createObjectURL(blob)
     link.setAttribute("href", url)
-    link.setAttribute("download", `email-history-${new Date().toISOString().split("T")[0]}.csv`)
+    link.setAttribute("download", `email_claims_${new Date().toISOString().split("T")[0]}.csv`)
     link.style.visibility = "hidden"
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
   }
 
-  const formatDateTime = (dateString: string) => {
-    if (!dateString) return "N/A"
-    try {
-      const date = new Date(dateString)
-      return date.toLocaleString("en-IN", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: true,
-      })
-    } catch (error) {
-      return "Invalid Date"
-    }
-  }
-
-  const getStatusBadge = (status: string, type: "payment" | "ott") => {
-    const statusConfig = {
-      payment: {
-        pending: { color: "bg-yellow-100 text-yellow-800", icon: Clock },
-        paid: { color: "bg-green-100 text-green-800", icon: CheckCircle },
-        failed: { color: "bg-red-100 text-red-800", icon: XCircle },
-      },
-      ott: {
-        pending: { color: "bg-yellow-100 text-yellow-800", icon: Clock },
-        delivered: { color: "bg-green-100 text-green-800", icon: CheckCircle },
-        failed: { color: "bg-red-100 text-red-800", icon: XCircle },
-        already_claimed: { color: "bg-orange-100 text-orange-800", icon: AlertCircle },
-        activation_code_not_found: { color: "bg-gray-100 text-gray-800", icon: XCircle },
-      },
-    }
-
-    const config = statusConfig[type][status as keyof (typeof statusConfig)[typeof type]]
-    const Icon = config?.icon || AlertCircle
-
-    return (
-      <Badge className={`${config?.color} font-semibold flex items-center space-x-1`}>
-        <Icon className="w-3 h-3" />
-        <span>{status.toUpperCase().replace("_", " ")}</span>
-      </Badge>
-    )
-  }
-
-  const stats = {
-    total: emails.length,
-    delivered: emails.filter((e) => e.ottCodeStatus === "delivered").length,
-    pending: emails.filter((e) => e.ottCodeStatus === "pending").length,
-    failed: emails.filter((e) => e.ottCodeStatus === "failed").length,
-    paid: emails.filter((e) => e.paymentStatus === "paid").length,
-  }
-
   if (loading) {
     return (
-      <SidebarProvider>
-        <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 flex">
-          <DashboardSidebar />
-          <SidebarInset className="flex-1 overflow-hidden">
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-600 mx-auto"></div>
-                <p className="mt-4 text-lg text-gray-600">Loading email history...</p>
-              </div>
-            </div>
-          </SidebarInset>
+      <div className="container mx-auto p-6">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading email data...</p>
+          </div>
         </div>
-      </SidebarProvider>
+      </div>
     )
   }
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 flex">
-        <DashboardSidebar />
-        <SidebarInset className="flex-1 overflow-hidden">
-          {/* Header */}
-          <header className="bg-gradient-to-r from-teal-600 via-cyan-600 to-blue-600 shadow-xl border-b border-teal-200 sticky top-0 z-10">
-            <div className="px-6 py-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <SidebarTrigger className="text-white hover:bg-white/20 p-2 rounded-lg" />
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-white/20 rounded-lg">
-                      <Image
-                        src="/logo.png"
-                        alt="SYSTECH DIGITAL Logo"
-                        width={32}
-                        height={32}
-                        className="rounded-full"
-                      />
-                    </div>
-                    <div>
-                      <h1 className="text-2xl font-bold text-white flex items-center">
-                        <Mail className="w-6 h-6 mr-2" />
-                        Email History & Tracking
-                      </h1>
-                      <p className="text-sm text-teal-200 mt-1">Complete email communication tracking system</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-4">
-                  <Button
-                    onClick={fetchEmails}
-                    variant="outline"
-                    size="sm"
-                    className="bg-white/20 text-white border-white/30 hover:bg-white/30"
-                  >
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Refresh
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </header>
-
-          <div className="p-6 max-w-7xl mx-auto">
-            <div className="space-y-8">
-              {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-                <Card className="shadow-xl border-0 bg-gradient-to-br from-blue-500 to-blue-600 text-white">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-blue-100 text-sm font-medium">Total Emails</p>
-                        <p className="text-3xl font-bold">{stats.total}</p>
-                      </div>
-                      <Mail className="w-8 h-8 text-blue-200" />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="shadow-xl border-0 bg-gradient-to-br from-green-500 to-green-600 text-white">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-green-100 text-sm font-medium">Delivered</p>
-                        <p className="text-3xl font-bold">{stats.delivered}</p>
-                      </div>
-                      <CheckCircle className="w-8 h-8 text-green-200" />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="shadow-xl border-0 bg-gradient-to-br from-yellow-500 to-yellow-600 text-white">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-yellow-100 text-sm font-medium">Pending</p>
-                        <p className="text-3xl font-bold">{stats.pending}</p>
-                      </div>
-                      <Clock className="w-8 h-8 text-yellow-200" />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="shadow-xl border-0 bg-gradient-to-br from-red-500 to-red-600 text-white">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-red-100 text-sm font-medium">Failed</p>
-                        <p className="text-3xl font-bold">{stats.failed}</p>
-                      </div>
-                      <XCircle className="w-8 h-8 text-red-200" />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="shadow-xl border-0 bg-gradient-to-br from-purple-500 to-purple-600 text-white">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-purple-100 text-sm font-medium">Paid Claims</p>
-                        <p className="text-3xl font-bold">{stats.paid}</p>
-                      </div>
-                      <User className="w-8 h-8 text-purple-200" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Filters and Search */}
-              <Card className="shadow-xl border-0">
-                <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-t-lg border-b">
-                  <CardTitle className="text-xl font-bold text-gray-800 flex items-center">
-                    <Filter className="w-5 h-5 mr-2 text-gray-600" />
-                    Advanced Filtering & Search
-                  </CardTitle>
-                  <CardDescription>Filter and search through email records with advanced options</CardDescription>
-                </CardHeader>
-                <CardContent className="p-6">
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">Search</label>
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                        <Input
-                          placeholder="Search by email, name, or code..."
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          className="pl-10"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">OTT Status</label>
-                      <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="All statuses" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Statuses</SelectItem>
-                          <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="delivered">Delivered</SelectItem>
-                          <SelectItem value="failed">Failed</SelectItem>
-                          <SelectItem value="already_claimed">Already Claimed</SelectItem>
-                          <SelectItem value="activation_code_not_found">Code Not Found</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">Payment Status</label>
-                      <Select value={paymentFilter} onValueChange={setPaymentFilter}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="All payments" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Payments</SelectItem>
-                          <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="paid">Paid</SelectItem>
-                          <SelectItem value="failed">Failed</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">Actions</label>
-                      <Button onClick={exportToCSV} className="w-full bg-teal-600 hover:bg-teal-700">
-                        <Download className="w-4 h-4 mr-2" />
-                        Export CSV
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Email Records Table */}
-              <Card className="shadow-xl border-0">
-                <CardHeader className="bg-gradient-to-r from-teal-50 to-cyan-50 rounded-t-lg border-b">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <CardTitle className="text-2xl font-bold text-gray-800">Email Communication Records</CardTitle>
-                      <CardDescription className="text-lg text-gray-600">
-                        Complete tracking of all email communications from Claims table ({filteredEmails.length} of{" "}
-                        {emails.length} records)
-                      </CardDescription>
-                    </div>
-                    <Badge variant="outline" className="bg-teal-50 text-teal-700 border-teal-200">
-                      <Calendar className="w-4 h-4 mr-1" />
-                      Live Data
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
-                    <Table>
-                      <TableHeader className="sticky top-0 bg-white z-10">
-                        <TableRow className="bg-gray-50">
-                          <TableHead className="font-semibold">Customer Name</TableHead>
-                          <TableHead className="font-semibold">Email Address</TableHead>
-                          <TableHead className="font-semibold">Phone</TableHead>
-                          <TableHead className="font-semibold">Address</TableHead>
-                          <TableHead className="font-semibold">State</TableHead>
-                          <TableHead className="font-semibold">City</TableHead>
-                          <TableHead className="font-semibold">Pincode</TableHead>
-                          <TableHead className="font-semibold">Activation Code</TableHead>
-                          <TableHead className="font-semibold">Payment Status</TableHead>
-                          <TableHead className="font-semibold">OTT Status</TableHead>
-                          <TableHead className="font-semibold">OTT Code</TableHead>
-                          <TableHead className="font-semibold">Created Date & Time</TableHead>
-                          <TableHead className="font-semibold">OTT Assigned Date & Time</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredEmails.length === 0 ? (
-                          <TableRow>
-                            <TableCell colSpan={13} className="text-center py-12">
-                              <div className="flex flex-col items-center space-y-4">
-                                <Mail className="w-16 h-16 text-gray-300" />
-                                <div>
-                                  <h3 className="text-lg font-semibold text-gray-600">No Email Records Found</h3>
-                                  <p className="text-gray-500">
-                                    {searchTerm || statusFilter !== "all" || paymentFilter !== "all"
-                                      ? "Try adjusting your filters or search terms"
-                                      : "No email records available in the system"}
-                                  </p>
-                                </div>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ) : (
-                          filteredEmails.map((email) => (
-                            <TableRow key={email._id} className="hover:bg-gray-50 transition-colors">
-                              <TableCell className="font-medium">
-                                <div className="flex items-center space-x-2">
-                                  <div className="w-8 h-8 bg-teal-100 rounded-full flex items-center justify-center">
-                                    <User className="w-4 h-4 text-teal-600" />
-                                  </div>
-                                  <div>
-                                    <p className="font-semibold">
-                                      {`${email.firstName || ""} ${email.lastName || ""}`.trim() || "N/A"}
-                                    </p>
-                                  </div>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center space-x-2">
-                                  <Mail className="w-4 h-4 text-gray-400" />
-                                  <span className="text-blue-600 hover:text-blue-800 cursor-pointer">
-                                    {email.email}
-                                  </span>
-                                </div>
-                              </TableCell>
-                              <TableCell className="font-mono text-sm">{email.phoneNumber}</TableCell>
-                              <TableCell className="max-w-xs truncate" title={email.address || "N/A"}>
-                                {email.address || "N/A"}
-                              </TableCell>
-                              <TableCell>{email.state || "N/A"}</TableCell>
-                              <TableCell>{email.city || "N/A"}</TableCell>
-                              <TableCell>{email.pincode || "N/A"}</TableCell>
-                              <TableCell className="font-mono text-sm bg-gray-50 px-2 py-1 rounded">
-                                {email.activationCode}
-                              </TableCell>
-                              <TableCell>{getStatusBadge(email.paymentStatus, "payment")}</TableCell>
-                              <TableCell>{getStatusBadge(email.ottCodeStatus, "ott")}</TableCell>
-                              <TableCell>
-                                {email.ottCode ? (
-                                  <div className="font-mono text-sm bg-green-50 px-2 py-1 rounded border border-green-200">
-                                    {email.ottCode}
-                                  </div>
-                                ) : (
-                                  <span className="text-gray-400 italic">Not assigned</span>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center space-x-2">
-                                  <Calendar className="w-4 h-4 text-gray-400" />
-                                  <span className="text-sm">{formatDateTime(email.createdAt)}</span>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                {email.ottAssignedAt ? (
-                                  <div className="flex items-center space-x-2">
-                                    <CheckCircle className="w-4 h-4 text-green-500" />
-                                    <span className="text-sm">{formatDateTime(email.ottAssignedAt)}</span>
-                                  </div>
-                                ) : (
-                                  <span className="text-gray-400 italic">Not assigned</span>
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          ))
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Summary Information */}
-              <Card className="shadow-xl border-0">
-                <CardHeader className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-t-lg border-b">
-                  <CardTitle className="text-xl font-bold text-gray-800">Email Tracking Summary</CardTitle>
-                  <CardDescription>Overview of email communication status and system performance</CardDescription>
-                </CardHeader>
-                <CardContent className="p-6">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
-                      <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                        <CheckCircle className="w-6 h-6 text-green-600" />
-                      </div>
-                      <h3 className="font-semibold text-green-800">Email Delivery Rate</h3>
-                      <p className="text-2xl font-bold text-green-600">
-                        {stats.total > 0 ? Math.round((stats.delivered / stats.total) * 100) : 0}%
-                      </p>
-                      <p className="text-sm text-green-600">
-                        {stats.delivered} of {stats.total} emails delivered
-                      </p>
-                    </div>
-                    <div className="text-center p-4 bg-blue-50 rounded-lg border border-blue-200">
-                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                        <User className="w-6 h-6 text-blue-600" />
-                      </div>
-                      <h3 className="font-semibold text-blue-800">Payment Success Rate</h3>
-                      <p className="text-2xl font-bold text-blue-600">
-                        {stats.total > 0 ? Math.round((stats.paid / stats.total) * 100) : 0}%
-                      </p>
-                      <p className="text-sm text-blue-600">
-                        {stats.paid} of {stats.total} payments successful
-                      </p>
-                    </div>
-                    <div className="text-center p-4 bg-purple-50 rounded-lg border border-purple-200">
-                      <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                        <Mail className="w-6 h-6 text-purple-600" />
-                      </div>
-                      <h3 className="font-semibold text-purple-800">System Status</h3>
-                      <p className="text-lg font-bold text-purple-600">Operational</p>
-                      <p className="text-sm text-purple-600">Email tracking active</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </SidebarInset>
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Email Management</h1>
+          <p className="text-muted-foreground">
+            Track and manage customer email communications and OTT code deliveries
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button onClick={fetchClaims} variant="outline" size="sm">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+          <Button onClick={exportToCSV} variant="outline" size="sm">
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
+          </Button>
+        </div>
       </div>
-    </SidebarProvider>
+
+      {/* Debug Information Card */}
+      {debugInfo && (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-blue-800">Debug Information</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <span className="font-medium text-blue-700">Total Claims:</span>
+                <p className="text-blue-600">{debugInfo.totalClaims}</p>
+              </div>
+              <div>
+                <span className="font-medium text-blue-700">Response Format:</span>
+                <p className="text-blue-600">{debugInfo.responseFormat}</p>
+              </div>
+              <div>
+                <span className="font-medium text-blue-700">Last Fetch:</span>
+                <p className="text-blue-600">{debugInfo.lastFetch}</p>
+              </div>
+              <div>
+                <span className="font-medium text-blue-700">Sample Available:</span>
+                <p className="text-blue-600">{debugInfo.sampleClaim ? "Yes" : "No"}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {error && (
+        <Alert className="border-red-200 bg-red-50">
+          <AlertCircle className="h-4 w-4 text-red-600" />
+          <AlertDescription className="text-red-800">
+            <strong>Error loading data:</strong> {error}
+            <Button onClick={fetchClaims} variant="outline" size="sm" className="ml-2 bg-transparent">
+              Retry
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Emails</CardTitle>
+            <Mail className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{claims.length}</div>
+            <p className="text-xs text-muted-foreground">All customer communications</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Delivered</CardTitle>
+            <CheckCircle className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">
+              {claims.filter((c) => (c.ottStatus || c.ottCodeStatus) === "delivered").length}
+            </div>
+            <p className="text-xs text-muted-foreground">Successfully delivered codes</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending</CardTitle>
+            <Clock className="h-4 w-4 text-yellow-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-yellow-600">
+              {claims.filter((c) => (c.ottStatus || c.ottCodeStatus) === "pending").length}
+            </div>
+            <p className="text-xs text-muted-foreground">Awaiting processing</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Failed</CardTitle>
+            <XCircle className="h-4 w-4 text-red-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">
+              {claims.filter((c) => (c.ottStatus || c.ottCodeStatus) === "failed").length}
+            </div>
+            <p className="text-xs text-muted-foreground">Processing failures</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Filters</CardTitle>
+          <CardDescription>Filter and search through email communications</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by email, claim ID, name, or activation code..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-8"
+                />
+              </div>
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full md:w-[180px]">
+                <SelectValue placeholder="OTT Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="delivered">Delivered</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="failed">Failed</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={paymentFilter} onValueChange={setPaymentFilter}>
+              <SelectTrigger className="w-full md:w-[180px]">
+                <SelectValue placeholder="Payment Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Payments</SelectItem>
+                <SelectItem value="paid">Paid</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="failed">Failed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Email Communications Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Email Communications</CardTitle>
+          <CardDescription>
+            Showing {filteredClaims.length} of {claims.length} email records
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {filteredClaims.length === 0 ? (
+            <div className="text-center py-8">
+              <Mail className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No Email Records Found</h3>
+              <p className="text-muted-foreground mb-4">
+                {claims.length === 0
+                  ? "No email communications have been recorded yet."
+                  : "No records match your current filters."}
+              </p>
+              {claims.length === 0 && (
+                <Button onClick={fetchClaims} variant="outline">
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Refresh Data
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Claim ID</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>Activation Code</TableHead>
+                    <TableHead>Payment</TableHead>
+                    <TableHead>OTT Status</TableHead>
+                    <TableHead>OTT Code</TableHead>
+                    <TableHead>Platform</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead>Updated</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredClaims.map((claim) => (
+                    <TableRow key={claim._id}>
+                      <TableCell className="font-medium">{claim.claimId || "N/A"}</TableCell>
+                      <TableCell>{`${claim.firstName || ""} ${claim.lastName || ""}`.trim() || "N/A"}</TableCell>
+                      <TableCell>
+                        <div className="max-w-[200px] truncate" title={claim.email}>
+                          {claim.email || "N/A"}
+                        </div>
+                      </TableCell>
+                      <TableCell>{claim.phoneNumber || claim.phone || "N/A"}</TableCell>
+                      <TableCell>
+                        <code className="text-xs bg-muted px-1 py-0.5 rounded">{claim.activationCode || "N/A"}</code>
+                      </TableCell>
+                      <TableCell>{getPaymentBadge(claim.paymentStatus)}</TableCell>
+                      <TableCell>{getStatusBadge(claim.ottStatus || claim.ottCodeStatus || "pending")}</TableCell>
+                      <TableCell>
+                        {claim.ottCode ? (
+                          <code className="text-xs bg-green-100 text-green-800 px-1 py-0.5 rounded">
+                            {claim.ottCode}
+                          </code>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">Not assigned</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {claim.platform ? (
+                          <Badge variant="outline">{claim.platform}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">N/A</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {claim.createdAt
+                          ? new Date(claim.createdAt).toLocaleString("en-IN", {
+                              timeZone: "Asia/Kolkata",
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "N/A"}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {claim.updatedAt
+                          ? new Date(claim.updatedAt).toLocaleString("en-IN", {
+                              timeZone: "Asia/Kolkata",
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "N/A"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   )
 }
