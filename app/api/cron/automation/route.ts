@@ -3,7 +3,7 @@ import { getDatabase } from "@/lib/mongodb"
 
 export async function GET() {
   try {
-    console.log("Cron automation triggered at:", new Date().toISOString())
+    console.log("🤖 Cron automation triggered at:", new Date().toISOString())
 
     const db = await getDatabase()
     const settingsCollection = db.collection("automationsettings")
@@ -12,82 +12,100 @@ export async function GET() {
     const settings = await settingsCollection.findOne({})
 
     if (!settings || !settings.isEnabled) {
-      console.log("Automation is disabled, skipping...")
+      console.log("⏸️ Automation is disabled, skipping...")
       return NextResponse.json({
         success: true,
         message: "Automation is disabled",
+        skipped: true,
       })
     }
 
-    // Check if it's time to run (with 30 second tolerance)
-    const now = new Date()
-    const nextRun = settings.nextRun ? new Date(settings.nextRun) : new Date(0)
-    const timeDiff = now.getTime() - nextRun.getTime()
+    console.log(`🚀 Running automation #${(settings.totalRuns || 0) + 1}...`)
 
-    if (timeDiff < -30000) {
-      // More than 30 seconds early
-      console.log("Not time to run yet, skipping...")
-      return NextResponse.json({
-        success: true,
-        message: "Not time to run yet",
-      })
-    }
-
-    // Run the automation
+    // Run the automation process
     const automationResponse = await fetch(
       `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/api/admin/process-automation`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "User-Agent": "Vercel-Cron/1.0",
         },
       },
     )
 
-    const automationResult = await automationResponse.json()
+    if (!automationResponse.ok) {
+      const errorText = await automationResponse.text()
+      console.error("❌ Automation API failed:", errorText)
+      throw new Error(`Automation API failed: ${automationResponse.status} - ${errorText}`)
+    }
 
-    if (automationResponse.ok) {
-      // Update run statistics and schedule next run
-      const nextRunTime = new Date(now.getTime() + settings.intervalMinutes * 60 * 1000)
+    const automationResult = await automationResponse.json()
+    console.log("✅ Automation completed:", automationResult)
+
+    // Update run statistics and schedule next run
+    const now = new Date()
+    const nextRunTime = new Date(now.getTime() + (settings.intervalMinutes || 1) * 60 * 1000)
+
+    const updateResult = await settingsCollection.findOneAndUpdate(
+      {},
+      {
+        $inc: { totalRuns: 1 },
+        $set: {
+          lastRun: now,
+          nextRun: nextRunTime,
+          updatedAt: now,
+          lastRunResult: automationResult.results,
+        },
+      },
+      {
+        upsert: true,
+        returnDocument: "after",
+      },
+    )
+
+    console.log(`📊 Updated run count to: ${updateResult?.totalRuns || 0}`)
+    console.log(`⏰ Next run scheduled for: ${nextRunTime.toISOString()}`)
+
+    return NextResponse.json({
+      success: true,
+      message: "Automation completed successfully",
+      results: automationResult.results,
+      runNumber: updateResult?.totalRuns || 0,
+      nextRun: nextRunTime.toISOString(),
+      timestamp: now.toISOString(),
+    })
+  } catch (error) {
+    console.error("💥 Cron automation error:", error)
+
+    // Log the error to database for debugging
+    try {
+      const db = await getDatabase()
+      const settingsCollection = db.collection("automationsettings")
 
       await settingsCollection.findOneAndUpdate(
         {},
         {
-          $inc: { totalRuns: 1 },
           $set: {
-            lastRun: now,
-            nextRun: nextRunTime,
-            updatedAt: now,
+            lastError: {
+              message: error instanceof Error ? error.message : "Unknown error",
+              timestamp: new Date(),
+            },
+            updatedAt: new Date(),
           },
         },
+        { upsert: true },
       )
-
-      console.log(`Automation completed successfully. Next run: ${nextRunTime.toISOString()}`)
-
-      return NextResponse.json({
-        success: true,
-        message: "Automation completed successfully",
-        results: automationResult.results,
-        nextRun: nextRunTime.toISOString(),
-      })
-    } else {
-      console.error("Automation failed:", automationResult.error)
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Automation failed",
-          details: automationResult.error,
-        },
-        { status: 500 },
-      )
+    } catch (dbError) {
+      console.error("Failed to log error to database:", dbError)
     }
-  } catch (error) {
-    console.error("Cron automation error:", error)
+
     return NextResponse.json(
       {
         success: false,
         error: "Cron automation failed",
         details: error instanceof Error ? error.message : "Unknown error",
+        timestamp: new Date().toISOString(),
       },
       { status: 500 },
     )

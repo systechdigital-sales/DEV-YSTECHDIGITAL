@@ -37,6 +37,7 @@ import {
   Save,
   Settings,
   RefreshCw,
+  Activity,
 } from "lucide-react"
 import Image from "next/image"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -77,6 +78,11 @@ interface AutomationSettings {
   totalRuns: number
   lastRun?: string
   nextRun?: string
+  lastError?: {
+    message: string
+    timestamp: string
+  }
+  lastRunResult?: AutomationResult
 }
 
 const INTERVAL_OPTIONS = [
@@ -220,7 +226,7 @@ export default function AutomationPage() {
       return
     }
 
-    // Load automation settings
+    // Load automation settings immediately
     loadAutomationSettings()
 
     // Update current time every second
@@ -228,10 +234,10 @@ export default function AutomationPage() {
       setCurrentTime(new Date())
     }, 1000)
 
-    // Refresh settings every 10 seconds to get latest status
+    // Refresh settings every 5 seconds to get latest status
     refreshIntervalRef.current = setInterval(() => {
       loadAutomationSettings()
-    }, 10000)
+    }, 5000)
 
     return () => {
       clearInterval(timeInterval)
@@ -261,9 +267,11 @@ export default function AutomationPage() {
         const loadedSettings = {
           isEnabled: data.settings.isEnabled,
           intervalMinutes: data.settings.intervalMinutes,
-          totalRuns: data.settings.totalRuns,
+          totalRuns: data.settings.totalRuns || 0,
           lastRun: data.settings.lastRun,
           nextRun: data.settings.nextRun,
+          lastError: data.settings.lastError,
+          lastRunResult: data.settings.lastRunResult,
         }
         setSettings(loadedSettings)
         setTempSettings(loadedSettings)
@@ -272,9 +280,14 @@ export default function AutomationPage() {
           setNextRunCountdown(getTimeUntilNextRun(data.settings.nextRun))
         }
 
+        // Set results from last run if available
+        if (data.settings.lastRunResult && !results) {
+          setResults(data.settings.lastRunResult)
+        }
+
         if (!logs.length) {
           addLog(
-            `⚙️ Loaded automation settings: ${data.settings.isEnabled ? "ENABLED" : "DISABLED"} - Interval: ${data.settings.intervalMinutes} minutes`,
+            `⚙️ Loaded automation settings: ${data.settings.isEnabled ? "ENABLED" : "DISABLED"} - Interval: ${data.settings.intervalMinutes} minutes - Total Runs: ${data.settings.totalRuns || 0}`,
           )
         }
       }
@@ -508,6 +521,9 @@ export default function AutomationPage() {
   const hasUnsavedChanges =
     tempSettings.isEnabled !== settings.isEnabled || tempSettings.intervalMinutes !== settings.intervalMinutes
 
+  const isAutomationActive =
+    settings.isEnabled && settings.nextRun && getTimeUntilNextRun(settings.nextRun) !== "Running now..."
+
   return (
     <SidebarProvider>
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 flex">
@@ -533,6 +549,12 @@ export default function AutomationPage() {
                       <h1 className="text-2xl font-bold text-white flex items-center">
                         <Zap className="w-6 h-6 mr-2" />
                         Automation Control Center
+                        {isAutomationActive && (
+                          <Badge className="ml-3 bg-green-500 text-white animate-pulse">
+                            <Activity className="w-3 h-3 mr-1" />
+                            ACTIVE
+                          </Badge>
+                        )}
                       </h1>
                       <p className="text-sm text-green-200 mt-1">Intelligent OTT claim processing system</p>
                     </div>
@@ -558,9 +580,15 @@ export default function AutomationPage() {
                           <Settings className="w-6 h-6 text-purple-600" />
                         </div>
                         Auto-Automation Settings
+                        {settings.isEnabled && (
+                          <Badge className="ml-3 bg-green-100 text-green-800">
+                            <Power className="w-3 h-3 mr-1" />
+                            ENABLED
+                          </Badge>
+                        )}
                       </CardTitle>
                       <CardDescription className="text-lg text-gray-600">
-                        Configure automatic processing intervals and enable/disable automation
+                        Configure automatic processing intervals and enable/disable automation via Vercel Cron
                       </CardDescription>
                     </div>
                     <Button
@@ -689,23 +717,27 @@ export default function AutomationPage() {
                           Current Automation Status (IST)
                         </h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                          <div className="text-center">
+                          <div className="text-center bg-white/50 p-4 rounded-lg">
                             <p className="text-sm text-green-700 font-semibold">Total Runs Completed</p>
                             <p className="text-3xl font-bold text-green-800">{settings.totalRuns}</p>
+                            <Badge className="mt-2 bg-green-600 text-white">
+                              <Activity className="w-3 h-3 mr-1" />
+                              Live Count
+                            </Badge>
                           </div>
-                          <div className="text-center">
+                          <div className="text-center bg-white/50 p-4 rounded-lg">
                             <p className="text-sm text-green-700 font-semibold">Current Interval</p>
                             <p className="text-2xl font-bold text-green-800">
                               {formatInterval(settings.intervalMinutes)}
                             </p>
                           </div>
-                          <div className="text-center">
+                          <div className="text-center bg-white/50 p-4 rounded-lg">
                             <p className="text-sm text-green-700 font-semibold">Next Run In</p>
                             <p className="text-2xl font-bold text-green-800">
                               {settings.nextRun ? nextRunCountdown : "Calculating..."}
                             </p>
                           </div>
-                          <div className="text-center">
+                          <div className="text-center bg-white/50 p-4 rounded-lg">
                             <p className="text-sm text-green-700 font-semibold">Status</p>
                             <Badge className="text-lg px-4 py-2 bg-green-600 text-white">
                               {settings.nextRun && getTimeUntilNextRun(settings.nextRun) === "Running now..."
@@ -728,6 +760,18 @@ export default function AutomationPage() {
                             <p className="text-lg font-bold text-green-800">{formatIST(settings.nextRun)}</p>
                           </div>
                         )}
+
+                        {/* Progress bar for next run */}
+                        {settings.nextRun && (
+                          <div className="w-full bg-green-200 rounded-full h-3">
+                            <div
+                              className="bg-green-600 h-3 rounded-full transition-all duration-1000"
+                              style={{
+                                width: `${Math.max(0, Math.min(100, ((settings.intervalMinutes * 60 - (new Date(settings.nextRun).getTime() - Date.now()) / 1000) / (settings.intervalMinutes * 60)) * 100))}%`,
+                              }}
+                            />
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -738,6 +782,18 @@ export default function AutomationPage() {
                         <AlertDescription className="text-orange-700">
                           Automatic processing is currently disabled. Enable it above to start automatic claim
                           processing via Vercel Cron Jobs.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
+                    {/* Error Display */}
+                    {settings.lastError && (
+                      <Alert variant="destructive" className="border-red-200 bg-red-50">
+                        <AlertCircle className="h-5 w-5 text-red-600" />
+                        <AlertTitle className="text-red-800">Last Automation Error</AlertTitle>
+                        <AlertDescription className="text-red-700">
+                          <p>{settings.lastError.message}</p>
+                          <p className="text-sm mt-1">Occurred at: {formatIST(settings.lastError.timestamp)}</p>
                         </AlertDescription>
                       </Alert>
                     )}

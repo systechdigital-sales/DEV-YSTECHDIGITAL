@@ -10,13 +10,15 @@ export async function GET() {
     let settings = await settingsCollection.findOne({})
 
     if (!settings) {
-      // Create default settings
+      // Create default settings with next run time
+      const now = new Date()
       const defaultSettings = {
         isEnabled: true,
         intervalMinutes: 1,
         totalRuns: 0,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: now,
+        updatedAt: now,
+        nextRun: new Date(now.getTime() + 60 * 1000), // Next run in 1 minute
       }
 
       await settingsCollection.insertOne(defaultSettings)
@@ -56,6 +58,9 @@ export async function POST(request: NextRequest) {
     const db = await getDatabase()
     const settingsCollection = db.collection("automationsettings")
 
+    const now = new Date()
+    const nextRunTime = isEnabled ? new Date(now.getTime() + intervalMinutes * 60 * 1000) : null
+
     // Update or create settings
     const result = await settingsCollection.findOneAndUpdate(
       {},
@@ -63,7 +68,8 @@ export async function POST(request: NextRequest) {
         $set: {
           isEnabled,
           intervalMinutes,
-          updatedAt: new Date(),
+          updatedAt: now,
+          nextRun: nextRunTime,
         },
       },
       {
@@ -72,9 +78,9 @@ export async function POST(request: NextRequest) {
       },
     )
 
-    // If automation is enabled, schedule the next run
-    if (isEnabled) {
-      await scheduleNextRun(intervalMinutes)
+    console.log(`⚙️ Settings updated: ${isEnabled ? "ENABLED" : "DISABLED"} - Interval: ${intervalMinutes} minutes`)
+    if (nextRunTime) {
+      console.log(`⏰ Next run scheduled for: ${nextRunTime.toISOString()}`)
     }
 
     return NextResponse.json({
@@ -135,31 +141,5 @@ export async function PATCH(request: NextRequest) {
       },
       { status: 500 },
     )
-  }
-}
-
-// Helper function to schedule next run using Vercel Cron or external service
-async function scheduleNextRun(intervalMinutes: number) {
-  try {
-    const nextRunTime = new Date(Date.now() + intervalMinutes * 60 * 1000)
-
-    // Update the next run time in database
-    const db = await getDatabase()
-    const settingsCollection = db.collection("automationsettings")
-
-    await settingsCollection.findOneAndUpdate(
-      {},
-      {
-        $set: {
-          nextRun: nextRunTime,
-          updatedAt: new Date(),
-        },
-      },
-      { upsert: true },
-    )
-
-    console.log(`Next automation run scheduled for: ${nextRunTime.toISOString()}`)
-  } catch (error) {
-    console.error("Error scheduling next run:", error)
   }
 }
