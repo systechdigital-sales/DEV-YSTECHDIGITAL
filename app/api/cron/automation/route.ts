@@ -20,34 +20,15 @@ export async function GET() {
       })
     }
 
-    console.log(`🚀 Running automation #${(settings.totalRuns || 0) + 1}...`)
-
-    // Run the automation process
-    const automationResponse = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/api/admin/process-automation`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "User-Agent": "Vercel-Cron/1.0",
-        },
-      },
-    )
-
-    if (!automationResponse.ok) {
-      const errorText = await automationResponse.text()
-      console.error("❌ Automation API failed:", errorText)
-      throw new Error(`Automation API failed: ${automationResponse.status} - ${errorText}`)
-    }
-
-    const automationResult = await automationResponse.json()
-    console.log("✅ Automation completed:", automationResult)
-
-    // Update run statistics and schedule next run
     const now = new Date()
+    const currentRunNumber = (settings.totalRuns || 0) + 1
+
+    console.log(`🚀 Running automation #${currentRunNumber}...`)
+
+    // Update run statistics BEFORE running automation
     const nextRunTime = new Date(now.getTime() + (settings.intervalMinutes || 1) * 60 * 1000)
 
-    const updateResult = await settingsCollection.findOneAndUpdate(
+    await settingsCollection.findOneAndUpdate(
       {},
       {
         $inc: { totalRuns: 1 },
@@ -55,50 +36,77 @@ export async function GET() {
           lastRun: now,
           nextRun: nextRunTime,
           updatedAt: now,
-          lastRunResult: automationResult.results,
+          isRunning: true,
         },
       },
-      {
-        upsert: true,
-        returnDocument: "after",
-      },
+      { upsert: true },
     )
 
-    console.log(`📊 Updated run count to: ${updateResult?.totalRuns || 0}`)
-    console.log(`⏰ Next run scheduled for: ${nextRunTime.toISOString()}`)
-
-    return NextResponse.json({
-      success: true,
-      message: "Automation completed successfully",
-      results: automationResult.results,
-      runNumber: updateResult?.totalRuns || 0,
-      nextRun: nextRunTime.toISOString(),
-      timestamp: now.toISOString(),
-    })
-  } catch (error) {
-    console.error("💥 Cron automation error:", error)
-
-    // Log the error to database for debugging
     try {
-      const db = await getDatabase()
-      const settingsCollection = db.collection("automationsettings")
+      // Run the automation process
+      const automationResponse = await fetch(
+        `${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000"}/api/admin/process-automation`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "User-Agent": "Vercel-Cron/1.0",
+          },
+        },
+      )
 
+      if (!automationResponse.ok) {
+        const errorText = await automationResponse.text()
+        console.error("❌ Automation API failed:", errorText)
+        throw new Error(`Automation API failed: ${automationResponse.status} - ${errorText}`)
+      }
+
+      const automationResult = await automationResponse.json()
+      console.log("✅ Automation completed:", automationResult)
+
+      // Update with successful result
       await settingsCollection.findOneAndUpdate(
         {},
         {
           $set: {
+            lastRunResult: automationResult.results,
+            isRunning: false,
+            lastError: null,
+            updatedAt: new Date(),
+          },
+        },
+      )
+
+      console.log(`📊 Run #${currentRunNumber} completed successfully`)
+      console.log(`⏰ Next run scheduled for: ${nextRunTime.toISOString()}`)
+
+      return NextResponse.json({
+        success: true,
+        message: "Automation completed successfully",
+        results: automationResult.results,
+        runNumber: currentRunNumber,
+        nextRun: nextRunTime.toISOString(),
+        timestamp: now.toISOString(),
+      })
+    } catch (automationError) {
+      // Update with error but keep the run count
+      await settingsCollection.findOneAndUpdate(
+        {},
+        {
+          $set: {
+            isRunning: false,
             lastError: {
-              message: error instanceof Error ? error.message : "Unknown error",
-              timestamp: new Date(),
+              message: automationError instanceof Error ? automationError.message : "Unknown error",
+              timestamp: now,
             },
             updatedAt: new Date(),
           },
         },
-        { upsert: true },
       )
-    } catch (dbError) {
-      console.error("Failed to log error to database:", dbError)
+      throw automationError
     }
+  } catch (error) {
+    console.error("💥 Cron automation error:", error)
 
     return NextResponse.json(
       {

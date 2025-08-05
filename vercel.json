@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/automation",
+      "schedule": "* * * * *"
+    }
+  ],
+  "functions": {
+    "app/api/cron/automation/route.ts": {
+      "maxDuration": 300
+    },
+    "app/api/admin/process-automation/route.ts": {
+      "maxDuration": 300
+    }
+  }
+}

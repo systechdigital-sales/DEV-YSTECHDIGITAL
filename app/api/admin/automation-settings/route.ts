@@ -12,17 +12,37 @@ export async function GET() {
     if (!settings) {
       // Create default settings with next run time
       const now = new Date()
+      const nextRunTime = new Date(now.getTime() + 60 * 1000) // Next run in 1 minute
+
       const defaultSettings = {
         isEnabled: true,
         intervalMinutes: 1,
         totalRuns: 0,
         createdAt: now,
         updatedAt: now,
-        nextRun: new Date(now.getTime() + 60 * 1000), // Next run in 1 minute
+        nextRun: nextRunTime,
+        isRunning: false,
       }
 
-      await settingsCollection.insertOne(defaultSettings)
-      settings = defaultSettings
+      const result = await settingsCollection.insertOne(defaultSettings)
+      settings = { ...defaultSettings, _id: result.insertedId }
+    } else {
+      // Ensure nextRun is set if missing
+      if (!settings.nextRun && settings.isEnabled) {
+        const now = new Date()
+        const nextRunTime = new Date(now.getTime() + (settings.intervalMinutes || 1) * 60 * 1000)
+
+        await settingsCollection.findOneAndUpdate(
+          { _id: settings._id },
+          {
+            $set: {
+              nextRun: nextRunTime,
+              updatedAt: now,
+            },
+          },
+        )
+        settings.nextRun = nextRunTime
+      }
     }
 
     return NextResponse.json({
@@ -70,6 +90,7 @@ export async function POST(request: NextRequest) {
           intervalMinutes,
           updatedAt: now,
           nextRun: nextRunTime,
+          isRunning: false,
         },
       },
       {
