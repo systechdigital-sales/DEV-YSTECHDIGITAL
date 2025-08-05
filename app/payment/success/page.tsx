@@ -33,14 +33,14 @@ interface PaymentDetails {
 function PaymentSuccessContent() {
   const searchParams = useSearchParams()
   const [paymentDetails, setPaymentDetails] = useState<PaymentDetails>({
-    paymentId: "",
-    orderId: "",
-    customerName: "",
-    customerEmail: "",
-    customerPhone: "",
-    claimId: "",
+    paymentId: "Not Available",
+    orderId: "Not Available",
+    customerName: "Not Available",
+    customerEmail: "Not Available",
+    customerPhone: "Not Available",
+    claimId: "Not Available",
     amount: "99",
-    activationCode: "",
+    activationCode: "Not Available",
   })
   const [loading, setLoading] = useState(true)
 
@@ -48,7 +48,7 @@ function PaymentSuccessContent() {
     console.log("Payment success page - All URL parameters:", Object.fromEntries(searchParams.entries()))
 
     // Get payment details from URL parameters with multiple fallback options
-    const details: PaymentDetails = {
+    const urlDetails: PaymentDetails = {
       paymentId:
         searchParams.get("payment_id") ||
         searchParams.get("razorpay_payment_id") ||
@@ -59,51 +59,67 @@ function PaymentSuccessContent() {
         searchParams.get("razorpay_order_id") ||
         searchParams.get("orderId") ||
         "Not Available",
-      customerName: searchParams.get("customerName") || searchParams.get("customer_name") || "Not Available",
-      customerEmail: searchParams.get("customerEmail") || searchParams.get("customer_email") || "Not Available",
-      customerPhone: searchParams.get("customerPhone") || searchParams.get("customer_phone") || "Not Available",
+      customerName:
+        searchParams.get("customerName") ||
+        searchParams.get("customer_name") ||
+        searchParams.get("name") ||
+        "Not Available",
+      customerEmail:
+        searchParams.get("customerEmail") ||
+        searchParams.get("customer_email") ||
+        searchParams.get("email") ||
+        "Not Available",
+      customerPhone:
+        searchParams.get("customerPhone") ||
+        searchParams.get("customer_phone") ||
+        searchParams.get("phone") ||
+        "Not Available",
       claimId: searchParams.get("claimId") || searchParams.get("claim_id") || "Not Available",
       amount: searchParams.get("amount") || "99",
       activationCode: searchParams.get("activationCode") || searchParams.get("activation_code") || "Not Available",
     }
 
-    console.log("Payment success page - Extracted details:", details)
+    console.log("Payment success page - URL extracted details:", urlDetails)
 
-    // If we have a claimId but missing other details, try to fetch from API
-    if (
-      details.claimId !== "Not Available" &&
-      (details.customerName === "Not Available" || details.customerEmail === "Not Available")
-    ) {
-      console.log("Fetching claim details from API for claimId:", details.claimId)
+    // If we have a claimId, try to fetch complete details from API
+    if (urlDetails.claimId !== "Not Available") {
+      console.log("Fetching claim details from API for claimId:", urlDetails.claimId)
 
-      fetch(`/api/admin/claims?claimId=${details.claimId}`)
+      fetch(`/api/admin/claims?claimId=${urlDetails.claimId}`)
         .then((response) => response.json())
         .then((data) => {
           console.log("API response for claim details:", data)
 
           if (data.success && data.claim) {
             const claim = data.claim
-            setPaymentDetails({
-              ...details,
-              customerName: `${claim.firstName || ""} ${claim.lastName || ""}`.trim() || details.customerName,
-              customerEmail: claim.email || details.customerEmail,
-              customerPhone: claim.phoneNumber || details.customerPhone,
-              activationCode: claim.activationCode || details.activationCode,
-              paymentId: claim.paymentId || details.paymentId,
-              orderId: claim.razorpayOrderId || details.orderId,
-            })
+            const apiDetails: PaymentDetails = {
+              paymentId: claim.paymentId || urlDetails.paymentId,
+              orderId: claim.razorpayOrderId || urlDetails.orderId,
+              customerName: `${claim.firstName || ""} ${claim.lastName || ""}`.trim() || urlDetails.customerName,
+              customerEmail: claim.email || urlDetails.customerEmail,
+              customerPhone: claim.phoneNumber || urlDetails.customerPhone,
+              claimId: claim.claimId || urlDetails.claimId,
+              amount: urlDetails.amount,
+              activationCode: claim.activationCode || urlDetails.activationCode,
+            }
+
+            console.log("Final payment details from API:", apiDetails)
+            setPaymentDetails(apiDetails)
           } else {
-            setPaymentDetails(details)
+            console.log("API call failed or no claim found, using URL details")
+            setPaymentDetails(urlDetails)
           }
           setLoading(false)
         })
         .catch((error) => {
           console.error("Error fetching claim details:", error)
-          setPaymentDetails(details)
+          console.log("Using URL details due to API error")
+          setPaymentDetails(urlDetails)
           setLoading(false)
         })
     } else {
-      setPaymentDetails(details)
+      console.log("No claimId available, using URL details only")
+      setPaymentDetails(urlDetails)
       setLoading(false)
     }
   }, [searchParams])
