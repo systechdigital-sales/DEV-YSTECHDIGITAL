@@ -144,6 +144,20 @@ export default function AdminPage() {
     const file = event.target.files?.[0]
     if (!file) return
 
+    // Validate file type
+    const allowedTypes = [".xlsx", ".xls", ".csv"]
+    const fileExtension = "." + file.name.split(".").pop()?.toLowerCase()
+    if (!allowedTypes.includes(fileExtension)) {
+      setError(`Invalid file type. Please upload ${allowedTypes.join(", ")} files only.`)
+      toast({
+        title: "Invalid File Type",
+        description: `Please upload ${allowedTypes.join(", ")} files only.`,
+        variant: "destructive",
+      })
+      event.target.value = ""
+      return
+    }
+
     setUploading(true)
     setMessage("")
     setError("")
@@ -158,28 +172,31 @@ export default function AdminPage() {
       })
 
       const result = await response.json()
+      console.log(`Upload ${type} response:`, result)
 
-      if (response.ok) {
+      if (response.ok && result.success) {
         setMessage(result.message || `${type} data uploaded successfully`)
         toast({
           title: "Upload Successful",
-          description: result.message || `${type} data uploaded successfully.`,
+          description: result.message || `${type} data uploaded successfully. ${result.count || 0} records processed.`,
         })
         fetchData() // Refresh data
       } else {
-        setError(result.error || "Upload failed")
+        const errorMessage = result.error || result.details?.join(", ") || "Upload failed"
+        setError(errorMessage)
         toast({
           title: "Upload Failed",
-          description: result.error || "Failed to upload data.",
+          description: errorMessage,
           variant: "destructive",
         })
       }
     } catch (error) {
       console.error("Upload error:", error)
-      setError("Upload failed")
+      const errorMessage = "Network error occurred during upload"
+      setError(errorMessage)
       toast({
         title: "Upload Error",
-        description: "An unexpected error occurred during upload.",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {
@@ -189,39 +206,59 @@ export default function AdminPage() {
     }
   }
 
-  const exportData = async () => {
+  const exportData = async (type?: "claims" | "sales" | "keys") => {
     try {
-      const response = await fetch("/api/admin/export")
+      setMessage("")
+      setError("")
+
+      let url = "/api/admin/export"
+      if (type) {
+        url += `?type=${type}`
+      }
+
+      const response = await fetch(url)
+      console.log("Export response status:", response.status)
+
       if (response.ok) {
         const blob = await response.blob()
         const url = window.URL.createObjectURL(blob)
         const a = document.createElement("a")
         a.style.display = "none"
         a.href = url
-        a.download = `systech_ott_platform_export_${new Date().toISOString().split("T")[0]}.csv`
+
+        const fileName = type
+          ? `systech_ott_${type}_export_${new Date().toISOString().split("T")[0]}.xlsx`
+          : `systech_ott_platform_export_${new Date().toISOString().split("T")[0]}.xlsx`
+
+        a.download = fileName
         document.body.appendChild(a)
         a.click()
         window.URL.revokeObjectURL(url)
         document.body.removeChild(a)
-        setMessage("Data exported successfully")
+
+        const successMessage = `${type ? type.charAt(0).toUpperCase() + type.slice(1) : "All"} data exported successfully`
+        setMessage(successMessage)
         toast({
           title: "Export Successful",
-          description: "All data exported to CSV.",
+          description: successMessage,
         })
       } else {
-        setError("Failed to export data")
+        const errorResult = await response.json()
+        const errorMessage = errorResult.error || "Failed to export data"
+        setError(errorMessage)
         toast({
           title: "Export Failed",
-          description: "Failed to export data.",
+          description: errorMessage,
           variant: "destructive",
         })
       }
     } catch (error) {
       console.error("Export error:", error)
-      setError("Export failed")
+      const errorMessage = "Network error occurred during export"
+      setError(errorMessage)
       toast({
         title: "Export Error",
-        description: "An unexpected error occurred during export.",
+        description: errorMessage,
         variant: "destructive",
       })
     }
@@ -626,7 +663,7 @@ export default function AdminPage() {
                   Data Management
                 </CardTitle>
                 <CardDescription className="text-lg text-gray-600">
-                  Upload Excel files and export data from systech_ott_platform
+                  Upload Excel files (.xlsx, .xls) or CSV files and export data from systech_ott_platform
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-8">
@@ -637,22 +674,28 @@ export default function AdminPage() {
                       <h3 className="text-xl font-semibold text-blue-900 mb-4 flex items-center">
                         <FileSpreadsheet className="w-5 h-5 mr-2" />📊 Sales Records Upload
                       </h3>
-                      <p className="text-blue-800 mb-4">Upload Excel file to salesrecords collection</p>
+                      <p className="text-blue-800 mb-4">Upload Excel/CSV file to salesrecords collection</p>
                       <div className="space-y-3">
                         <Label htmlFor="sales-file" className="text-blue-900 font-medium">
-                          Select Sales Excel File
+                          Select Sales File (.xlsx, .xls, .csv)
                         </Label>
                         <Input
                           id="sales-file"
                           type="file"
-                          accept=".xlsx,.xls"
+                          accept=".xlsx,.xls,.csv"
                           onChange={(e) => handleFileUpload(e, "sales")}
                           disabled={uploading}
                           className="border-blue-300 focus:border-blue-500"
                         />
-                        <p className="text-sm text-blue-700">
-                          📋 Required columns: Activation Code, Product, Category, Status
-                        </p>
+                        <div className="text-sm text-blue-700 bg-blue-100 p-3 rounded-lg">
+                          <p className="font-medium mb-2">📋 Required columns:</p>
+                          <ul className="list-disc list-inside space-y-1">
+                            <li>Product Sub Category</li>
+                            <li>Product</li>
+                            <li>Activation Code/ Serial No / IMEI Number</li>
+                            <li>Status (optional, defaults to 'available')</li>
+                          </ul>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -663,37 +706,67 @@ export default function AdminPage() {
                       <h3 className="text-xl font-semibold text-green-900 mb-4 flex items-center">
                         <Key className="w-5 h-5 mr-2" />🔑 OTT Keys Upload
                       </h3>
-                      <p className="text-green-800 mb-4">Upload Excel file to ottkeys collection</p>
+                      <p className="text-green-800 mb-4">Upload Excel/CSV file to ottkeys collection</p>
                       <div className="space-y-3">
                         <Label htmlFor="keys-file" className="text-green-900 font-medium">
-                          Select Keys Excel File
+                          Select Keys File (.xlsx, .xls, .csv)
                         </Label>
                         <Input
                           id="keys-file"
                           type="file"
-                          accept=".xlsx,.xls"
+                          accept=".xlsx,.xls,.csv"
                           onChange={(e) => handleFileUpload(e, "keys")}
                           disabled={uploading}
                           className="border-green-300 focus:border-green-500"
                         />
-                        <p className="text-sm text-green-700">
-                          📋 Required columns: Activation Code, Product, Category, Status
-                        </p>
+                        <div className="text-sm text-green-700 bg-green-100 p-3 rounded-lg">
+                          <p className="font-medium mb-2">📋 Required columns:</p>
+                          <ul className="list-disc list-inside space-y-1">
+                            <li>Product Sub Category</li>
+                            <li>Product</li>
+                            <li>Activation Code</li>
+                            <li>Status (optional, defaults to 'available')</li>
+                          </ul>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
 
+                {/* Upload Status */}
+                {uploading && (
+                  <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div className="flex items-center">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-yellow-600 mr-3"></div>
+                      <span className="text-yellow-800 font-medium">Uploading file... Please wait.</span>
+                    </div>
+                  </div>
+                )}
+
                 {/* Export Section */}
                 <div className="mt-8 pt-6 border-t border-gray-200">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mb-4">
                     <div>
                       <h3 className="text-xl font-semibold text-gray-800 mb-2">📤 Export Data</h3>
-                      <p className="text-gray-600">Download all data from systech_ott_platform database</p>
+                      <p className="text-gray-600">Download data from systech_ott_platform database</p>
                     </div>
-                    <Button onClick={exportData} className="bg-purple-600 hover:bg-purple-700">
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <Button onClick={() => exportData()} className="bg-purple-600 hover:bg-purple-700">
                       <Download className="w-4 h-4 mr-2" />
                       Export All Data
+                    </Button>
+                    <Button onClick={() => exportData("claims")} className="bg-blue-600 hover:bg-blue-700">
+                      <Download className="w-4 h-4 mr-2" />
+                      Export Claims
+                    </Button>
+                    <Button onClick={() => exportData("sales")} className="bg-green-600 hover:bg-green-700">
+                      <Download className="w-4 h-4 mr-2" />
+                      Export Sales
+                    </Button>
+                    <Button onClick={() => exportData("keys")} className="bg-orange-600 hover:bg-orange-700">
+                      <Download className="w-4 h-4 mr-2" />
+                      Export Keys
                     </Button>
                   </div>
                 </div>
