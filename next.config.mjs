@@ -10,17 +10,10 @@ const nextConfig = {
     unoptimized: true,
   },
   experimental: {
-    serverActions: true,
-  },
-  // Add this cron configuration
-  // This will trigger the /api/admin/process-automation route every minute
-  // You can adjust the schedule as needed (e.g., '0 * * * *' for every hour)
-  cron: [
-    {
-      path: '/api/admin/process-automation',
-      schedule: '* * * * *', // Runs every minute
+    serverActions: {
+      allowedOrigins: ["localhost:3000", "*.vercel.app"],
     },
-  ],
+  },
 };
 
 export default nextConfig;

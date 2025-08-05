@@ -8,12 +8,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Mail, Lock, ArrowRight, Home, Shield, Clock, CheckCircle } from "lucide-react"
+import { Mail, Lock, ArrowRight, Home, Shield, Clock, CheckCircle, XCircle, Phone } from "lucide-react"
 import Image from "next/image"
 
 export default function CustomerLogin() {
   const router = useRouter()
-  const [step, setStep] = useState<"email" | "otp">("email")
+  const [step, setStep] = useState<"email" | "otp" | "no-key">("email")
   const [email, setEmail] = useState("")
   const [otp, setOtp] = useState("")
   const [loading, setLoading] = useState(false)
@@ -22,10 +22,19 @@ export default function CustomerLogin() {
   const [resendCooldown, setResendCooldown] = useState(0)
   const [attempts, setAttempts] = useState(0)
 
+  // Check if user is already authenticated
+  useEffect(() => {
+    const isAuthenticated = sessionStorage.getItem("customerAuthenticated")
+    if (isAuthenticated) {
+      console.log("User already authenticated, redirecting to dashboard")
+      router.push("/customer-dashboard")
+    }
+  }, [router])
+
   // Cooldown logic
   useEffect(() => {
     if (resendCooldown > 0) {
-      const timer = setInterval(() => setResendCooldown(prev => prev - 1), 1000)
+      const timer = setInterval(() => setResendCooldown((prev) => prev - 1), 1000)
       return () => clearInterval(timer)
     }
   }, [resendCooldown])
@@ -36,14 +45,36 @@ export default function CustomerLogin() {
     setError("")
     setSuccess("")
 
+    console.log("Sending OTP for email:", email)
+
     try {
-      // Replace with real API
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      setStep("otp")
-      setSuccess("OTP sent successfully.")
-      setResendCooldown(60)
-    } catch {
-      setError("Failed to send OTP.")
+      const response = await fetch("/api/customer/send-otp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email: email.toLowerCase().trim() }),
+      })
+
+      const data = await response.json()
+      console.log("Send OTP response:", data)
+
+      if (data.success) {
+        setStep("otp")
+        setSuccess(data.message || "OTP sent successfully to your email address")
+        setResendCooldown(60)
+        console.log("OTP sent successfully, moving to OTP step")
+      } else {
+        if (data.noOttKey) {
+          console.log("No OTT key found, showing no-key step")
+          setStep("no-key")
+        } else {
+          setError(data.message || "Failed to send OTP. Please try again.")
+        }
+      }
+    } catch (error) {
+      console.error("Error sending OTP:", error)
+      setError("Network error. Please check your connection and try again.")
     } finally {
       setLoading(false)
     }
@@ -55,35 +86,106 @@ export default function CustomerLogin() {
     setError("")
     setSuccess("")
 
-    try {
-      // Replace with real API
-      await new Promise(resolve => setTimeout(resolve, 1000))
+    console.log("Verifying OTP:", otp, "for email:", email)
 
-      if (otp === "123456") {
-        setSuccess("OTP Verified! Redirecting...")
-        setTimeout(() => router.push("/dashboard"), 1000)
+    try {
+      const response = await fetch("/api/customer/verify-otp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: email.toLowerCase().trim(),
+          otp: otp.trim(),
+        }),
+      })
+
+      const data = await response.json()
+      console.log("Verify OTP response:", data)
+
+      if (data.success) {
+        setSuccess("OTP verified successfully! Redirecting to dashboard...")
+
+        // Store authentication in sessionStorage
+        sessionStorage.setItem("customerAuthenticated", "true")
+        sessionStorage.setItem("customerEmail", email.toLowerCase().trim())
+
+        console.log("Authentication stored in sessionStorage")
+        console.log("customerAuthenticated:", sessionStorage.getItem("customerAuthenticated"))
+        console.log("customerEmail:", sessionStorage.getItem("customerEmail"))
+
+        // Redirect to customer dashboard after a short delay
+        setTimeout(() => {
+          console.log("Redirecting to customer dashboard...")
+          router.push("/customer-dashboard")
+        }, 2000)
       } else {
-        setAttempts(prev => prev + 1)
-        setError("Invalid OTP.")
+        setAttempts((prev) => prev + 1)
+        setError(data.message || "Invalid OTP. Please try again.")
+
+        // Clear OTP field on error
+        setOtp("")
+
+        // If too many attempts, reset to email step
+        if (attempts >= 2) {
+          setStep("email")
+          setAttempts(0)
+          setError("Too many failed attempts. Please request a new OTP.")
+        }
       }
-    } catch {
-      setError("Verification failed.")
+    } catch (error) {
+      console.error("Error verifying OTP:", error)
+      setError("Network error. Please check your connection and try again.")
     } finally {
       setLoading(false)
     }
   }
 
-  const handleResendOTP = () => {
+  const handleResendOTP = async () => {
     if (resendCooldown === 0) {
-      setSuccess("OTP resent.")
-      setResendCooldown(60)
+      setLoading(true)
+      setError("")
+
+      try {
+        const response = await fetch("/api/customer/send-otp", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email: email.toLowerCase().trim() }),
+        })
+
+        const data = await response.json()
+
+        if (data.success) {
+          setSuccess("New OTP sent successfully to your email address")
+          setResendCooldown(60)
+          setOtp("") // Clear current OTP
+        } else {
+          setError(data.message || "Failed to resend OTP. Please try again.")
+        }
+      } catch (error) {
+        console.error("Error resending OTP:", error)
+        setError("Network error. Please check your connection and try again.")
+      } finally {
+        setLoading(false)
+      }
     }
+  }
+
+  const resetToEmailStep = () => {
+    setStep("email")
+    setEmail("")
+    setOtp("")
+    setError("")
+    setSuccess("")
+    setAttempts(0)
+    setResendCooldown(0)
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4 py-4">
       <div className="w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl mx-auto">
-
         {/* Header */}
         <header className="fixed top-0 left-0 right-0 bg-gradient-to-r from-black via-red-900 to-black shadow-md z-50">
           <div className="max-w-7xl mx-auto px-4 py-3 sm:py-4 md:py-5">
@@ -123,10 +225,15 @@ export default function CustomerLogin() {
                   <Mail className="w-5 h-5 mr-2" />
                   Enter Your Email
                 </>
-              ) : (
+              ) : step === "otp" ? (
                 <>
                   <Lock className="w-5 h-5 mr-2" />
                   Verify OTP
+                </>
+              ) : (
+                <>
+                  <XCircle className="w-5 h-5 mr-2" />
+                  No OTT Key Found
                 </>
               )}
             </CardTitle>
@@ -135,19 +242,20 @@ export default function CustomerLogin() {
           <CardContent className="p-5 sm:p-6">
             {error && (
               <Alert className="mb-4 border-red-200 bg-red-50">
+                <XCircle className="w-4 h-4 text-red-600" />
                 <AlertDescription className="text-red-800">{error}</AlertDescription>
               </Alert>
             )}
 
             {success && (
               <Alert className="mb-4 border-green-200 bg-green-50">
-                <CheckCircle className="w-4 h-4 text-green-600 mr-2" />
+                <CheckCircle className="w-4 h-4 text-green-600" />
                 <AlertDescription className="text-green-800">{success}</AlertDescription>
               </Alert>
             )}
 
             {/* Email Form */}
-            {step === "email" ? (
+            {step === "email" && (
               <form onSubmit={handleSendOTP} className="space-y-4">
                 <div>
                   <Label htmlFor="email">Email Address</Label>
@@ -160,15 +268,17 @@ export default function CustomerLogin() {
                     placeholder="Enter your email"
                     className="mt-1 text-sm sm:text-base"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Email linked to your OTT subscription
-                  </p>
+                  <p className="text-xs text-gray-500 mt-1">Email linked to your OTT subscription</p>
                 </div>
-                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2" disabled={loading}>
+                <Button
+                  type="submit"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2"
+                  disabled={loading}
+                >
                   {loading ? (
                     <div className="flex items-center">
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Sending OTP...
+                      Checking account...
                     </div>
                   ) : (
                     <>
@@ -177,8 +287,10 @@ export default function CustomerLogin() {
                   )}
                 </Button>
               </form>
-            ) : (
-              // OTP Form
+            )}
+
+            {/* OTP Form */}
+            {step === "otp" && (
               <form onSubmit={handleVerifyOTP} className="space-y-4">
                 <div>
                   <Label htmlFor="otp">Enter OTP</Label>
@@ -192,11 +304,18 @@ export default function CustomerLogin() {
                     placeholder="Enter 6-digit OTP"
                     className="mt-1 text-center text-lg tracking-widest"
                     required
+                    autoFocus
                   />
-                  <p className="text-xs text-gray-500 mt-1">OTP sent to: <strong>{email}</strong></p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    OTP sent to: <strong>{email}</strong>
+                  </p>
                 </div>
 
-                <Button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white py-2" disabled={loading}>
+                <Button
+                  type="submit"
+                  className="w-full bg-green-600 hover:bg-green-700 text-white py-2"
+                  disabled={loading}
+                >
                   {loading ? (
                     <div className="flex items-center">
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
@@ -210,12 +329,17 @@ export default function CustomerLogin() {
                 </Button>
 
                 <div className="flex justify-between items-center text-xs sm:text-sm mt-2">
-                  <Button type="button" variant="ghost" className="p-0 text-gray-600" onClick={() => {
-                    setStep("email")
-                    setOtp("")
-                    setError("")
-                    setAttempts(0)
-                  }}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="p-0 text-gray-600"
+                    onClick={() => {
+                      setStep("email")
+                      setOtp("")
+                      setError("")
+                      setAttempts(0)
+                    }}
+                  >
                     Change Email
                   </Button>
 
@@ -242,18 +366,55 @@ export default function CustomerLogin() {
               </form>
             )}
 
-            {/* Security Notice */}
-            <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <div className="flex items-start">
-                <Shield className="w-5 h-5 text-blue-600 mr-2 mt-0.5" />
-                <div>
-                  <h4 className="text-sm font-semibold text-blue-900">Security Notice</h4>
-                  <p className="text-sm text-blue-700 mt-1">
-                    We'll send a 6-digit OTP to your email for secure access. The OTP expires in 10 minutes.
+            {/* No OTT Key Found */}
+            {step === "no-key" && (
+              <div className="text-center space-y-6">
+                <div className="p-6 bg-orange-50 rounded-lg border border-orange-200">
+                  <XCircle className="w-16 h-16 text-orange-500 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-orange-900 mb-2">No OTT Play Key Found</h3>
+                  <p className="text-orange-800 mb-4">
+                    No OTT Play key found against your email ID: <strong>{email}</strong>
+                  </p>
+                  <p className="text-sm text-orange-700">
+                    Please wait for your key to be assigned or contact our support team for assistance.
                   </p>
                 </div>
+
+                {/* Contact Support */}
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                  <h4 className="font-semibold text-blue-900 mb-3">Contact Support Team</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center justify-center text-blue-800">
+                      <Phone className="w-4 h-4 mr-2" />
+                      <span>+91 7709803412</span>
+                    </div>
+                    <div className="flex items-center justify-center text-blue-800">
+                      <Mail className="w-4 h-4 mr-2" />
+                      <span>sales.systechdigital@gmail.com</span>
+                    </div>
+                  </div>
+                </div>
+
+                <Button onClick={resetToEmailStep} variant="outline" className="w-full bg-transparent">
+                  Try Different Email
+                </Button>
               </div>
-            </div>
+            )}
+
+            {/* Security Notice */}
+            {step !== "no-key" && (
+              <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex items-start">
+                  <Shield className="w-5 h-5 text-blue-600 mr-2 mt-0.5" />
+                  <div>
+                    <h4 className="text-sm font-semibold text-blue-900">Security Notice</h4>
+                    <p className="text-sm text-blue-700 mt-1">
+                      We'll send a 6-digit OTP to your email for secure access. The OTP expires in 10 minutes.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

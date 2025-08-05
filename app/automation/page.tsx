@@ -165,8 +165,12 @@ export default function AutomationPage() {
   const [error, setError] = useState("")
   const [activeTab, setActiveTab] = useState("overview")
   const router = useRouter()
+
+  // Refs for intervals
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null)
-  const automationCheckRef = useRef<NodeJS.Timeout | null>(null)
+  const automationIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const timeIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   const [steps, setSteps] = useState<AutomationStep[]>([
     {
@@ -231,20 +235,27 @@ export default function AutomationPage() {
     },
   ])
 
-  // Check for automation trigger
-  const checkAutomationTrigger = async () => {
-    if (!settings.isEnabled || isRunning) return
+  // Client-side automation trigger - runs every minute when enabled
+  const runAutomationCycle = async () => {
+    if (!settings.isEnabled || isRunning) {
+      return
+    }
 
     try {
-      const response = await fetch("/api/admin/check-automation-trigger")
-      const data = await response.json()
+      // Check if it's time to run based on interval
+      const now = new Date()
+      const lastRun = settings.lastRun ? new Date(settings.lastRun) : null
+      const intervalMs = settings.intervalMinutes * 60 * 1000
 
-      if (data.shouldRun) {
-        addLog(`🤖 Auto-run #${data.runNumber} triggered - Starting automated OTT Key Assignment...`)
-        await startAutomation(true, data.runNumber)
+      // If no last run or enough time has passed, run automation
+      if (!lastRun || now.getTime() - lastRun.getTime() >= intervalMs) {
+        const runNumber = settings.totalRuns + 1
+        addLog(`🤖 Auto-run #${runNumber} triggered - Client-side automation starting...`)
+        await startAutomation(true, runNumber)
       }
     } catch (error) {
-      console.error("Error checking automation trigger:", error)
+      console.error("Error in automation cycle:", error)
+      addLog(`❌ Automation cycle error: ${error}`)
     }
   }
 
@@ -260,35 +271,35 @@ export default function AutomationPage() {
     loadAutomationSettings()
 
     // Update current time every second
-    const timeInterval = setInterval(() => {
+    timeIntervalRef.current = setInterval(() => {
       setCurrentTime(new Date())
     }, 1000)
 
-    // Refresh settings every 3 seconds to get latest status
+    // Refresh settings every 10 seconds to get latest status
     refreshIntervalRef.current = setInterval(() => {
       loadAutomationSettings()
-    }, 3000)
+    }, 10000)
 
-    // Check for automation trigger every 5 seconds
-    automationCheckRef.current = setInterval(() => {
-      checkAutomationTrigger()
-    }, 5000)
+    // Run automation check every minute (60 seconds)
+    automationIntervalRef.current = setInterval(() => {
+      runAutomationCycle()
+    }, 60000) // 60 seconds = 1 minute
 
     return () => {
-      clearInterval(timeInterval)
-      if (refreshIntervalRef.current) {
-        clearInterval(refreshIntervalRef.current)
-      }
-      if (automationCheckRef.current) {
-        clearInterval(automationCheckRef.current)
-      }
+      // Cleanup all intervals
+      if (timeIntervalRef.current) clearInterval(timeIntervalRef.current)
+      if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current)
+      if (automationIntervalRef.current) clearInterval(automationIntervalRef.current)
+      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current)
     }
-  }, [router, settings.isEnabled, isRunning])
+  }, [router])
 
   // Update countdown and progress every second
   useEffect(() => {
     if (settings.nextRun) {
-      const interval = setInterval(() => {
+      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current)
+
+      countdownIntervalRef.current = setInterval(() => {
         const countdown = getTimeUntilNextRun(settings.nextRun!)
         const progress = getNextRunProgress(settings.nextRun!, settings.intervalMinutes)
 
@@ -296,9 +307,33 @@ export default function AutomationPage() {
         setNextRunProgress(progress)
       }, 1000)
 
-      return () => clearInterval(interval)
+      return () => {
+        if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current)
+      }
     }
   }, [settings.nextRun, settings.intervalMinutes])
+
+  // Restart automation interval when settings change
+  useEffect(() => {
+    if (automationIntervalRef.current) {
+      clearInterval(automationIntervalRef.current)
+    }
+
+    if (settings.isEnabled) {
+      // Run automation check every minute
+      automationIntervalRef.current = setInterval(() => {
+        runAutomationCycle()
+      }, 60000) // 60 seconds = 1 minute
+
+      addLog(`🔄 Client-side automation timer restarted - checking every minute`)
+    } else {
+      addLog(`⏸️ Client-side automation timer stopped`)
+    }
+
+    return () => {
+      if (automationIntervalRef.current) clearInterval(automationIntervalRef.current)
+    }
+  }, [settings.isEnabled, settings.intervalMinutes, isRunning])
 
   const loadAutomationSettings = async () => {
     try {
@@ -328,18 +363,9 @@ export default function AutomationPage() {
         if (data.settings.lastRunResult && !results) {
           setResults(data.settings.lastRunResult)
         }
-
-        if (!logs.length) {
-          addLog(
-            `⚙️ Loaded automation settings: ${data.settings.isEnabled ? "ENABLED" : "DISABLED"} - Interval: ${data.settings.intervalMinutes} minutes - Total Runs: ${data.settings.totalRuns || 0}`,
-          )
-        }
       }
     } catch (error) {
       console.error("Error loading automation settings:", error)
-      if (!logs.length) {
-        addLog(`❌ Failed to load automation settings: ${error}`)
-      }
     }
   }
 
@@ -370,7 +396,7 @@ export default function AutomationPage() {
 
         toast({
           title: "Settings Saved",
-          description: `Auto-automation ${tempSettings.isEnabled ? "enabled" : "disabled"} with ${tempSettings.intervalMinutes} minute interval`,
+          description: `Client-side automation ${tempSettings.isEnabled ? "enabled" : "disabled"} with ${tempSettings.intervalMinutes} minute interval`,
         })
 
         addLog(
@@ -422,8 +448,20 @@ export default function AutomationPage() {
     setSteps((prevSteps) => prevSteps.map((step) => ({ ...step, status: "idle" })))
 
     try {
+      // Update database to mark automation as running
+      await fetch("/api/admin/automation-settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          isRunning: true,
+          lastRun: new Date().toISOString(),
+        }),
+      })
+
       if (isAutoRun) {
-        addLog(`🤖 Auto-run #${runNumber || settings.totalRuns + 1} - Automated OTT Key Assignment initiated...`)
+        addLog(
+          `🤖 Auto-run #${runNumber || settings.totalRuns + 1} - Client-side automated OTT Key Assignment initiated...`,
+        )
       } else {
         addLog("🚀 Manual OTT Key Assignment Automation initiated...")
       }
@@ -501,10 +539,28 @@ export default function AutomationPage() {
       setProgress(100)
       setResults(data.results)
 
+      // Update database with run completion and increment counter
+      const now = new Date()
+      const nextRunTime = new Date(now.getTime() + settings.intervalMinutes * 60 * 1000)
+
+      await fetch("/api/admin/automation-settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          incrementRuns: true,
+          lastRun: now.toISOString(),
+          nextRun: nextRunTime.toISOString(),
+          isRunning: false,
+          lastRunResult: data.results,
+        }),
+      })
+
       if (isAutoRun) {
-        addLog(`🤖 Auto-run #${runNumber || settings.totalRuns} completed successfully!`)
+        addLog(
+          `🤖 Auto-run #${runNumber || settings.totalRuns + 1} completed successfully! Counter updated in database.`,
+        )
       } else {
-        addLog(`✅ Manual automation process completed successfully!`)
+        addLog(`✅ Manual automation process completed successfully! Counter updated in database.`)
       }
       addLog(`📈 Database updates: ${data.results.processed + data.results.expired} records modified`)
       addLog(`⏰ Expired claims processed: ${data.results.expired}`)
@@ -512,6 +568,7 @@ export default function AutomationPage() {
       addLog(`✅ Successful assignments: ${data.results.success}`)
       addLog(`❌ Failed assignments: ${data.results.failed}`)
       addLog(`⏭️ Skipped (duplicates/invalid): ${data.results.skipped}`)
+      addLog(`🔄 Next run scheduled for: ${formatIST(nextRunTime)}`)
 
       // Handle specific failures
       if (data.results.failed > 0) {
@@ -535,12 +592,25 @@ export default function AutomationPage() {
       }
 
       // Refresh settings to get updated run count and next run time
-      setTimeout(() => loadAutomationSettings(), 1000)
+      setTimeout(() => loadAutomationSettings(), 2000)
     } catch (error: any) {
       console.error("Automation error:", error)
       setError(error.message || "Automation failed")
       addLog(`❌ CRITICAL ERROR: ${error.message}`)
       addLog(`🔧 Please check database connectivity and table structures`)
+
+      // Update database to mark automation as not running
+      await fetch("/api/admin/automation-settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          isRunning: false,
+          lastError: {
+            message: error.message,
+            timestamp: new Date().toISOString(),
+          },
+        }),
+      })
 
       // Mark current and subsequent steps as error
       const currentStepIndex = steps.findIndex((step) => step.status === "loading")
@@ -553,7 +623,7 @@ export default function AutomationPage() {
       setIsRunning(false)
       setCurrentStep("")
       if (isAutoRun) {
-        addLog(`🤖 Auto-run #${runNumber || settings.totalRuns} session ended at ${formatIST(new Date())}`)
+        addLog(`🤖 Auto-run #${runNumber || settings.totalRuns + 1} session ended at ${formatIST(new Date())}`)
       } else {
         addLog(`🏁 Manual automation session ended at ${formatIST(new Date())}`)
       }
@@ -590,7 +660,7 @@ export default function AutomationPage() {
                     <div>
                       <h1 className="text-2xl font-bold text-white flex items-center">
                         <Zap className="w-6 h-6 mr-2" />
-                        Automation Control Center
+                        Client-Side Automation Control
                         {isAutomationActive && (
                           <Badge
                             className={`ml-3 text-white animate-pulse ${isCurrentlyRunning ? "bg-orange-500" : "bg-green-500"}`}
@@ -600,7 +670,9 @@ export default function AutomationPage() {
                           </Badge>
                         )}
                       </h1>
-                      <p className="text-sm text-green-200 mt-1">Intelligent OTT claim processing system (No Cron)</p>
+                      <p className="text-sm text-green-200 mt-1">
+                        Client-side automation - runs every minute automatically
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -623,16 +695,16 @@ export default function AutomationPage() {
                         <div className="p-2 bg-purple-100 rounded-lg mr-3">
                           <Settings className="w-6 h-6 text-purple-600" />
                         </div>
-                        Auto-Automation Settings
+                        Client-Side Auto-Automation
                         {settings.isEnabled && (
                           <Badge className="ml-3 bg-green-100 text-green-800">
                             <Power className="w-3 h-3 mr-1" />
-                            ENABLED
+                            ENABLED - RUNS EVERY MINUTE
                           </Badge>
                         )}
                       </CardTitle>
                       <CardDescription className="text-lg text-gray-600">
-                        Configure automatic processing intervals - runs via client-side polling (no cron required)
+                        Automatic processing every minute via client-side timer - no server cron required
                       </CardDescription>
                     </div>
                     <Button
@@ -657,7 +729,7 @@ export default function AutomationPage() {
                           <div className="space-y-2">
                             <div className="flex items-center space-x-3">
                               <Label htmlFor="auto-toggle" className="text-xl font-bold text-gray-800">
-                                Auto-Automation
+                                Client-Side Automation
                               </Label>
                               <Badge
                                 variant={tempSettings.isEnabled ? "default" : "secondary"}
@@ -672,12 +744,12 @@ export default function AutomationPage() {
                               {tempSettings.isEnabled ? (
                                 <span className="flex items-center">
                                   <Power className="w-4 h-4 mr-2 text-green-600" />
-                                  Auto-processing is active via client polling
+                                  Runs automatically every minute via client timer
                                 </span>
                               ) : (
                                 <span className="flex items-center">
                                   <PowerOff className="w-4 h-4 mr-2 text-gray-600" />
-                                  Auto-processing is disabled
+                                  Client-side automation is disabled
                                 </span>
                               )}
                             </p>
@@ -758,7 +830,7 @@ export default function AutomationPage() {
                       <div className="space-y-6 bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-xl border border-green-200">
                         <h3 className="font-bold text-xl text-green-900 flex items-center">
                           <Timer className="w-6 h-6 mr-2" />
-                          Current Automation Status (IST) - Client Polling
+                          Live Automation Status (IST) - Client Timer Active
                         </h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                           <div className="text-center bg-white/50 p-4 rounded-lg">
@@ -766,19 +838,21 @@ export default function AutomationPage() {
                             <p className="text-3xl font-bold text-green-800">{settings.totalRuns}</p>
                             <Badge className="mt-2 bg-green-600 text-white">
                               <Activity className="w-3 h-3 mr-1" />
-                              Live Count
+                              Auto-Updated
                             </Badge>
                           </div>
                           <div className="text-center bg-white/50 p-4 rounded-lg">
-                            <p className="text-sm text-green-700 font-semibold">Current Interval</p>
-                            <p className="text-2xl font-bold text-green-800">
-                              {formatInterval(settings.intervalMinutes)}
-                            </p>
+                            <p className="text-sm text-green-700 font-semibold">Check Interval</p>
+                            <p className="text-2xl font-bold text-green-800">Every Minute</p>
+                            <Badge className="mt-2 bg-blue-600 text-white">
+                              <Clock className="w-3 h-3 mr-1" />
+                              Client Timer
+                            </Badge>
                           </div>
                           <div className="text-center bg-white/50 p-4 rounded-lg">
-                            <p className="text-sm text-green-700 font-semibold">Next Run In</p>
+                            <p className="text-sm text-green-700 font-semibold">Process Interval</p>
                             <p className="text-2xl font-bold text-green-800">
-                              {settings.nextRun ? nextRunCountdown : "Calculating..."}
+                              {formatInterval(settings.intervalMinutes)}
                             </p>
                           </div>
                           <div className="text-center bg-white/50 p-4 rounded-lg">
@@ -802,6 +876,7 @@ export default function AutomationPage() {
                           <div className="text-center bg-white/50 p-4 rounded-lg">
                             <p className="text-sm text-green-700 font-semibold">Next Scheduled Run</p>
                             <p className="text-lg font-bold text-green-800">{formatIST(settings.nextRun)}</p>
+                            <p className="text-sm text-green-600 mt-1">Time remaining: {nextRunCountdown}</p>
                           </div>
                         )}
 
@@ -821,13 +896,13 @@ export default function AutomationPage() {
                           </div>
                         )}
 
-                        {/* Client Polling Info */}
+                        {/* Client Timer Info */}
                         <Alert className="border-blue-200 bg-blue-50">
                           <Info className="h-5 w-5 text-blue-600" />
-                          <AlertTitle className="text-blue-800">Client-Side Automation</AlertTitle>
+                          <AlertTitle className="text-blue-800">Client-Side Timer Active</AlertTitle>
                           <AlertDescription className="text-blue-700">
-                            This automation runs via client-side polling every 5 seconds. Keep this page open for
-                            automatic processing. No server cron jobs required.
+                            Automation runs via client-side timer every minute. Keep this browser tab open for
+                            continuous operation. Database counter updates automatically with each run.
                           </AlertDescription>
                         </Alert>
                       </div>
@@ -836,10 +911,10 @@ export default function AutomationPage() {
                     {!settings.isEnabled && (
                       <Alert className="border-orange-200 bg-orange-50">
                         <PowerOff className="h-5 w-5 text-orange-600" />
-                        <AlertTitle className="text-orange-800">Auto-Automation Disabled</AlertTitle>
+                        <AlertTitle className="text-orange-800">Client-Side Automation Disabled</AlertTitle>
                         <AlertDescription className="text-orange-700">
-                          Automatic processing is currently disabled. Enable it above to start automatic claim
-                          processing via client-side polling.
+                          Client-side automation is currently disabled. Enable it above to start automatic claim
+                          processing every minute via browser timer.
                         </AlertDescription>
                       </Alert>
                     )}
@@ -1265,8 +1340,7 @@ export default function AutomationPage() {
                         {logs.length === 0 ? (
                           <div className="text-center py-8">
                             <p className="text-gray-500 text-lg">
-                              💻 System ready. Start automation to see live processing logs with database table
-                              updates...
+                              💻 Client-side automation ready. Timer runs every minute when enabled...
                             </p>
                           </div>
                         ) : (
@@ -1289,10 +1363,10 @@ export default function AutomationPage() {
                 <CardHeader className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-t-lg border-b">
                   <CardTitle className="text-2xl font-bold text-gray-800 flex items-center">
                     <Info className="w-6 h-6 mr-3 text-indigo-600" />
-                    Process Overview & Status Codes
+                    Client-Side Automation Overview
                   </CardTitle>
                   <CardDescription className="text-lg text-gray-600">
-                    Complete guide to the OTT key assignment automation with database table impact details
+                    Complete guide to the client-side OTT key assignment automation with database counter updates
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="p-8">
@@ -1301,11 +1375,11 @@ export default function AutomationPage() {
                     <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200">
                       <h3 className="font-bold text-xl text-blue-900 mb-4 flex items-center">
                         <Target className="w-6 h-6 mr-2" />
-                        Process Overview
+                        Client-Side Automation Process
                       </h3>
                       <p className="text-blue-800 mb-4 text-lg">
-                        The OTT key assignment automation processes your Claims table records and performs comprehensive
-                        database updates across multiple tables:
+                        The client-side automation runs every minute via browser timer and automatically updates the
+                        database counter:
                       </p>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-4">
@@ -1314,9 +1388,9 @@ export default function AutomationPage() {
                               1
                             </div>
                             <div>
-                              <h4 className="font-semibold text-blue-900">Expired Claims Processing</h4>
+                              <h4 className="font-semibold text-blue-900">Client Timer Check</h4>
                               <p className="text-blue-700 text-sm">
-                                Identifies pending claims older than 48 hours and marks them as failed in Claims table
+                                Browser timer runs every 60 seconds to check if automation should run
                               </p>
                             </div>
                           </div>
@@ -1325,9 +1399,9 @@ export default function AutomationPage() {
                               2
                             </div>
                             <div>
-                              <h4 className="font-semibold text-blue-900">Paid Claims Retrieval</h4>
+                              <h4 className="font-semibold text-blue-900">Interval Validation</h4>
                               <p className="text-blue-700 text-sm">
-                                Retrieves all paid claims with pending OTT status from Claims table
+                                Checks if enough time has passed based on configured interval
                               </p>
                             </div>
                           </div>
@@ -1336,9 +1410,9 @@ export default function AutomationPage() {
                               3
                             </div>
                             <div>
-                              <h4 className="font-semibold text-blue-900">Code Verification</h4>
+                              <h4 className="font-semibold text-blue-900">Database Processing</h4>
                               <p className="text-blue-700 text-sm">
-                                Verifies activation codes against SalesRecord table
+                                Processes Claims table and updates database records
                               </p>
                             </div>
                           </div>
@@ -1349,9 +1423,9 @@ export default function AutomationPage() {
                               4
                             </div>
                             <div>
-                              <h4 className="font-semibold text-blue-900">Duplicate Detection</h4>
+                              <h4 className="font-semibold text-blue-900">Counter Update</h4>
                               <p className="text-blue-700 text-sm">
-                                Checks Claims table for duplicate claims on the same activation code
+                                Automatically increments totalRuns counter in database
                               </p>
                             </div>
                           </div>
@@ -1360,9 +1434,9 @@ export default function AutomationPage() {
                               5
                             </div>
                             <div>
-                              <h4 className="font-semibold text-blue-900">Key Assignment</h4>
+                              <h4 className="font-semibold text-blue-900">Next Run Scheduling</h4>
                               <p className="text-blue-700 text-sm">
-                                Assigns available OTT keys from OTTKey table to valid claims
+                                Updates nextRun timestamp for next automation cycle
                               </p>
                             </div>
                           </div>
@@ -1371,9 +1445,9 @@ export default function AutomationPage() {
                               6
                             </div>
                             <div>
-                              <h4 className="font-semibold text-blue-900">Email Notifications</h4>
+                              <h4 className="font-semibold text-blue-900">Continuous Operation</h4>
                               <p className="text-blue-700 text-sm">
-                                Sends email notifications with OTT codes and updates Claims table
+                                Repeats every minute as long as browser tab remains open
                               </p>
                             </div>
                           </div>
@@ -1383,105 +1457,35 @@ export default function AutomationPage() {
 
                     <Separator className="bg-gray-300" />
 
-                    {/* Status Codes */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-xl border border-green-200">
-                        <h3 className="font-bold text-xl text-green-900 mb-4 flex items-center">
-                          <Shield className="w-6 h-6 mr-2" />
-                          Payment Status Codes
-                        </h3>
-                        <div className="space-y-3">
-                          <div className="flex items-center space-x-3">
-                            <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 font-semibold">
-                              PENDING
-                            </Badge>
-                            <span className="text-green-800">Payment not yet received</span>
-                          </div>
-                          <div className="flex items-center space-x-3">
-                            <Badge variant="default" className="bg-green-100 text-green-800 font-semibold">
-                              PAID
-                            </Badge>
-                            <span className="text-green-800">Payment successfully received</span>
-                          </div>
-                          <div className="flex items-center space-x-3">
-                            <Badge variant="destructive" className="bg-red-100 text-red-800 font-semibold">
-                              FAILED
-                            </Badge>
-                            <span className="text-green-800">Payment failed or expired</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="bg-gradient-to-br from-purple-50 to-violet-50 p-6 rounded-xl border border-purple-200">
-                        <h3 className="font-bold text-xl text-purple-900 mb-4 flex items-center">
-                          <Key className="w-6 h-6 mr-2" />
-                          OTT Code Status Codes
-                        </h3>
-                        <div className="space-y-3">
-                          <div className="flex items-center space-x-3">
-                            <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 font-semibold">
-                              PENDING
-                            </Badge>
-                            <span className="text-purple-800">Awaiting OTT code assignment</span>
-                          </div>
-                          <div className="flex items-center space-x-3">
-                            <Badge variant="default" className="bg-green-100 text-green-800 font-semibold">
-                              DELIVERED
-                            </Badge>
-                            <span className="text-purple-800">OTT code assigned and sent</span>
-                          </div>
-                          <div className="flex items-center space-x-3">
-                            <Badge variant="destructive" className="bg-red-100 text-red-800 font-semibold">
-                              FAILED
-                            </Badge>
-                            <span className="text-purple-800">Failed to assign OTT code</span>
-                          </div>
-                          <div className="flex items-center space-x-3">
-                            <Badge variant="outline" className="bg-orange-100 text-orange-800 font-semibold">
-                              CLAIMED
-                            </Badge>
-                            <span className="text-purple-800">Activation code already used</span>
-                          </div>
-                          <div className="flex items-center space-x-3">
-                            <Badge variant="outline" className="bg-gray-100 text-gray-800 font-semibold">
-                              NOT_FOUND
-                            </Badge>
-                            <span className="text-purple-800">Invalid activation code</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Automation Status */}
-                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-xl border border-indigo-200">
-                      <h3 className="font-bold text-xl text-indigo-900 mb-4 flex items-center">
-                        <Zap className="w-6 h-6 mr-2" />
-                        Automation Status & Scheduling (No Cron)
+                    {/* Timer Information */}
+                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-xl border border-green-200">
+                      <h3 className="font-bold text-xl text-green-900 mb-4 flex items-center">
+                        <Clock className="w-6 h-6 mr-2" />
+                        Client-Side Timer Details
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                          <h4 className="font-semibold text-indigo-900 mb-2">Client-Side Processing</h4>
-                          <p className="text-indigo-800 text-sm mb-3">
-                            The automation runs via client-side polling every 5 seconds, eliminating the need for server
-                            cron jobs.
+                          <h4 className="font-semibold text-green-900 mb-2">Timer Operation</h4>
+                          <p className="text-green-800 text-sm mb-3">
+                            The automation uses JavaScript setInterval to run every 60 seconds (1 minute).
                           </p>
-                          <ul className="text-indigo-700 text-sm space-y-1">
-                            <li>• Checks for automation trigger every 5 seconds</li>
-                            <li>• Processes Claims table when conditions are met</li>
-                            <li>• Updates database records in real-time</li>
-                            <li>• Sends email notifications to customers</li>
+                          <ul className="text-green-700 text-sm space-y-1">
+                            <li>• Runs every 60,000 milliseconds (1 minute)</li>
+                            <li>• Checks automation settings and conditions</li>
+                            <li>• Processes claims when interval requirements are met</li>
+                            <li>• Updates database counter automatically</li>
                           </ul>
                         </div>
                         <div>
-                          <h4 className="font-semibold text-indigo-900 mb-2">Time Zone & Scheduling</h4>
-                          <p className="text-indigo-800 text-sm mb-3">
-                            All timestamps are displayed in Indian Standard Time (IST) for consistency.
+                          <h4 className="font-semibold text-green-900 mb-2">Database Updates</h4>
+                          <p className="text-green-800 text-sm mb-3">
+                            Each successful run updates multiple database fields automatically.
                           </p>
-                          <ul className="text-indigo-700 text-sm space-y-1">
-                            <li>• Last run timestamp in IST</li>
-                            <li>• Next scheduled run in IST</li>
-                            <li>• Real-time countdown to next execution</li>
-                            <li>• Keep browser tab open for continuous operation</li>
+                          <ul className="text-green-700 text-sm space-y-1">
+                            <li>• totalRuns: Incremented by 1</li>
+                            <li>• lastRun: Updated to current timestamp</li>
+                            <li>• nextRun: Calculated for next cycle</li>
+                            <li>• isRunning: Status tracking</li>
                           </ul>
                         </div>
                       </div>

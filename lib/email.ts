@@ -3,47 +3,15 @@ import nodemailer from "nodemailer"
 interface EmailOptions {
   to: string
   subject: string
-  template:
-    | "custom"
-    | "default"
-    | "payment_success_detailed"
-    | "otp_login_code"
-    | "order_placed"
-    | "automation_failed"
-    | "ott_success"
-    | "ott_failure"
-  data: {
-    html?: string // For custom HTML templates
-    // Data for payment_success_detailed
-    customerName?: string
-    paymentId?: string
-    orderId?: string
-    claimId?: string
-    amount?: string
-    email?: string
-    phone?: string
-    date?: string
-    // Data for otp_login_code
-    otp?: string
-    otpExpiryMinutes?: number
-    // Data for OTT success
-    ottCode?: string
-    platform?: string
-    activationCode?: string
-    // Data for failure emails
-    failureReason?: string
-    status?: string
-    step?: string
-  }
+  html: string
 }
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD,
-  },
-})
+interface EmailData {
+  to: string
+  subject: string
+  template: string
+  data: Record<string, any>
+}
 
 const emailTemplates = {
   // 1. Order Placed Email (After form submission)
@@ -414,7 +382,7 @@ const emailTemplates = {
           .detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0; }
           .detail-row:last-child { border-bottom: none; }
           .detail-label { font-weight: bold; color: #4a5568; }
-          .detail-value { color: #2d3748; font-family: 'Courier New', monospace; }
+          .detail-value { color: #2d3748; font-family: monospace; }
           .resolution-section { background: #dbeafe; border: 1px solid #93c5fd; padding: 20px; border-radius: 8px; margin: 20px 0; }
           .resolution-section h4 { color: #1e40af; margin: 0 0 15px 0; }
           .resolution-section ul { margin: 0; padding-left: 20px; color: #1e40af; }
@@ -423,7 +391,7 @@ const emailTemplates = {
           .support-section h4 { color: #166534; margin: 0 0 15px 0; }
           .support-section p { margin: 0 0 10px 0; color: #166534; }
           .support-section p:last-child { margin: 0; }
-          .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb; padding-top: 20px; }
+          .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 14px; }
       </style>
   </head>
   <body>
@@ -576,11 +544,12 @@ const emailTemplates = {
           <div class="footer">
               <p>Need assistance? Contact us:</p>
               <p>📞 +91 7709803412 | ✉️ <a href="mailto:sales.systechdigital@gmail.com">sales.systechdigital@gmail.com</a></p>
-              <p style="margin-top: 10px;">© ${new Date().getFullYear()} SYSTECH DIGITAL. All rights reserved.</p>
+              <p style="margin-top: 10px; font-size: 12px;">© ${new Date().getFullYear()} SYSTECH DIGITAL. All rights reserved.</p>
           </div>
       </div>
   </body>
-  </html>`,
+  </html>
+  `,
 
   automation_failed: (data: any) => `
   <!DOCTYPE html>
@@ -672,86 +641,72 @@ const emailTemplates = {
       </div>
   </body>
   </html>`,
-
-  custom: (data: any) => data.html || "",
-  default: (data: any) => `<p>This is a default email. Subject: ${data.subject}</p>`,
 }
 
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
+  console.log("=== EMAIL SEND START ===")
+  console.log("Sending email to:", options.to)
+  console.log("Subject:", options.subject)
+
   const user = process.env.GMAIL_USER
   const pass = process.env.GMAIL_APP_PASSWORD
 
+  console.log("Gmail user configured:", !!user)
+  console.log("Gmail password configured:", !!pass)
+
   if (!user || !pass) {
-    console.error(
-      "Email credentials not configured. Please ensure GMAIL_USER and GMAIL_APP_PASSWORD are set. For GMAIL_APP_PASSWORD, you need to generate an App Password from your Google Account security settings.",
-    )
+    console.error("Email credentials not configured. Please ensure GMAIL_USER and GMAIL_APP_PASSWORD are set.")
     return false
   }
 
-  let htmlContent: string
-
-  switch (options.template) {
-    case "custom":
-      htmlContent = options.data.html || ""
-      break
-    case "payment_success_detailed":
-      htmlContent = emailTemplates.payment_success_detailed(options.data)
-      break
-    case "otp_login_code":
-      if (!options.data.otp || options.data.otpExpiryMinutes === undefined) {
-        console.error("Missing OTP data for otp_login_code template.")
-        return false
-      }
-      htmlContent = emailTemplates.otp_login_code({
-        otp: options.data.otp,
-        otpExpiryMinutes: options.data.otpExpiryMinutes,
-      })
-      break
-    case "order_placed":
-      if (!options.data.customerName || !options.data.claimId) {
-        console.error("Missing order data for order_placed template.")
-        return false
-      }
-      htmlContent = emailTemplates.order_placed(options.data)
-      break
-    case "ott_success":
-      if (!options.data.customerName || !options.data.ottCode) {
-        console.error("Missing OTT success data for ott_success template.")
-        return false
-      }
-      htmlContent = emailTemplates.ott_success(options.data)
-      break
-    case "ott_failure":
-      if (!options.data.customerName || !options.data.claimId) {
-        console.error("Missing failure data for ott_failure template.")
-        return false
-      }
-      htmlContent = emailTemplates.ott_failure(options.data)
-      break
-    case "automation_failed":
-      if (!options.data.customerName || !options.data.claimId) {
-        console.error("Missing failure data for automation_failed template.")
-        return false
-      }
-      htmlContent = emailTemplates.automation_failed(options.data)
-      break
-    default:
-      htmlContent = emailTemplates.default(options.data)
-  }
-
-  const mailOptions = {
-    from: `SYSTECH DIGITAL <${user}>`,
-    to: options.to,
-    subject: options.subject,
-    html: htmlContent,
-  }
-
   try {
-    await transporter.sendMail(mailOptions)
-    console.log(`📧 Email sent successfully to ${options.to}`)
+    console.log("Creating transporter...")
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      auth: {
+        user: user,
+        pass: pass,
+      },
+      tls: {
+        rejectUnauthorized: false,
+      },
+    })
+
+    console.log("Verifying transporter configuration...")
+    await transporter.verify()
+    console.log("Transporter verified successfully")
+
+    const mailOptions = {
+      from: `"Systech Digital" <${user}>`,
+      to: options.to,
+      subject: options.subject,
+      html: options.html,
+    }
+
+    console.log("Sending email with options:", {
+      from: mailOptions.from,
+      to: mailOptions.to,
+      subject: mailOptions.subject,
+      htmlLength: options.html.length,
+    })
+
+    const result = await transporter.sendMail(mailOptions)
+    console.log("Email sent successfully:", result.messageId)
+    console.log("=== EMAIL SEND SUCCESS ===")
     return true
   } catch (error) {
-    console.error(`❌ Error sending email to ${options.to}:`, error)
+    console.error("=== EMAIL SEND ERROR ===")
+    console.error("Error sending email:", error)
+    console.error("Error details:", {
+      name: error.name,
+      message: error.message,
+      code: error.code,
+      command: error.command,
+    })
+    console.error("=== EMAIL SEND ERROR END ===")
     return false
   }
 }
