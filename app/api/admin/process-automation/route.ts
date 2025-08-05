@@ -448,7 +448,7 @@ async function sendSuccessEmail(claim: any, ottCode: string, platform: string) {
             <div style="background: #e6fffa; padding: 20px; border-radius: 8px; margin: 25px 0;">
               <h3 style="color: #234e52; margin: 0 0 15px 0;">📱 How to Redeem:</h3>
               <ol style="color: #234e52; line-height: 1.8; margin: 0; padding-left: 20px;">
-                <li>Download the ${platform} app from your app store</li>
+                <li>Open the <a href="https://www.ottplay.com/partner/systech-it-solution/ott_sustech_annualtest" style="color: #2b6cb0;">OTT Play app</a> from your web browser</li>
                 <li>Create an account or log in to your existing account</li>
                 <li>Go to "Redeem Code" or "Activate Subscription" section</li>
                 <li>Enter the activation code: <strong>${ottCode}</strong></li>

@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
 
       await sendEmail({
         to: claim.email,
-        subject: "🎉 Payment Successful - OTT Code Processing Started - SYSTECH DIGITAL",
+        subject: "🎉 Payment Successful - OTT Code Processing Started - SYSTECH IT SOLUTIONS",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f0fdf4;">
             <div style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
               <div style="background: #eff6ff; padding: 20px; border-radius: 8px; margin-bottom: 25px; border-left: 4px solid #3b82f6;">
                 <h3 style="color: #1e40af; margin: 0 0 15px 0; font-size: 18px;">What Happens Next?</h3>
                 <ol style="color: #374151; margin: 0; padding-left: 20px;">
-                  <li style="margin-bottom: 8px;">Your activation code is being verified</li>
+                  <li style="margin-bottom: 8px;"> Your claim will be processed automatically .</li>
                   <li style="margin-bottom: 8px;">OTT code will be generated and assigned</li>
                   <li style="margin-bottom: 8px;">You'll receive the code within 24-48 hours</li>
                   <li>Start enjoying your premium OTT subscription!</li>
