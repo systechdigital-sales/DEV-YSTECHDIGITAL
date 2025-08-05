@@ -207,7 +207,7 @@ const emailTemplates = {
               
               <div class="important-notice">
                   <h4>📱 What Happens Next?</h4>
-                  <p><strong>Automated Processing:</strong> Your claim will be processed automatically by our system.</p>
+                  <p><strong>Automated Processing:</strong> Your claim will be processed automatically .</p>
                   <p><strong>Timeline:</strong> You will receive your OTT activation code within 24-48 hours.</p>
                   <p><strong>Delivery:</strong> The code will be sent to this email address (${data.email}).</p>
                   <p><strong>Support:</strong> Our team is monitoring all claims to ensure smooth processing.</p>
@@ -297,7 +297,7 @@ const emailTemplates = {
               <div class="instructions-section">
                   <h3>📱 How to Redeem Your Code</h3>
                   <ol>
-                      <li>Download the <strong>${data.platform || "OTT"}</strong> app from your device's app store</li>
+                      <li>Download the <a href="https://www.ottplay.com/partner/systech-it-solution/ott_sustech_annualtest">OTT Play app</a> from your device's app store</li>
                       <li>Open the app and create an account or sign in to your existing account</li>
                       <li>Look for "Redeem Code", "Activate Subscription", or "Promo Code" option</li>
                       <li>Enter your activation code: <strong>${data.ottCode}</strong></li>
