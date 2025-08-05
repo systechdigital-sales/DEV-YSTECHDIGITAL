@@ -1,37 +1,121 @@
-import { NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
+import { sendEmail } from "@/lib/email"
 import type { IClaimResponse } from "@/lib/models"
-import { ObjectId } from "mongodb"
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const { claimId, paymentId, orderId } = await request.json()
+    const { claimId, paymentStatus, paymentId, razorpayOrderId } = await request.json()
 
-    if (!claimId || !paymentId || !orderId) {
-      return NextResponse.json({ success: false, error: "Missing required payment details." }, { status: 400 })
+    console.log("Updating claim status in systech_ott_platform.claims:", {
+      claimId,
+      paymentStatus,
+      paymentId,
+      razorpayOrderId,
+    })
+
+    // Connect to systech_ott_platform database
+    const db = await getDatabase("systech_ott_platform")
+    const claimsCollection = db.collection<IClaimResponse>("claims")
+
+    // Find the claim
+    const claim = await claimsCollection.findOne({ _id: claimId })
+
+    if (!claim) {
+      console.error("Claim not found in systech_ott_platform.claims:", claimId)
+      return NextResponse.json({ success: false, error: "Claim not found" }, { status: 404 })
     }
 
-    const db = await getDatabase()
-
-    const result = await db.collection<IClaimResponse>("claims").updateOne(
-      { _id: new ObjectId(claimId) },
+    // Update claim status
+    const updateResult = await claimsCollection.updateOne(
+      { _id: claimId },
       {
         $set: {
-          paymentStatus: "completed",
-          paymentId: paymentId, // This is razorpay_payment_id
-          razorpayOrderId: orderId, // This is razorpay_order_id
+          paymentStatus,
+          paymentId,
+          razorpayOrderId,
           updatedAt: new Date(),
         },
       },
     )
 
-    if (result.matchedCount === 0) {
-      return NextResponse.json({ success: false, error: "Claim not found." }, { status: 404 })
+    if (updateResult.matchedCount === 0) {
+      console.error("Failed to update claim in systech_ott_platform.claims:", claimId)
+      return NextResponse.json({ success: false, error: "Failed to update claim" }, { status: 500 })
     }
 
-    return NextResponse.json({ success: true, message: "Claim payment status updated successfully." })
+    console.log("Successfully updated claim in systech_ott_platform.claims:", claimId)
+
+    // Send payment success email if payment was successful
+    if (paymentStatus === "paid") {
+      try {
+        const customerName = `${claim.firstName} ${claim.lastName}`
+
+        await sendEmail(
+          claim.email,
+          "🎉 Payment Successful - OTT Code Processing Started - SYSTECH DIGITAL",
+          "payment_success",
+          claim,
+          {
+            to: claim.email,
+            subject: "🎉 Payment Successful - OTT Code Processing Started - SYSTECH DIGITAL",
+            template: "payment_success",
+            data: {
+              customerName,
+              claimId,
+              paymentId,
+              amount: "99", // You might want to get this from the claim
+              activationCode: claim.activationCode,
+              email: claim.email,
+              phone: claim.phone,
+              date: new Date().toLocaleDateString("en-IN", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+            },
+          },
+          {
+            template: "payment_success",
+            data: {
+              customerName,
+              claimId,
+              paymentId,
+              amount: "99",
+              activationCode: claim.activationCode,
+              email: claim.email,
+              phone: claim.phone,
+              date: new Date().toLocaleDateString("en-IN", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+            },
+            to: "",
+            subject: "",
+          },
+        )
+
+        console.log("Payment success email sent to:", claim.email)
+      } catch (emailError) {
+        console.error("Failed to send payment success email:", emailError)
+        // Don't fail the request if email fails
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Claim status updated successfully in systech_ott_platform.claims",
+    })
   } catch (error: any) {
-    console.error("Error updating claim payment status:", error)
-    return NextResponse.json({ success: false, error: error.message || "Internal server error" }, { status: 500 })
+    console.error("Error updating claim status in systech_ott_platform.claims:", error)
+    return NextResponse.json(
+      { success: false, error: error.message || "Failed to update claim status" },
+      { status: 500 },
+    )
   }
 }

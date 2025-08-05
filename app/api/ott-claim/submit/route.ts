@@ -83,9 +83,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Invalid email address" }, { status: 400 })
     }
 
-    // Connect to database
-    console.log("Connecting to database...")
-    const db = await getDatabase()
+    // Connect to systech_ott_platform database
+    console.log("Connecting to systech_ott_platform database...")
+    const db = await getDatabase("systech_ott_platform")
     console.log("Database connected")
 
     // Check if a *paid* claim already exists for this email and activation code
@@ -115,13 +115,14 @@ export async function POST(request: NextRequest) {
     const claimId = `claim_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     claimData._id = claimId as any
 
-    // Insert claim into database
+    // Insert claim into systech_ott_platform.claims collection
+    console.log("Inserting claim into systech_ott_platform.claims collection...")
     const result = await claimsCollection.insertOne(claimData as IClaimResponse)
 
-    console.log("Claim inserted:", result.insertedId)
+    console.log("Claim inserted into systech_ott_platform.claims:", result.insertedId)
 
     if (!result.insertedId) {
-      console.error("Failed to insert claim")
+      console.error("Failed to insert claim into systech_ott_platform.claims")
       return NextResponse.json({ success: false, error: "Failed to save claim data" }, { status: 500 })
     }
 
@@ -181,17 +182,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       claimId: claimId,
-      message: "Claim submitted successfully",
+      message: "Claim submitted successfully and saved to systech_ott_platform.claims",
       redirectUrl: `/payment?claimId=${claimId}&amount=99&customerName=${encodeURIComponent(
         customerFullName,
       )}&customerEmail=${encodeURIComponent(claimData.email ?? "")}&customerPhone=${encodeURIComponent(claimData.phone ?? "")}`,
     })
   } catch (error: any) {
-    console.error("Error submitting claim:", error)
+    console.error("Error submitting claim to systech_ott_platform.claims:", error)
     return NextResponse.json(
       {
         success: false,
-        error: error.message || "Failed to submit claim",
+        error: error.message || "Failed to submit claim to systech_ott_platform database",
       },
       { status: 500 },
     )

@@ -1,524 +1,449 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { connectToDatabase } from "@/lib/mongodb"
-import ClaimResponse from "@/models/ClaimResponse"
-import SalesRecord from "@/models/SalesRecord"
-import OTTKey from "@/models/OTTKey"
+import { getDatabase } from "@/lib/mongodb"
 import { sendEmail } from "@/lib/email"
+import type { IClaimResponse, ISalesRecord, IOTTKey } from "@/lib/models"
 
-// Normalize activation code for better matching
+// Helper function to normalize activation codes for better matching
 const normalizeActivationCode = (code: string): string => {
   return code.toString().trim().toUpperCase().replace(/\s+/g, "")
 }
 
-// Map product names to OTT platforms
-const mapProductToOTTPlatform = (productName: string): string => {
-  const product = productName.toLowerCase()
+// Helper function to determine platform from product name
+const getPlatformFromProduct = (product: string): string => {
+  const productLower = product.toLowerCase()
 
-  // Platform mapping based on product names
-  const platformMap: Record<string, string> = {
+  // Map common product names to platforms
+  const platformMapping: Record<string, string> = {
     ottplay: "OTTplay",
     "ott play": "OTTplay",
-    "power play": "OTTplay",
-    powerplay: "OTTplay",
     netflix: "Netflix",
-    "amazon prime": "Amazon Prime",
-    disney: "Disney+",
+    "amazon prime": "Amazon Prime Video",
+    "prime video": "Amazon Prime Video",
+    disney: "Disney+ Hotstar",
     hotstar: "Disney+ Hotstar",
     zee5: "ZEE5",
     sonyliv: "SonyLIV",
     voot: "Voot",
-    altbalaji: "ALTBalaji",
+    "alt balaji": "ALTBalaji",
     "mx player": "MX Player",
-    jiocinema: "JioCinema",
+    "jio cinema": "JioCinema",
     "eros now": "Eros Now",
+    hungama: "Hungama Play",
+    shemaroo: "ShemarooMe",
+    lionsgate: "Lionsgate Play",
+    fancode: "FanCode",
+    "sun nxt": "Sun NXT",
   }
 
-  for (const [key, platform] of Object.entries(platformMap)) {
-    if (product.includes(key)) {
+  // Check for exact matches first
+  for (const [key, platform] of Object.entries(platformMapping)) {
+    if (productLower.includes(key)) {
       return platform
     }
   }
 
-  return "OTTplay" // Default platform
+  // Default to OTTplay if no specific platform found
+  return "OTTplay"
 }
 
 export async function POST(request: NextRequest) {
   try {
     console.log("🤖 Starting automation process...")
 
-    await connectToDatabase()
+    // Connect to systech_ott_platform database
+    const db = await getDatabase("systech_ott_platform")
+    const claimsCollection = db.collection<IClaimResponse>("claims")
+    const salesCollection = db.collection<ISalesRecord>("salesrecords")
+    const keysCollection = db.collection<IOTTKey>("ottkeys")
 
-    // Get all pending claims that haven't been processed
-    const pendingClaims = await ClaimResponse.find({
-      paymentStatus: "paid",
-      ottKeyAssigned: { $ne: true },
-      automationProcessed: { $ne: true },
-    }).sort({ createdAt: 1 })
+    // Get all paid claims that haven't been processed yet
+    const unprocessedClaims = await claimsCollection
+      .find({
+        paymentStatus: "paid",
+        ottCodeStatus: { $in: ["pending", "failed"] },
+      })
+      .toArray()
 
-    console.log(`📋 Found ${pendingClaims.length} pending claims to process`)
+    console.log(`📋 Found ${unprocessedClaims.length} unprocessed paid claims`)
 
-    if (pendingClaims.length === 0) {
+    if (unprocessedClaims.length === 0) {
       return NextResponse.json({
         success: true,
-        message: "No pending claims to process",
+        message: "No unprocessed claims found",
         processed: 0,
       })
     }
 
-    let processedCount = 0
     let successCount = 0
     let failureCount = 0
 
-    for (const claim of pendingClaims) {
+    for (const claim of unprocessedClaims) {
       try {
-        console.log(`\n🔄 Processing claim: ${claim.claimId}`)
-        console.log(`📱 Activation Code: "${claim.activationCode}"`)
+        console.log(`\n🔄 Processing claim: ${claim._id}`)
+        console.log(`📧 Customer: ${claim.email}`)
+        console.log(`🔑 Activation Code: ${claim.activationCode}`)
 
-        // Normalize the activation code for matching
-        const normalizedSearchCode = normalizeActivationCode(claim.activationCode)
-        console.log(`🔍 Normalized Search Code: "${normalizedSearchCode}"`)
+        // Step 1: Find matching sales record with enhanced matching
+        const originalCode = claim.activationCode
+        const normalizedSearchCode = normalizeActivationCode(originalCode)
 
-        // Try multiple matching strategies
-        let salesRecord = null
-        let matchStrategy = ""
+        console.log(`🔍 Searching for activation code:`)
+        console.log(`   Original: "${originalCode}"`)
+        console.log(`   Normalized: "${normalizedSearchCode}"`)
+
+        let salesRecord: ISalesRecord | null = null
 
         // Strategy 1: Exact match
-        salesRecord = await SalesRecord.findOne({
-          activationCode: claim.activationCode,
-          claimed: { $ne: true },
+        salesRecord = await salesCollection.findOne({
+          activationCode: originalCode,
         })
-        if (salesRecord) {
-          matchStrategy = "exact"
-          console.log(`✅ Found exact match: ${salesRecord.activationCode}`)
-        }
 
-        // Strategy 2: Case-insensitive match
         if (!salesRecord) {
-          salesRecord = await SalesRecord.findOne({
-            activationCode: { $regex: new RegExp(`^${claim.activationCode}$`, "i") },
-            claimed: { $ne: true },
+          // Strategy 2: Case-insensitive match
+          console.log(`🔍 Trying case-insensitive match...`)
+          salesRecord = await salesCollection.findOne({
+            activationCode: { $regex: new RegExp(`^${originalCode}$`, "i") },
           })
-          if (salesRecord) {
-            matchStrategy = "case-insensitive"
-            console.log(`✅ Found case-insensitive match: ${salesRecord.activationCode}`)
-          }
         }
 
-        // Strategy 3: Normalized match (remove spaces, uppercase)
         if (!salesRecord) {
-          const allSalesRecords = await SalesRecord.find({ claimed: { $ne: true } })
-          salesRecord = allSalesRecords.find(
-            (record) => normalizeActivationCode(record.activationCode) === normalizedSearchCode,
-          )
-          if (salesRecord) {
-            matchStrategy = "normalized"
-            console.log(`✅ Found normalized match: ${salesRecord.activationCode} -> ${normalizedSearchCode}`)
-          }
+          // Strategy 3: Normalized match (remove spaces, uppercase)
+          console.log(`🔍 Trying normalized match...`)
+          const allSalesRecords = await salesCollection.find({}).toArray()
+
+          salesRecord =
+            allSalesRecords.find((record) => normalizeActivationCode(record.activationCode) === normalizedSearchCode) ||
+            null
         }
 
-        // Strategy 4: Partial match (contains)
         if (!salesRecord) {
-          salesRecord = await SalesRecord.findOne({
+          // Strategy 4: Partial match (contains)
+          console.log(`🔍 Trying partial match...`)
+          salesRecord = await salesCollection.findOne({
             activationCode: { $regex: normalizedSearchCode, $options: "i" },
-            claimed: { $ne: true },
           })
-          if (salesRecord) {
-            matchStrategy = "partial"
-            console.log(`✅ Found partial match: ${salesRecord.activationCode}`)
-          }
         }
 
         if (!salesRecord) {
-          console.log(`❌ No sales record found for: "${claim.activationCode}"`)
+          console.error(`❌ No sales record found for activation code: ${originalCode}`)
 
-          // Log some sample sales records for debugging
-          const sampleRecords = await SalesRecord.find({ claimed: { $ne: true } }).limit(5)
-          console.log("📊 Sample available activation codes:")
+          // Show some sample records for debugging
+          const sampleRecords = await salesCollection.find({}).limit(5).toArray()
+          console.log(`📊 Sample sales records for debugging:`)
           sampleRecords.forEach((record, index) => {
-            console.log(
-              `  ${index + 1}. "${record.activationCode}" (normalized: "${normalizeActivationCode(record.activationCode)}")`,
-            )
+            console.log(`   ${index + 1}. "${record.activationCode}" (${record.product})`)
           })
 
-          // Send failure email
-          await sendEmail({
-            to: claim.customerEmail,
-            subject: "OTT Claim Processing - Invalid Activation Code",
-            html: `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #fff5f5; border: 1px solid #fed7d7; border-radius: 8px;">
-                <div style="text-align: center; margin-bottom: 30px;">
-                  <h1 style="color: #e53e3e; margin: 0; font-size: 24px;">⚠️ Activation Code Issue</h1>
-                </div>
-                
-                <div style="background: white; padding: 25px; border-radius: 8px; margin-bottom: 20px;">
-                  <h2 style="color: #2d3748; margin-top: 0;">Hello ${claim.customerName},</h2>
-                  
-                  <p style="color: #4a5568; line-height: 1.6;">
-                    We encountered an issue while processing your OTT subscription claim. The activation code you provided could not be found in our sales records.
-                  </p>
-                  
-                  <div style="background: #fed7d7; padding: 15px; border-radius: 6px; margin: 20px 0;">
-                    <p style="margin: 0; color: #742a2a;"><strong>Issue:</strong> Invalid activation code - not found in sales records</p>
-                    <p style="margin: 5px 0 0 0; color: #742a2a;"><strong>Code Provided:</strong> ${claim.activationCode}</p>
-                  </div>
-                  
-                  <h3 style="color: #2d3748; margin-top: 25px;">What to do next:</h3>
-                  <ul style="color: #4a5568; line-height: 1.6;">
-                    <li>Double-check the activation code from your purchase receipt</li>
-                    <li>Ensure there are no extra spaces or special characters</li>
-                    <li>Contact the seller if you believe the code is correct</li>
-                    <li>Reach out to our support team for assistance</li>
-                  </ul>
-                  
-                  <div style="background: #e6fffa; padding: 15px; border-radius: 6px; margin: 20px 0;">
-                    <h4 style="color: #234e52; margin: 0 0 10px 0;">📞 Need Help?</h4>
-                    <p style="margin: 0; color: #234e52;">
-                      <strong>Email:</strong> support@systechdigital.in<br>
-                      <strong>Phone:</strong> +91-XXXXXXXXXX<br>
-                      <strong>Claim ID:</strong> ${claim.claimId}
-                    </p>
-                  </div>
-                </div>
-                
-                <div style="text-align: center; color: #718096; font-size: 12px;">
-                  <p>This is an automated message from SYSTECH DIGITAL</p>
-                </div>
-              </div>
-            `,
-          })
-
-          // Mark as processed with failure
-          await ClaimResponse.findByIdAndUpdate(claim._id, {
-            automationProcessed: true,
-            automationStatus: "failed",
-            automationError: "Invalid activation code - not found in sales records",
-            automationProcessedAt: new Date(),
-            debugInfo: {
-              searchCode: claim.activationCode,
-              normalizedCode: normalizedSearchCode,
-              sampleCodes: sampleRecords.map((r) => r.activationCode),
+          // Update claim status and send failure email
+          await claimsCollection.updateOne(
+            { _id: claim._id },
+            {
+              $set: {
+                ottCodeStatus: "failed",
+                failureReason: "Invalid activation code - not found in sales records",
+                updatedAt: new Date(),
+                debugInfo: {
+                  searchedCode: originalCode,
+                  normalizedCode: normalizedSearchCode,
+                  searchStrategies: ["exact", "case-insensitive", "normalized", "partial"],
+                  sampleCodes: sampleRecords.map((r) => r.activationCode),
+                },
+              },
             },
-          })
+          )
+
+          // Send failure email to customer
+          await sendFailureEmail(claim, "invalid_code", "Invalid activation code - not found in sales records")
 
           failureCount++
-          processedCount++
           continue
         }
 
-        // Check if this activation code has already been claimed
-        const existingClaim = await ClaimResponse.findOne({
-          activationCode: salesRecord.activationCode,
-          ottKeyAssigned: true,
-          _id: { $ne: claim._id },
-        })
+        console.log(`✅ Found sales record: ${salesRecord.product} (${salesRecord.productSubCategory})`)
 
-        if (existingClaim) {
-          console.log(`❌ Activation code already claimed: ${salesRecord.activationCode}`)
+        // Check if already claimed
+        if (salesRecord.status === "claimed") {
+          console.error(`❌ Activation code already claimed by: ${salesRecord.claimedBy}`)
 
-          // Send duplicate claim email
-          await sendEmail({
-            to: claim.customerEmail,
-            subject: "OTT Claim Processing - Code Already Used",
-            html: `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #fff5f5; border: 1px solid #fed7d7; border-radius: 8px;">
-                <div style="text-align: center; margin-bottom: 30px;">
-                  <h1 style="color: #e53e3e; margin: 0; font-size: 24px;">🚫 Duplicate Claim Detected</h1>
-                </div>
-                
-                <div style="background: white; padding: 25px; border-radius: 8px; margin-bottom: 20px;">
-                  <h2 style="color: #2d3748; margin-top: 0;">Hello ${claim.customerName},</h2>
-                  
-                  <p style="color: #4a5568; line-height: 1.6;">
-                    The activation code you provided has already been used for another OTT subscription claim.
-                  </p>
-                  
-                  <div style="background: #fed7d7; padding: 15px; border-radius: 6px; margin: 20px 0;">
-                    <p style="margin: 0; color: #742a2a;"><strong>Issue:</strong> Activation code already claimed</p>
-                    <p style="margin: 5px 0 0 0; color: #742a2a;"><strong>Code:</strong> ${salesRecord.activationCode}</p>
-                  </div>
-                  
-                  <p style="color: #4a5568; line-height: 1.6;">
-                    Each activation code can only be used once. If you believe this is an error, please contact our support team immediately.
-                  </p>
-                  
-                  <div style="background: #e6fffa; padding: 15px; border-radius: 6px; margin: 20px 0;">
-                    <h4 style="color: #234e52; margin: 0 0 10px 0;">📞 Contact Support</h4>
-                    <p style="margin: 0; color: #234e52;">
-                      <strong>Email:</strong> support@systechdigital.in<br>
-                      <strong>Phone:</strong> +91-XXXXXXXXXX<br>
-                      <strong>Claim ID:</strong> ${claim.claimId}
-                    </p>
-                  </div>
-                </div>
-                
-                <div style="text-align: center; color: #718096; font-size: 12px;">
-                  <p>This is an automated message from SYSTECH DIGITAL</p>
-                </div>
-              </div>
-            `,
-          })
+          await claimsCollection.updateOne(
+            { _id: claim._id },
+            {
+              $set: {
+                ottCodeStatus: "failed",
+                failureReason: "Activation code already claimed",
+                updatedAt: new Date(),
+              },
+            },
+          )
 
-          // Mark as processed with failure
-          await ClaimResponse.findByIdAndUpdate(claim._id, {
-            automationProcessed: true,
-            automationStatus: "failed",
-            automationError: "Activation code already claimed",
-            automationProcessedAt: new Date(),
-          })
+          await sendFailureEmail(claim, "duplicate_claim", "This activation code has already been claimed")
 
           failureCount++
-          processedCount++
           continue
         }
 
-        // Determine the OTT platform based on product name
-        const ottPlatform = mapProductToOTTPlatform(salesRecord.productName || "OTTplay")
-        console.log(`🎯 Mapped to platform: ${ottPlatform}`)
+        // Step 2: Find available OTT key for the platform
+        const platform = getPlatformFromProduct(salesRecord.product)
+        console.log(`🎯 Looking for ${platform} OTT key...`)
 
-        // Find an available OTT key for this platform
-        const availableKey = await OTTKey.findOne({
-          platform: ottPlatform,
-          assigned: { $ne: true },
+        const availableKey = await keysCollection.findOne({
+          status: "available",
+          $or: [
+            { product: { $regex: platform, $options: "i" } },
+            { productSubCategory: { $regex: platform, $options: "i" } },
+          ],
         })
 
         if (!availableKey) {
-          console.log(`❌ No available keys for platform: ${ottPlatform}`)
+          console.error(`❌ No available OTT keys for platform: ${platform}`)
 
-          // Send no keys available email
-          await sendEmail({
-            to: claim.customerEmail,
-            subject: "OTT Claim Processing - Keys Temporarily Unavailable",
-            html: `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #fffbeb; border: 1px solid #fed7aa; border-radius: 8px;">
-                <div style="text-align: center; margin-bottom: 30px;">
-                  <h1 style="color: #d97706; margin: 0; font-size: 24px;">⏳ Processing Delay</h1>
-                </div>
-                
-                <div style="background: white; padding: 25px; border-radius: 8px; margin-bottom: 20px;">
-                  <h2 style="color: #2d3748; margin-top: 0;">Hello ${claim.customerName},</h2>
-                  
-                  <p style="color: #4a5568; line-height: 1.6;">
-                    Your OTT subscription claim has been validated successfully, but we're temporarily out of ${ottPlatform} activation keys.
-                  </p>
-                  
-                  <div style="background: #fed7aa; padding: 15px; border-radius: 6px; margin: 20px 0;">
-                    <p style="margin: 0; color: #92400e;"><strong>Status:</strong> Waiting for key availability</p>
-                    <p style="margin: 5px 0 0 0; color: #92400e;"><strong>Platform:</strong> ${ottPlatform}</p>
-                  </div>
-                  
-                  <p style="color: #4a5568; line-height: 1.6;">
-                    We're working to replenish our key inventory. You'll receive your activation code within 24-48 hours via email.
-                  </p>
-                  
-                  <div style="background: #e6fffa; padding: 15px; border-radius: 6px; margin: 20px 0;">
-                    <h4 style="color: #234e52; margin: 0 0 10px 0;">📋 Your Claim Details</h4>
-                    <p style="margin: 0; color: #234e52;">
-                      <strong>Claim ID:</strong> ${claim.claimId}<br>
-                      <strong>Platform:</strong> ${ottPlatform}<br>
-                      <strong>Status:</strong> Pending Key Assignment
-                    </p>
-                  </div>
-                </div>
-                
-                <div style="text-align: center; color: #718096; font-size: 12px;">
-                  <p>This is an automated message from SYSTECH DIGITAL</p>
-                </div>
-              </div>
-            `,
-          })
+          await claimsCollection.updateOne(
+            { _id: claim._id },
+            {
+              $set: {
+                ottCodeStatus: "failed",
+                failureReason: `No available OTT keys for ${platform}`,
+                updatedAt: new Date(),
+              },
+            },
+          )
 
-          // Mark as processed but pending key assignment
-          await ClaimResponse.findByIdAndUpdate(claim._id, {
-            automationProcessed: true,
-            automationStatus: "pending_keys",
-            automationError: `No available keys for platform: ${ottPlatform}`,
-            automationProcessedAt: new Date(),
-            ottPlatform: ottPlatform,
-          })
+          await sendFailureEmail(claim, "no_keys", `No available OTT keys for ${platform}`)
 
           failureCount++
-          processedCount++
           continue
         }
 
-        console.log(`🔑 Found available key: ${availableKey.ottCode} for ${ottPlatform}`)
+        console.log(`🎉 Found available OTT key: ${availableKey.activationCode}`)
 
-        // Assign the key to the claim
-        await Promise.all([
-          // Mark the OTT key as assigned
-          OTTKey.findByIdAndUpdate(availableKey._id, {
-            assigned: true,
-            assignedTo: claim.customerEmail,
-            assignedAt: new Date(),
-            claimId: claim.claimId,
-          }),
+        // Step 3: Update all records atomically
+        const session = db.client?.startSession()
 
-          // Mark the sales record as claimed
-          SalesRecord.findByIdAndUpdate(salesRecord._id, {
-            claimed: true,
-            claimedAt: new Date(),
-            claimedBy: claim.customerEmail,
-            claimId: claim.claimId,
-          }),
+        try {
+          await session?.withTransaction(async () => {
+            // Mark sales record as claimed
+            await salesCollection.updateOne(
+              { _id: salesRecord._id },
+              {
+                $set: {
+                  status: "claimed",
+                  claimedBy: claim.email,
+                  claimedDate: new Date(),
+                  updatedAt: new Date(),
+                },
+              },
+            )
 
-          // Update the claim response
-          ClaimResponse.findByIdAndUpdate(claim._id, {
-            ottKeyAssigned: true,
-            ottCode: availableKey.ottCode,
-            ottPlatform: ottPlatform,
-            automationProcessed: true,
-            automationStatus: "success",
-            automationProcessedAt: new Date(),
-            matchStrategy: matchStrategy,
-          }),
-        ])
+            // Mark OTT key as assigned
+            await keysCollection.updateOne(
+              { _id: availableKey._id },
+              {
+                $set: {
+                  status: "assigned",
+                  assignedEmail: claim.email,
+                  assignedDate: new Date(),
+                  assignedTo: claim._id,
+                  updatedAt: new Date(),
+                },
+              },
+            )
 
-        // Send success email with OTT code
-        await sendEmail({
-          to: claim.customerEmail,
-          subject: "🎉 Your OTT Activation Code is Ready!",
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f0fff4; border: 1px solid #9ae6b4; border-radius: 8px;">
-              <div style="text-align: center; margin-bottom: 30px;">
-                <h1 style="color: #38a169; margin: 0; font-size: 28px;">🎉 Success!</h1>
-                <p style="color: #2f855a; font-size: 18px; margin: 10px 0 0 0;">Your OTT Code is Ready</p>
-              </div>
-              
-              <div style="background: white; padding: 30px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                <h2 style="color: #2d3748; margin-top: 0;">Hello ${claim.customerName},</h2>
-                
-                <p style="color: #4a5568; line-height: 1.6; font-size: 16px;">
-                  Great news! Your OTT subscription claim has been processed successfully. Here's your activation code:
-                </p>
-                
-                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 10px; margin: 25px 0; text-align: center;">
-                  <p style="color: white; margin: 0 0 10px 0; font-size: 14px; opacity: 0.9;">Your ${ottPlatform} Activation Code</p>
-                  <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; border: 2px dashed rgba(255,255,255,0.5);">
-                    <h1 style="color: white; margin: 0; font-size: 32px; font-weight: bold; letter-spacing: 2px; font-family: 'Courier New', monospace;">
-                      ${availableKey.ottCode}
-                    </h1>
-                  </div>
-                </div>
-                
-                <div style="background: #e6fffa; padding: 20px; border-radius: 8px; margin: 25px 0;">
-                  <h3 style="color: #234e52; margin: 0 0 15px 0;">📱 How to Redeem:</h3>
-                  <ol style="color: #234e52; line-height: 1.8; margin: 0; padding-left: 20px;">
-                    <li>Download the ${ottPlatform} app from your app store</li>
-                    <li>Create an account or log in to your existing account</li>
-                    <li>Go to "Redeem Code" or "Activate Subscription" section</li>
-                    <li>Enter the activation code: <strong>${availableKey.ottCode}</strong></li>
-                    <li>Enjoy your premium subscription!</li>
-                  </ol>
-                </div>
-                
-                <div style="background: #f7fafc; padding: 20px; border-radius: 8px; margin: 25px 0;">
-                  <h4 style="color: #2d3748; margin: 0 0 15px 0;">📋 Order Summary</h4>
-                  <table style="width: 100%; color: #4a5568;">
-                    <tr><td><strong>Claim ID:</strong></td><td>${claim.claimId}</td></tr>
-                    <tr><td><strong>Platform:</strong></td><td>${ottPlatform}</td></tr>
-                    <tr><td><strong>Activation Code:</strong></td><td style="font-family: monospace;">${availableKey.ottCode}</td></tr>
-                    <tr><td><strong>Processed:</strong></td><td>${new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}</td></tr>
-                  </table>
-                </div>
-                
-                <p style="color: #4a5568; line-height: 1.6; font-size: 14px; margin-top: 25px;">
-                  <strong>Important:</strong> Please save this email for your records. If you face any issues with activation, contact our support team with your Claim ID.
-                </p>
-              </div>
-              
-              <div style="text-align: center; color: #718096; font-size: 12px;">
-                <p>Thank you for choosing SYSTECH DIGITAL</p>
-                <p>This is an automated message - please do not reply</p>
-              </div>
-            </div>
-          `,
-        })
+            // Update claim with success
+            await claimsCollection.updateOne(
+              { _id: claim._id },
+              {
+                $set: {
+                  ottCodeStatus: "delivered",
+                  ottCode: availableKey.activationCode,
+                  platform: platform,
+                  updatedAt: new Date(),
+                },
+              },
+            )
+          })
 
-        console.log(`✅ Successfully processed claim: ${claim.claimId}`)
-        successCount++
-        processedCount++
+          // Send success email with OTT code
+          await sendSuccessEmail(claim, availableKey.activationCode, platform)
+
+          console.log(`✅ Successfully processed claim: ${claim._id}`)
+          successCount++
+        } catch (transactionError) {
+          console.error(`❌ Transaction failed for claim ${claim._id}:`, transactionError)
+
+          await claimsCollection.updateOne(
+            { _id: claim._id },
+            {
+              $set: {
+                ottCodeStatus: "failed",
+                failureReason: "Database transaction failed",
+                updatedAt: new Date(),
+              },
+            },
+          )
+
+          await sendFailureEmail(claim, "technical_error", "Database transaction failed")
+          failureCount++
+        } finally {
+          await session?.endSession()
+        }
       } catch (claimError) {
-        console.error(`❌ Error processing claim ${claim.claimId}:`, claimError)
+        console.error(`❌ Error processing claim ${claim._id}:`, claimError)
 
-        // Send technical error email
-        await sendEmail({
-          to: claim.customerEmail,
-          subject: "OTT Claim Processing - Technical Issue",
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #fff5f5; border: 1px solid #fed7d7; border-radius: 8px;">
-              <div style="text-align: center; margin-bottom: 30px;">
-                <h1 style="color: #e53e3e; margin: 0; font-size: 24px;">🔧 Technical Issue</h1>
-              </div>
-              
-              <div style="background: white; padding: 25px; border-radius: 8px; margin-bottom: 20px;">
-                <h2 style="color: #2d3748; margin-top: 0;">Hello ${claim.customerName},</h2>
-                
-                <p style="color: #4a5568; line-height: 1.6;">
-                  We encountered a technical issue while processing your OTT subscription claim. Our technical team has been notified and is working to resolve this immediately.
-                </p>
-                
-                <div style="background: #fed7d7; padding: 15px; border-radius: 6px; margin: 20px 0;">
-                  <p style="margin: 0; color: #742a2a;"><strong>Status:</strong> Technical processing error</p>
-                  <p style="margin: 5px 0 0 0; color: #742a2a;"><strong>Claim ID:</strong> ${claim.claimId}</p>
-                </div>
-                
-                <p style="color: #4a5568; line-height: 1.6;">
-                  We'll retry processing your claim automatically. If the issue persists, our support team will contact you directly within 24 hours.
-                </p>
-                
-                <div style="background: #e6fffa; padding: 15px; border-radius: 6px; margin: 20px 0;">
-                  <h4 style="color: #234e52; margin: 0 0 10px 0;">🚨 Priority Support</h4>
-                  <p style="margin: 0; color: #234e52;">
-                    <strong>Email:</strong> support@systechdigital.in<br>
-                    <strong>Phone:</strong> +91-XXXXXXXXXX<br>
-                    <strong>Reference:</strong> ${claim.claimId}
-                  </p>
-                </div>
-              </div>
-              
-              <div style="text-align: center; color: #718096; font-size: 12px;">
-                <p>This is an automated message from SYSTECH DIGITAL</p>
-              </div>
-            </div>
-          `,
-        })
+        await claimsCollection.updateOne(
+          { _id: claim._id },
+          {
+            $set: {
+              ottCodeStatus: "failed",
+              failureReason: `Processing error: ${claimError.message}`,
+              updatedAt: new Date(),
+            },
+          },
+        )
 
-        // Mark as processed with error
-        await ClaimResponse.findByIdAndUpdate(claim._id, {
-          automationProcessed: true,
-          automationStatus: "error",
-          automationError: claimError instanceof Error ? claimError.message : "Unknown error",
-          automationProcessedAt: new Date(),
-        })
-
+        await sendFailureEmail(claim, "technical_error", `Processing error: ${claimError.message}`)
         failureCount++
-        processedCount++
       }
     }
 
-    console.log(`\n🎯 Automation Summary:`)
-    console.log(`   Total Processed: ${processedCount}`)
-    console.log(`   Successful: ${successCount}`)
-    console.log(`   Failed: ${failureCount}`)
+    console.log(`\n🎯 Automation completed:`)
+    console.log(`   ✅ Successful: ${successCount}`)
+    console.log(`   ❌ Failed: ${failureCount}`)
+    console.log(`   📊 Total processed: ${successCount + failureCount}`)
 
     return NextResponse.json({
       success: true,
-      message: `Processed ${processedCount} claims`,
-      summary: {
-        total: processedCount,
-        successful: successCount,
-        failed: failureCount,
-      },
+      message: "Automation process completed",
+      processed: successCount + failureCount,
+      successful: successCount,
+      failed: failureCount,
     })
-  } catch (error) {
-    console.error("❌ Automation process error:", error)
+  } catch (error: any) {
+    console.error("❌ Automation process failed:", error)
     return NextResponse.json(
       {
         success: false,
-        error: "Automation process failed",
-        details: error instanceof Error ? error.message : "Unknown error",
+        error: error.message || "Automation process failed",
       },
       { status: 500 },
     )
+  }
+}
+
+// Helper function to send success email
+async function sendSuccessEmail(claim: IClaimResponse, ottCode: string, platform: string) {
+  try {
+    const customerName = `${claim.firstName} ${claim.lastName}`
+
+    await sendEmail(
+      claim.email,
+      `🎉 Your ${platform} OTT Code is Ready! - SYSTECH DIGITAL`,
+      "ott_success",
+      claim,
+      {
+        to: claim.email,
+        subject: `🎉 Your ${platform} OTT Code is Ready! - SYSTECH DIGITAL`,
+        template: "ott_success",
+        data: {
+          customerName,
+          ottCode,
+          platform,
+          claimId: claim._id,
+          activationCode: claim.activationCode,
+          email: claim.email,
+          phone: claim.phone,
+        },
+      },
+      {
+        template: "ott_success",
+        data: {
+          customerName,
+          ottCode,
+          platform,
+          claimId: claim._id,
+          activationCode: claim.activationCode,
+          email: claim.email,
+          phone: claim.phone,
+        },
+        to: "",
+        subject: "",
+      },
+    )
+
+    console.log(`📧 Success email sent to: ${claim.email}`)
+  } catch (emailError) {
+    console.error(`❌ Failed to send success email to ${claim.email}:`, emailError)
+  }
+}
+
+// Helper function to send failure email
+async function sendFailureEmail(claim: IClaimResponse, failureType: string, reason: string) {
+  try {
+    const customerName = `${claim.firstName} ${claim.lastName}`
+
+    let subject = ""
+    let template = ""
+
+    switch (failureType) {
+      case "invalid_code":
+        subject = "⚠️ Issue with Your OTT Code Claim - SYSTECH DIGITAL"
+        template = "ott_failure_invalid_code"
+        break
+      case "duplicate_claim":
+        subject = "⚠️ Duplicate Claim Detected - SYSTECH DIGITAL"
+        template = "ott_failure_duplicate"
+        break
+      case "no_keys":
+        subject = "⏳ OTT Code Temporarily Unavailable - SYSTECH DIGITAL"
+        template = "ott_failure_no_keys"
+        break
+      case "technical_error":
+        subject = "🔧 Technical Issue with Your OTT Code Claim - SYSTECH DIGITAL"
+        template = "ott_failure_technical"
+        break
+      default:
+        subject = "⚠️ Issue with Your OTT Code Claim - SYSTECH DIGITAL"
+        template = "ott_failure_generic"
+    }
+
+    await sendEmail(
+      claim.email,
+      subject,
+      template,
+      claim,
+      {
+        to: claim.email,
+        subject: subject,
+        template: template,
+        data: {
+          customerName,
+          reason,
+          claimId: claim._id,
+          activationCode: claim.activationCode,
+          email: claim.email,
+          phone: claim.phone,
+          supportEmail: "support@systechdigital.in",
+          supportPhone: "+91-9876543210",
+        },
+      },
+      {
+        template: template,
+        data: {
+          customerName,
+          reason,
+          claimId: claim._id,
+          activationCode: claim.activationCode,
+          email: claim.email,
+          phone: claim.phone,
+          supportEmail: "support@systechdigital.in",
+          supportPhone: "+91-9876543210",
+        },
+        to: "",
+        subject: "",
+      },
+    )
+
+    console.log(`📧 Failure email sent to: ${claim.email}`)
+  } catch (emailError) {
+    console.error(`❌ Failed to send failure email to ${claim.email}:`, emailError)
   }
 }

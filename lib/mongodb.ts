@@ -1,12 +1,13 @@
 import { MongoClient, type Db } from "mongodb"
 
 const uri = process.env.MONGODB_URI
-export let client: MongoClient
-let clientPromise: Promise<MongoClient>
-let cachedDb: Db | null = null // Cache the database instance
+const options = {}
 
-if (!uri) {
-  throw new Error("Please add your Mongo URI to .env.local or environment variables.")
+let client: MongoClient
+let clientPromise: Promise<MongoClient>
+
+if (!process.env.MONGODB_URI) {
+  throw new Error("Please add your Mongo URI to .env.local")
 }
 
 if (process.env.NODE_ENV === "development") {
@@ -14,47 +15,43 @@ if (process.env.NODE_ENV === "development") {
   // is preserved across module reloads caused by HMR (Hot Module Replacement).
   const globalWithMongo = global as typeof globalThis & {
     _mongoClientPromise?: Promise<MongoClient>
-    _mongoDb?: Db
   }
+
   if (!globalWithMongo._mongoClientPromise) {
-    client = new MongoClient(uri)
+    client = new MongoClient(uri!, options)
     globalWithMongo._mongoClientPromise = client.connect()
   }
   clientPromise = globalWithMongo._mongoClientPromise
-  if (globalWithMongo._mongoDb) {
-    cachedDb = globalWithMongo._mongoDb
-  }
 } else {
   // In production mode, it's best to not use a global variable.
-  client = new MongoClient(uri)
+  client = new MongoClient(uri!, options)
   clientPromise = client.connect()
 }
 
-export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db }> {
-  if (cachedDb) {
-    console.log("Using cached MongoDB connection.")
-    return { client: await clientPromise, db: cachedDb }
-  }
+// Export a module-scoped MongoClient promise. By doing this in a
+// separate module, the client can be shared across functions.
+export default clientPromise
+
+// Function to get database connection
+export async function getDatabase(databaseName = "systech_ott_platform"): Promise<Db> {
   try {
-    const connectedClient = await clientPromise
-    // Use the database name from the URI or a default if not specified
-    const db = connectedClient.db(process.env.MONGODB_DB_NAME || "systech_ott_platform")
-    if (process.env.NODE_ENV === "development") {
-      const globalWithMongo = global as typeof globalThis & {
-        _mongoDb?: Db
-      }
-      globalWithMongo._mongoDb = db
-    }
-    cachedDb = db
-    console.log("Successfully connected to MongoDB.")
-    return { client: connectedClient, db }
+    const client = await clientPromise
+    console.log(`Connected to MongoDB database: ${databaseName}`)
+    return client.db(databaseName)
   } catch (error) {
     console.error("Failed to connect to MongoDB:", error)
-    throw new Error("Database connection failed.")
+    throw error
   }
 }
 
-export async function getDatabase(): Promise<Db> {
-  const { db } = await connectToDatabase()
-  return db
+// Function to get specific collection
+export async function getCollection(collectionName: string, databaseName = "systech_ott_platform") {
+  try {
+    const db = await getDatabase(databaseName)
+    console.log(`Accessing collection: ${databaseName}.${collectionName}`)
+    return db.collection(collectionName)
+  } catch (error) {
+    console.error(`Failed to access collection ${databaseName}.${collectionName}:`, error)
+    throw error
+  }
 }

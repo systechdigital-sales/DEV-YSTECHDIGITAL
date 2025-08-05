@@ -1,150 +1,428 @@
 "use client"
 
-import { Suspense, useEffect, useState } from "react"
-import { useSearchParams, useRouter } from "next/navigation"
-import PaymentClient from "@/components/payment-client"
-import { Card, CardContent } from "@/components/ui/card"
+import { useEffect, useState, Suspense } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { AlertCircle, ArrowLeft, Loader2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Loader2, CreditCard, AlertCircle, ArrowLeft, CheckCircle, User, Mail, Phone, Package } from "lucide-react"
+import Image from "next/image"
 
-function PaymentPageContent() {
-  const searchParams = useSearchParams()
+interface PaymentData {
+  claimId: string
+  customerName: string
+  customerEmail: string
+  customerPhone: string
+  amount: string
+  activationCode?: string
+  purchaseType?: string
+}
+
+function PaymentContent() {
   const router = useRouter()
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [paymentData, setPaymentData] = useState<{
-    claimId: string
-    customerName: string
-    customerEmail: string
-    customerPhone: string
-    amount: string
-    activationCode: string
-    purchaseType: string
-  } | null>(null)
+  const searchParams = useSearchParams()
+  const [paymentData, setPaymentData] = useState<PaymentData | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [razorpayLoaded, setRazorpayLoaded] = useState(false)
 
   useEffect(() => {
-    try {
-      // Extract all required parameters from URL
-      const claimId = searchParams.get("claimId")
-      const customerName = searchParams.get("customerName")
-      const customerEmail = searchParams.get("customerEmail")
-      const customerPhone = searchParams.get("customerPhone")
-      const amount = searchParams.get("amount")
-      const activationCode = searchParams.get("activationCode")
-      const purchaseType = searchParams.get("purchaseType")
+    // Extract payment data from URL parameters
+    const claimId = searchParams.get("claimId")
+    const customerName = searchParams.get("customerName")
+    const customerEmail = searchParams.get("customerEmail")
+    const customerPhone = searchParams.get("customerPhone")
+    const amount = searchParams.get("amount")
+    const activationCode = searchParams.get("activationCode")
+    const purchaseType = searchParams.get("purchaseType")
 
-      console.log("Payment page parameters:", {
-        claimId,
-        customerName,
-        customerEmail,
-        customerPhone,
-        amount,
-        activationCode,
-        purchaseType,
+    console.log("Payment page parameters:", {
+      claimId,
+      customerName,
+      customerEmail,
+      customerPhone,
+      amount,
+      activationCode,
+      purchaseType,
+    })
+
+    // Validate required parameters
+    if (!claimId || !customerName || !customerEmail || !customerPhone || !amount) {
+      console.error("Missing required payment parameters:", {
+        claimId: !!claimId,
+        customerName: !!customerName,
+        customerEmail: !!customerEmail,
+        customerPhone: !!customerPhone,
+        amount: !!amount,
       })
+      setError("Invalid Payment Request\nMissing required payment information. Please go back and fill the form again.")
+      return
+    }
 
-      // Validate all required parameters
-      if (!claimId || !customerName || !customerEmail || !customerPhone) {
-        setError("Missing required payment information. Please go back and fill the form again.")
-        setLoading(false)
-        return
-      }
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(customerEmail)) {
+      setError("Invalid email address format. Please go back and correct your email.")
+      return
+    }
 
-      // Validate email format
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      if (!emailRegex.test(customerEmail)) {
-        setError("Invalid email format. Please go back and check your email address.")
-        setLoading(false)
-        return
-      }
+    // Validate phone format (Indian mobile number)
+    const phoneRegex = /^[6-9]\d{9}$/
+    if (!phoneRegex.test(customerPhone)) {
+      setError("Invalid phone number format. Please enter a valid 10-digit Indian mobile number.")
+      return
+    }
 
-      // Validate phone format (10 digits)
-      const phoneRegex = /^\d{10}$/
-      if (!phoneRegex.test(customerPhone)) {
-        setError("Invalid phone number format. Please go back and check your phone number.")
-        setLoading(false)
-        return
-      }
+    // Validate amount
+    const amountNum = Number.parseFloat(amount)
+    if (isNaN(amountNum) || amountNum <= 0) {
+      setError("Invalid payment amount. Please go back and try again.")
+      return
+    }
 
-      // Set payment data
-      setPaymentData({
-        claimId,
-        customerName,
-        customerEmail,
-        customerPhone,
-        amount: amount || "99", // Default to 99 if not provided
-        activationCode: activationCode || "",
-        purchaseType: purchaseType || "",
-      })
+    setPaymentData({
+      claimId,
+      customerName: decodeURIComponent(customerName),
+      customerEmail: decodeURIComponent(customerEmail),
+      customerPhone: decodeURIComponent(customerPhone),
+      amount,
+      activationCode: activationCode ? decodeURIComponent(activationCode) : undefined,
+      purchaseType: purchaseType ? decodeURIComponent(purchaseType) : undefined,
+    })
 
-      setLoading(false)
-    } catch (err) {
-      console.error("Error processing payment parameters:", err)
-      setError("Failed to process payment information. Please try again.")
-      setLoading(false)
+    // Load Razorpay script
+    const script = document.createElement("script")
+    script.src = "https://checkout.razorpay.com/v1/checkout.js"
+    script.onload = () => setRazorpayLoaded(true)
+    script.onerror = () => setError("Failed to load payment gateway. Please refresh and try again.")
+    document.body.appendChild(script)
+
+    return () => {
+      document.body.removeChild(script)
     }
   }, [searchParams])
+
+  const handlePayment = async () => {
+    if (!paymentData || !razorpayLoaded) {
+      setError("Payment system not ready. Please refresh and try again.")
+      return
+    }
+
+    setLoading(true)
+    setError("")
+
+    try {
+      // Create Razorpay order
+      const orderResponse = await fetch("/api/payment/create-order", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          amount: Number.parseFloat(paymentData.amount) * 100, // Convert to paise
+          currency: "INR",
+          claimId: paymentData.claimId,
+          customerEmail: paymentData.customerEmail,
+          customerPhone: paymentData.customerPhone,
+        }),
+      })
+
+      if (!orderResponse.ok) {
+        throw new Error("Failed to create payment order")
+      }
+
+      const orderData = await orderResponse.json()
+
+      if (!orderData.success) {
+        throw new Error(orderData.error || "Failed to create payment order")
+      }
+
+      // Get Razorpay key
+      const keyResponse = await fetch("/api/razorpay-key")
+      const keyData = await keyResponse.json()
+
+      if (!keyData.key) {
+        throw new Error("Payment configuration error")
+      }
+
+      // Initialize Razorpay payment
+      const options = {
+        key: keyData.key,
+        amount: orderData.order.amount,
+        currency: orderData.order.currency,
+        name: "SYSTECH DIGITAL",
+        description: `OTT Code Claim - ${paymentData.claimId}`,
+        order_id: orderData.order.id,
+        prefill: {
+          name: paymentData.customerName,
+          email: paymentData.customerEmail,
+          contact: paymentData.customerPhone,
+        },
+        theme: {
+          color: "#2563eb",
+        },
+        handler: async (response: any) => {
+          try {
+            // Verify payment
+            const verifyResponse = await fetch("/api/payment/verify", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                claimId: paymentData.claimId,
+              }),
+            })
+
+            const verifyData = await verifyResponse.json()
+
+            if (verifyData.success) {
+              // Update claim status in systech_ott_platform.claims
+              await fetch("/api/payment/update-claim-status", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  claimId: paymentData.claimId,
+                  paymentStatus: "paid",
+                  paymentId: response.razorpay_payment_id,
+                  razorpayOrderId: response.razorpay_order_id,
+                }),
+              })
+
+              // Redirect to success page
+              router.push(
+                `/payment/success?claimId=${paymentData.claimId}&paymentId=${response.razorpay_payment_id}&amount=${paymentData.amount}`,
+              )
+            } else {
+              throw new Error(verifyData.error || "Payment verification failed")
+            }
+          } catch (verifyError) {
+            console.error("Payment verification error:", verifyError)
+            setError("Payment verification failed. Please contact support if amount was deducted.")
+            setLoading(false)
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            setLoading(false)
+            setError("Payment was cancelled. You can try again.")
+          },
+        },
+      }
+
+      const razorpay = new (window as any).Razorpay(options)
+      razorpay.open()
+    } catch (error: any) {
+      console.error("Payment error:", error)
+      setError(error.message || "Payment failed. Please try again.")
+      setLoading(false)
+    }
+  }
 
   const handleBackToForm = () => {
     router.push("/ott")
   }
 
-  if (loading) {
+  if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md shadow-2xl border-0">
-          <CardContent className="flex items-center justify-center p-12">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Loading Payment</h3>
-              <p className="text-gray-600">Please wait while we prepare your payment...</p>
-            </div>
+      <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-100 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md shadow-xl border-0">
+          <CardHeader className="bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-t-lg">
+            <CardTitle className="flex items-center text-xl">
+              <AlertCircle className="w-6 h-6 mr-3" />
+              Payment Error
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <Alert className="border-red-200 bg-red-50 mb-6">
+              <AlertCircle className="w-4 h-4 text-red-600" />
+              <AlertDescription className="text-red-800 whitespace-pre-line">{error}</AlertDescription>
+            </Alert>
+            <Button onClick={handleBackToForm} className="w-full bg-transparent" variant="outline">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Form
+            </Button>
           </CardContent>
         </Card>
       </div>
     )
   }
 
-  if (error || !paymentData) {
+  if (!paymentData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md shadow-2xl border-0">
-          <CardContent className="p-8">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <AlertCircle className="w-8 h-8 text-red-600" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Invalid Payment Request</h3>
-              <Alert className="mb-6 border-red-200 bg-red-50">
-                <AlertCircle className="w-4 h-4 text-red-600" />
-                <AlertDescription className="text-red-800">
-                  {error || "Missing required payment information. Please go back and fill the form again."}
-                </AlertDescription>
-              </Alert>
-              <Button
-                onClick={handleBackToForm}
-                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Form
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="flex items-center space-x-2">
+          <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+          <span className="text-blue-600 font-medium">Loading payment details...</span>
+        </div>
       </div>
     )
   }
 
   return (
-    <PaymentClient
-      claimId={paymentData.claimId}
-      customerName={paymentData.customerName}
-      customerEmail={paymentData.customerEmail}
-      customerPhone={paymentData.customerPhone}
-    />
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      {/* Header */}
+      <header className="bg-gradient-to-r from-black via-red-900 to-black shadow-lg border-b border-red-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <Image src="/logo.png" alt="SYSTECH DIGITAL Logo" width={40} height={40} className="rounded-full mr-3" />
+              <div>
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white">Complete Your Payment</h1>
+                <p className="text-xs sm:text-sm text-red-200 mt-1">Secure payment for your OTT code claim</p>
+              </div>
+            </div>
+            <Button variant="ghost" size="sm" onClick={handleBackToForm} className="text-white hover:bg-white/20">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Form
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+        {/* Progress Indicator */}
+        <div className="mb-6 lg:mb-8">
+          <div className="flex items-center justify-center space-x-2 sm:space-x-4">
+            <div className="flex items-center">
+              <div className="w-6 h-6 sm:w-8 sm:h-8 bg-green-600 text-white rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold">
+                <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4" />
+              </div>
+              <span className="ml-1 sm:ml-2 text-xs sm:text-sm font-medium text-green-600">Submit Claim</span>
+            </div>
+            <div className="w-8 sm:w-16 h-1 bg-blue-200 rounded"></div>
+            <div className="flex items-center">
+              <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold">
+                2
+              </div>
+              <span className="ml-1 sm:ml-2 text-xs sm:text-sm font-medium text-blue-600">Payment</span>
+            </div>
+            <div className="w-8 sm:w-16 h-1 bg-gray-200 rounded"></div>
+            <div className="flex items-center">
+              <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-200 text-gray-500 rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold">
+                3
+              </div>
+              <span className="ml-1 sm:ml-2 text-xs sm:text-sm font-medium text-gray-500">Get Code</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Payment Details Card */}
+        <Card className="shadow-xl border-0 mb-6">
+          <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-lg border-b">
+            <CardTitle className="flex items-center text-lg sm:text-xl">
+              <CreditCard className="w-5 h-5 mr-3 text-blue-600" />
+              Payment Details
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center space-x-3">
+                  <User className="w-4 h-4 text-gray-500" />
+                  <div>
+                    <p className="text-sm text-gray-500">Customer Name</p>
+                    <p className="font-medium">{paymentData.customerName}</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <Mail className="w-4 h-4 text-gray-500" />
+                  <div>
+                    <p className="text-sm text-gray-500">Email</p>
+                    <p className="font-medium">{paymentData.customerEmail}</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <Phone className="w-4 h-4 text-gray-500" />
+                  <div>
+                    <p className="text-sm text-gray-500">Phone</p>
+                    <p className="font-medium">{paymentData.customerPhone}</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <Package className="w-4 h-4 text-gray-500" />
+                  <div>
+                    <p className="text-sm text-gray-500">Claim ID</p>
+                    <p className="font-medium font-mono text-sm">{paymentData.claimId}</p>
+                  </div>
+                </div>
+              </div>
+
+              {paymentData.activationCode && (
+                <div className="pt-4 border-t">
+                  <p className="text-sm text-gray-500">Activation Code</p>
+                  <p className="font-medium font-mono">{paymentData.activationCode}</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Amount Card */}
+        <Card className="shadow-xl border-0 mb-6">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">OTT Code Processing Fee</h3>
+                <p className="text-sm text-gray-500">One-time payment for activation code processing</p>
+              </div>
+              <div className="text-right">
+                <p className="text-3xl font-bold text-blue-600">₹{paymentData.amount}</p>
+                <p className="text-sm text-gray-500">Including all taxes</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Payment Button */}
+        <Card className="shadow-xl border-0">
+          <CardContent className="p-6">
+            <Button
+              onClick={handlePayment}
+              disabled={loading || !razorpayLoaded}
+              size="lg"
+              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-4 text-lg font-semibold shadow-xl"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  Processing Payment...
+                </>
+              ) : !razorpayLoaded ? (
+                <>
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  Loading Payment Gateway...
+                </>
+              ) : (
+                <>
+                  <CreditCard className="w-5 h-5 mr-2" />
+                  Pay ₹{paymentData.amount} Securely
+                </>
+              )}
+            </Button>
+
+            <div className="mt-4 text-center">
+              <p className="text-xs text-gray-500">
+                🔒 Secured by Razorpay • Your payment information is encrypted and secure
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Security Info */}
+        <div className="mt-6 text-center">
+          <p className="text-sm text-gray-600">
+            After successful payment, your claim will be processed within 24-48 hours and the OTT code will be sent to
+            your email.
+          </p>
+        </div>
+      </main>
+    </div>
   )
 }
 
@@ -152,22 +430,15 @@ export default function PaymentPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
-          <Card className="w-full max-w-md shadow-2xl border-0">
-            <CardContent className="flex items-center justify-center p-12">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Loading</h3>
-                <p className="text-gray-600">Please wait...</p>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+          <div className="flex items-center space-x-2">
+            <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+            <span className="text-blue-600 font-medium">Loading payment page...</span>
+          </div>
         </div>
       }
     >
-      <PaymentPageContent />
+      <PaymentContent />
     </Suspense>
   )
 }
