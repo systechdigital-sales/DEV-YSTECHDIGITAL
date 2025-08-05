@@ -19,9 +19,20 @@ import {
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
+interface PaymentDetails {
+  paymentId: string
+  orderId: string
+  customerName: string
+  customerEmail: string
+  customerPhone: string
+  claimId: string
+  amount: string
+  activationCode: string
+}
+
 function PaymentSuccessContent() {
   const searchParams = useSearchParams()
-  const [paymentDetails, setPaymentDetails] = useState({
+  const [paymentDetails, setPaymentDetails] = useState<PaymentDetails>({
     paymentId: "",
     orderId: "",
     customerName: "",
@@ -29,29 +40,72 @@ function PaymentSuccessContent() {
     customerPhone: "",
     claimId: "",
     amount: "99",
+    activationCode: "",
   })
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Get payment details from URL parameters
-    const details = {
+    console.log("Payment success page - All URL parameters:", Object.fromEntries(searchParams.entries()))
+
+    // Get payment details from URL parameters with multiple fallback options
+    const details: PaymentDetails = {
       paymentId:
         searchParams.get("payment_id") ||
         searchParams.get("razorpay_payment_id") ||
         searchParams.get("paymentId") ||
-        "N/A",
+        "Not Available",
       orderId:
-        searchParams.get("order_id") || searchParams.get("razorpay_order_id") || searchParams.get("orderId") || "N/A",
-      customerName: searchParams.get("customerName") || "N/A",
-      customerEmail: searchParams.get("customerEmail") || "N/A",
-      customerPhone: searchParams.get("customerPhone") || "N/A",
-      claimId: searchParams.get("claimId") || "N/A",
-      amount: "99",
+        searchParams.get("order_id") ||
+        searchParams.get("razorpay_order_id") ||
+        searchParams.get("orderId") ||
+        "Not Available",
+      customerName: searchParams.get("customerName") || searchParams.get("customer_name") || "Not Available",
+      customerEmail: searchParams.get("customerEmail") || searchParams.get("customer_email") || "Not Available",
+      customerPhone: searchParams.get("customerPhone") || searchParams.get("customer_phone") || "Not Available",
+      claimId: searchParams.get("claimId") || searchParams.get("claim_id") || "Not Available",
+      amount: searchParams.get("amount") || "99",
+      activationCode: searchParams.get("activationCode") || searchParams.get("activation_code") || "Not Available",
     }
 
-    console.log("Payment success page - URL parameters:", Object.fromEntries(searchParams.entries()))
     console.log("Payment success page - Extracted details:", details)
 
-    setPaymentDetails(details)
+    // If we have a claimId but missing other details, try to fetch from API
+    if (
+      details.claimId !== "Not Available" &&
+      (details.customerName === "Not Available" || details.customerEmail === "Not Available")
+    ) {
+      console.log("Fetching claim details from API for claimId:", details.claimId)
+
+      fetch(`/api/admin/claims?claimId=${details.claimId}`)
+        .then((response) => response.json())
+        .then((data) => {
+          console.log("API response for claim details:", data)
+
+          if (data.success && data.claim) {
+            const claim = data.claim
+            setPaymentDetails({
+              ...details,
+              customerName: `${claim.firstName || ""} ${claim.lastName || ""}`.trim() || details.customerName,
+              customerEmail: claim.email || details.customerEmail,
+              customerPhone: claim.phoneNumber || details.customerPhone,
+              activationCode: claim.activationCode || details.activationCode,
+              paymentId: claim.paymentId || details.paymentId,
+              orderId: claim.razorpayOrderId || details.orderId,
+            })
+          } else {
+            setPaymentDetails(details)
+          }
+          setLoading(false)
+        })
+        .catch((error) => {
+          console.error("Error fetching claim details:", error)
+          setPaymentDetails(details)
+          setLoading(false)
+        })
+    } else {
+      setPaymentDetails(details)
+      setLoading(false)
+    }
   }, [searchParams])
 
   const handleDownloadReceipt = () => {
@@ -68,23 +122,38 @@ Name: ${paymentDetails.customerName}
 Email: ${paymentDetails.customerEmail}
 Phone: ${paymentDetails.customerPhone}
 
+Activation Code: ${paymentDetails.activationCode}
 Amount Paid: ₹${paymentDetails.amount}
-Date: ${new Date().toLocaleDateString()}
+Date: ${new Date().toLocaleDateString("en-IN")}
+Time: ${new Date().toLocaleTimeString("en-IN")}
 Status: Successful
 
 Thank you for your payment!
-Your OTT subscription will be activated within 24 hours.
+Your OTT subscription will be activated within 24-48 hours.
+
+For support, contact: support@systechdigital.in
     `
 
     const blob = new Blob([receiptContent], { type: "text/plain" })
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
-    a.download = `payment-receipt-${paymentDetails.paymentId}.txt`
+    a.download = `payment-receipt-${paymentDetails.claimId}-${Date.now()}.txt`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
     window.URL.revokeObjectURL(url)
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-indigo-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-green-600" />
+          <p className="text-gray-600 text-lg">Loading payment confirmation...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -139,6 +208,13 @@ Your OTT subscription will be activated within 24 hours.
                   </div>
 
                   <div className="flex flex-col">
+                    <span className="text-sm text-gray-500 font-medium">Activation Code</span>
+                    <span className="font-mono text-sm bg-purple-100 px-3 py-2 rounded-lg mt-1 text-purple-800">
+                      {paymentDetails.activationCode}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col">
                     <span className="text-sm text-gray-500 font-medium">Amount Paid</span>
                     <span className="text-2xl font-bold text-green-600 mt-1">₹{paymentDetails.amount}</span>
                   </div>
@@ -165,7 +241,9 @@ Your OTT subscription will be activated within 24 hours.
                     <Mail className="w-5 h-5 text-gray-600" />
                     <div>
                       <div className="text-sm text-gray-500">Email</div>
-                      <div className="font-semibold text-gray-900 text-sm">{paymentDetails.customerEmail}</div>
+                      <div className="font-semibold text-gray-900 text-sm break-all">
+                        {paymentDetails.customerEmail}
+                      </div>
                     </div>
                   </div>
 
@@ -180,8 +258,20 @@ Your OTT subscription will be activated within 24 hours.
                   <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
                     <Calendar className="w-5 h-5 text-gray-600" />
                     <div>
-                      <div className="text-sm text-gray-500">Date</div>
-                      <div className="font-semibold text-gray-900">{new Date().toLocaleDateString()}</div>
+                      <div className="text-sm text-gray-500">Date & Time</div>
+                      <div className="font-semibold text-gray-900">
+                        {new Date().toLocaleDateString("en-IN", {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        })}
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        {new Date().toLocaleTimeString("en-IN", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -216,26 +306,40 @@ Your OTT subscription will be activated within 24 hours.
                 </div>
               </div>
 
+              <div className="flex items-start space-x-4 p-4 bg-yellow-50 rounded-lg">
+                <div className="w-8 h-8 bg-yellow-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                  2
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-900">Activation Code Verification</h4>
+                  <p className="text-gray-600 text-sm">
+                    Your activation code <strong>{paymentDetails.activationCode}</strong> is being verified against our
+                    sales records.
+                  </p>
+                </div>
+              </div>
+
               <div className="flex items-start space-x-4 p-4 bg-green-50 rounded-lg">
                 <div className="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
-                  2
+                  3
                 </div>
                 <div>
                   <h4 className="font-semibold text-gray-900">OTT Code Generation</h4>
                   <p className="text-gray-600 text-sm">
-                    Your unique OTT access codes will be generated and verified within 24 hours.
+                    Your unique OTT access codes will be generated and verified within 24-48 hours.
                   </p>
                 </div>
               </div>
 
               <div className="flex items-start space-x-4 p-4 bg-purple-50 rounded-lg">
                 <div className="w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
-                  3
+                  4
                 </div>
                 <div>
                   <h4 className="font-semibold text-gray-900">Email Delivery</h4>
                   <p className="text-gray-600 text-sm">
-                    You'll receive an email with your OTT access codes and activation instructions.
+                    You'll receive an email at <strong>{paymentDetails.customerEmail}</strong> with your OTT access
+                    codes and activation instructions.
                   </p>
                 </div>
               </div>
@@ -261,7 +365,6 @@ Your OTT subscription will be activated within 24 hours.
             Make Another Claim
           </Button>
 
-          {/* New buttons */}
           <Button
             onClick={() => (window.location.href = "/")}
             variant="outline"
@@ -270,6 +373,7 @@ Your OTT subscription will be activated within 24 hours.
             <Home className="w-5 h-5 mr-2" />
             Go to Home
           </Button>
+
           <Button
             onClick={() => (window.location.href = "/customer-dashboard")}
             variant="outline"
@@ -284,12 +388,13 @@ Your OTT subscription will be activated within 24 hours.
         <div className="text-center mt-8 p-6 bg-white rounded-xl shadow-lg">
           <h4 className="font-semibold text-gray-900 mb-2">Need Help?</h4>
           <p className="text-gray-600 text-sm mb-4">
-            If you don't receive your OTT codes within 24 hours or have any questions, please contact our support team.
+            If you don't receive your OTT codes within 24-48 hours or have any questions, please contact our support
+            team.
           </p>
           <div className="flex items-center justify-center space-x-4 text-sm text-gray-500">
             <div className="flex items-center space-x-1">
               <Mail className="w-4 h-4" />
-              <span>support@systechdigital.com</span>
+              <span>support@systechdigital.in</span>
             </div>
             <div className="flex items-center space-x-1">
               <Phone className="w-4 h-4" />
