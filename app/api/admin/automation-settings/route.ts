@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { incrementRuns, lastRun, nextRun } = await request.json()
+    const { incrementRuns, lastRun, nextRun, isRunning } = await request.json()
 
     const db = await getDatabase()
     const settingsCollection = db.collection("automationsettings")
@@ -142,6 +142,10 @@ export async function PATCH(request: NextRequest) {
 
     if (nextRun) {
       updateData.nextRun = new Date(nextRun)
+    }
+
+    if (typeof isRunning === "boolean") {
+      updateData.isRunning = isRunning
     }
 
     const result = await settingsCollection.findOneAndUpdate({}, updateData, {

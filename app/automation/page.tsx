@@ -78,6 +78,7 @@ interface AutomationSettings {
   totalRuns: number
   lastRun?: string
   nextRun?: string
+  isRunning?: boolean
   lastError?: {
     message: string
     timestamp: string
@@ -130,6 +131,16 @@ const getTimeUntilNextRun = (nextRun: string) => {
   }
 }
 
+// Helper function to get progress percentage for next run
+const getNextRunProgress = (nextRun: string, intervalMinutes: number) => {
+  const now = new Date()
+  const next = new Date(nextRun)
+  const totalInterval = intervalMinutes * 60 * 1000 // Convert to milliseconds
+  const elapsed = totalInterval - (next.getTime() - now.getTime())
+  const progress = Math.max(0, Math.min(100, (elapsed / totalInterval) * 100))
+  return progress
+}
+
 export default function AutomationPage() {
   const [isRunning, setIsRunning] = useState(false)
   const [settings, setSettings] = useState<AutomationSettings>({
@@ -145,6 +156,7 @@ export default function AutomationPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [nextRunCountdown, setNextRunCountdown] = useState("")
+  const [nextRunProgress, setNextRunProgress] = useState(0)
   const [currentTime, setCurrentTime] = useState(new Date())
   const [progress, setProgress] = useState(0)
   const [currentStep, setCurrentStep] = useState("")
@@ -154,6 +166,7 @@ export default function AutomationPage() {
   const [activeTab, setActiveTab] = useState("overview")
   const router = useRouter()
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const automationCheckRef = useRef<NodeJS.Timeout | null>(null)
 
   const [steps, setSteps] = useState<AutomationStep[]>([
     {
@@ -218,6 +231,23 @@ export default function AutomationPage() {
     },
   ])
 
+  // Check for automation trigger
+  const checkAutomationTrigger = async () => {
+    if (!settings.isEnabled || isRunning) return
+
+    try {
+      const response = await fetch("/api/admin/check-automation-trigger")
+      const data = await response.json()
+
+      if (data.shouldRun) {
+        addLog(`🤖 Auto-run #${data.runNumber} triggered - Starting automated OTT Key Assignment...`)
+        await startAutomation(true, data.runNumber)
+      }
+    } catch (error) {
+      console.error("Error checking automation trigger:", error)
+    }
+  }
+
   useEffect(() => {
     // Check authentication
     const isAuthenticated = sessionStorage.getItem("adminAuthenticated")
@@ -234,9 +264,14 @@ export default function AutomationPage() {
       setCurrentTime(new Date())
     }, 1000)
 
-    // Refresh settings every 5 seconds to get latest status
+    // Refresh settings every 3 seconds to get latest status
     refreshIntervalRef.current = setInterval(() => {
       loadAutomationSettings()
+    }, 3000)
+
+    // Check for automation trigger every 5 seconds
+    automationCheckRef.current = setInterval(() => {
+      checkAutomationTrigger()
     }, 5000)
 
     return () => {
@@ -244,19 +279,26 @@ export default function AutomationPage() {
       if (refreshIntervalRef.current) {
         clearInterval(refreshIntervalRef.current)
       }
+      if (automationCheckRef.current) {
+        clearInterval(automationCheckRef.current)
+      }
     }
-  }, [router])
+  }, [router, settings.isEnabled, isRunning])
 
-  // Update countdown every second
+  // Update countdown and progress every second
   useEffect(() => {
     if (settings.nextRun) {
       const interval = setInterval(() => {
-        setNextRunCountdown(getTimeUntilNextRun(settings.nextRun!))
+        const countdown = getTimeUntilNextRun(settings.nextRun!)
+        const progress = getNextRunProgress(settings.nextRun!, settings.intervalMinutes)
+
+        setNextRunCountdown(countdown)
+        setNextRunProgress(progress)
       }, 1000)
 
       return () => clearInterval(interval)
     }
-  }, [settings.nextRun])
+  }, [settings.nextRun, settings.intervalMinutes])
 
   const loadAutomationSettings = async () => {
     try {
@@ -270,6 +312,7 @@ export default function AutomationPage() {
           totalRuns: data.settings.totalRuns || 0,
           lastRun: data.settings.lastRun,
           nextRun: data.settings.nextRun,
+          isRunning: data.settings.isRunning || false,
           lastError: data.settings.lastError,
           lastRunResult: data.settings.lastRunResult,
         }
@@ -278,6 +321,7 @@ export default function AutomationPage() {
 
         if (data.settings.nextRun) {
           setNextRunCountdown(getTimeUntilNextRun(data.settings.nextRun))
+          setNextRunProgress(getNextRunProgress(data.settings.nextRun, data.settings.intervalMinutes))
         }
 
         // Set results from last run if available
@@ -365,7 +409,7 @@ export default function AutomationPage() {
     return option ? option.label : `${minutes} minutes`
   }
 
-  const startAutomation = async (isAutoRun = false) => {
+  const startAutomation = async (isAutoRun = false, runNumber?: number) => {
     setIsRunning(true)
     setProgress(0)
     if (!isAutoRun) {
@@ -379,7 +423,7 @@ export default function AutomationPage() {
 
     try {
       if (isAutoRun) {
-        addLog(`🤖 Auto-run #${settings.totalRuns + 1} - Automated OTT Key Assignment initiated...`)
+        addLog(`🤖 Auto-run #${runNumber || settings.totalRuns + 1} - Automated OTT Key Assignment initiated...`)
       } else {
         addLog("🚀 Manual OTT Key Assignment Automation initiated...")
       }
@@ -458,9 +502,7 @@ export default function AutomationPage() {
       setResults(data.results)
 
       if (isAutoRun) {
-        addLog(`🤖 Auto-run #${settings.totalRuns + 1} completed successfully!`)
-        // Update settings with new run count
-        setSettings((prev) => ({ ...prev, totalRuns: prev.totalRuns + 1 }))
+        addLog(`🤖 Auto-run #${runNumber || settings.totalRuns} completed successfully!`)
       } else {
         addLog(`✅ Manual automation process completed successfully!`)
       }
@@ -511,7 +553,7 @@ export default function AutomationPage() {
       setIsRunning(false)
       setCurrentStep("")
       if (isAutoRun) {
-        addLog(`🤖 Auto-run #${settings.totalRuns} session ended at ${formatIST(new Date())}`)
+        addLog(`🤖 Auto-run #${runNumber || settings.totalRuns} session ended at ${formatIST(new Date())}`)
       } else {
         addLog(`🏁 Manual automation session ended at ${formatIST(new Date())}`)
       }
@@ -521,8 +563,8 @@ export default function AutomationPage() {
   const hasUnsavedChanges =
     tempSettings.isEnabled !== settings.isEnabled || tempSettings.intervalMinutes !== settings.intervalMinutes
 
-  const isAutomationActive =
-    settings.isEnabled && settings.nextRun && getTimeUntilNextRun(settings.nextRun) !== "Running now..."
+  const isAutomationActive = settings.isEnabled && settings.nextRun
+  const isCurrentlyRunning = settings.isRunning || isRunning
 
   return (
     <SidebarProvider>
@@ -550,13 +592,15 @@ export default function AutomationPage() {
                         <Zap className="w-6 h-6 mr-2" />
                         Automation Control Center
                         {isAutomationActive && (
-                          <Badge className="ml-3 bg-green-500 text-white animate-pulse">
+                          <Badge
+                            className={`ml-3 text-white animate-pulse ${isCurrentlyRunning ? "bg-orange-500" : "bg-green-500"}`}
+                          >
                             <Activity className="w-3 h-3 mr-1" />
-                            ACTIVE
+                            {isCurrentlyRunning ? "RUNNING" : "ACTIVE"}
                           </Badge>
                         )}
                       </h1>
-                      <p className="text-sm text-green-200 mt-1">Intelligent OTT claim processing system</p>
+                      <p className="text-sm text-green-200 mt-1">Intelligent OTT claim processing system (No Cron)</p>
                     </div>
                   </div>
                 </div>
@@ -588,7 +632,7 @@ export default function AutomationPage() {
                         )}
                       </CardTitle>
                       <CardDescription className="text-lg text-gray-600">
-                        Configure automatic processing intervals and enable/disable automation via Vercel Cron
+                        Configure automatic processing intervals - runs via client-side polling (no cron required)
                       </CardDescription>
                     </div>
                     <Button
@@ -628,7 +672,7 @@ export default function AutomationPage() {
                               {tempSettings.isEnabled ? (
                                 <span className="flex items-center">
                                   <Power className="w-4 h-4 mr-2 text-green-600" />
-                                  Auto-processing is active via Vercel Cron
+                                  Auto-processing is active via client polling
                                 </span>
                               ) : (
                                 <span className="flex items-center">
@@ -711,10 +755,10 @@ export default function AutomationPage() {
 
                     {/* Current Status */}
                     {settings.isEnabled && (
-                      <div className="space-y-4 bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-xl border border-green-200">
+                      <div className="space-y-6 bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-xl border border-green-200">
                         <h3 className="font-bold text-xl text-green-900 flex items-center">
                           <Timer className="w-6 h-6 mr-2" />
-                          Current Automation Status (IST)
+                          Current Automation Status (IST) - Client Polling
                         </h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                           <div className="text-center bg-white/50 p-4 rounded-lg">
@@ -739,10 +783,10 @@ export default function AutomationPage() {
                           </div>
                           <div className="text-center bg-white/50 p-4 rounded-lg">
                             <p className="text-sm text-green-700 font-semibold">Status</p>
-                            <Badge className="text-lg px-4 py-2 bg-green-600 text-white">
-                              {settings.nextRun && getTimeUntilNextRun(settings.nextRun) === "Running now..."
-                                ? "RUNNING"
-                                : "ACTIVE"}
+                            <Badge
+                              className={`text-lg px-4 py-2 text-white ${isCurrentlyRunning ? "bg-orange-600" : "bg-green-600"}`}
+                            >
+                              {isCurrentlyRunning ? "RUNNING" : "ACTIVE"}
                             </Badge>
                           </div>
                         </div>
@@ -763,15 +807,29 @@ export default function AutomationPage() {
 
                         {/* Progress bar for next run */}
                         {settings.nextRun && (
-                          <div className="w-full bg-green-200 rounded-full h-3">
-                            <div
-                              className="bg-green-600 h-3 rounded-full transition-all duration-1000"
-                              style={{
-                                width: `${Math.max(0, Math.min(100, ((settings.intervalMinutes * 60 - (new Date(settings.nextRun).getTime() - Date.now()) / 1000) / (settings.intervalMinutes * 60)) * 100))}%`,
-                              }}
-                            />
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-sm text-green-700">
+                              <span>Progress to next run</span>
+                              <span>{Math.round(nextRunProgress)}%</span>
+                            </div>
+                            <div className="w-full bg-green-200 rounded-full h-3">
+                              <div
+                                className="bg-green-600 h-3 rounded-full transition-all duration-1000"
+                                style={{ width: `${nextRunProgress}%` }}
+                              />
+                            </div>
                           </div>
                         )}
+
+                        {/* Client Polling Info */}
+                        <Alert className="border-blue-200 bg-blue-50">
+                          <Info className="h-5 w-5 text-blue-600" />
+                          <AlertTitle className="text-blue-800">Client-Side Automation</AlertTitle>
+                          <AlertDescription className="text-blue-700">
+                            This automation runs via client-side polling every 5 seconds. Keep this page open for
+                            automatic processing. No server cron jobs required.
+                          </AlertDescription>
+                        </Alert>
                       </div>
                     )}
 
@@ -781,7 +839,7 @@ export default function AutomationPage() {
                         <AlertTitle className="text-orange-800">Auto-Automation Disabled</AlertTitle>
                         <AlertDescription className="text-orange-700">
                           Automatic processing is currently disabled. Enable it above to start automatic claim
-                          processing via Vercel Cron Jobs.
+                          processing via client-side polling.
                         </AlertDescription>
                       </Alert>
                     )}
@@ -1398,18 +1456,18 @@ export default function AutomationPage() {
                     <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-xl border border-indigo-200">
                       <h3 className="font-bold text-xl text-indigo-900 mb-4 flex items-center">
                         <Zap className="w-6 h-6 mr-2" />
-                        Automation Status & Scheduling
+                        Automation Status & Scheduling (No Cron)
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                          <h4 className="font-semibold text-indigo-900 mb-2">Background Processing</h4>
+                          <h4 className="font-semibold text-indigo-900 mb-2">Client-Side Processing</h4>
                           <p className="text-indigo-800 text-sm mb-3">
-                            The automation runs continuously in the background using Vercel Cron Jobs, independent of
-                            whether the dashboard is open.
+                            The automation runs via client-side polling every 5 seconds, eliminating the need for server
+                            cron jobs.
                           </p>
                           <ul className="text-indigo-700 text-sm space-y-1">
-                            <li>• Runs every minute when enabled</li>
-                            <li>• Processes Claims table automatically</li>
+                            <li>• Checks for automation trigger every 5 seconds</li>
+                            <li>• Processes Claims table when conditions are met</li>
                             <li>• Updates database records in real-time</li>
                             <li>• Sends email notifications to customers</li>
                           </ul>
@@ -1423,7 +1481,7 @@ export default function AutomationPage() {
                             <li>• Last run timestamp in IST</li>
                             <li>• Next scheduled run in IST</li>
                             <li>• Real-time countdown to next execution</li>
-                            <li>• Automatic scheduling via Vercel Cron</li>
+                            <li>• Keep browser tab open for continuous operation</li>
                           </ul>
                         </div>
                       </div>

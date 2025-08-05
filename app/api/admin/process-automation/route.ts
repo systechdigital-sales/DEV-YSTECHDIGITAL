@@ -11,6 +11,7 @@ export async function POST() {
     const claimsCollection = db.collection("claims")
     const salesCollection = db.collection("salesrecords")
     const ottKeysCollection = db.collection("ottkeys")
+    const settingsCollection = db.collection("automationsettings")
 
     let expiredCount = 0
     let processedCount = 0
@@ -291,6 +292,19 @@ export async function POST() {
       timestamp: endTime.toISOString(),
     }
 
+    // Update automation settings with results and clear running status
+    await settingsCollection.findOneAndUpdate(
+      {},
+      {
+        $set: {
+          isRunning: false,
+          lastRun: endTime,
+          lastRunResult: results,
+          updatedAt: endTime,
+        },
+      },
+    )
+
     console.log("✅ Automation process completed:", results)
 
     return NextResponse.json({
@@ -300,6 +314,28 @@ export async function POST() {
     })
   } catch (error) {
     console.error("💥 Automation process failed:", error)
+
+    // Clear running status on error
+    try {
+      const db = await getDatabase()
+      const settingsCollection = db.collection("automationsettings")
+      await settingsCollection.findOneAndUpdate(
+        {},
+        {
+          $set: {
+            isRunning: false,
+            lastError: {
+              message: error instanceof Error ? error.message : "Unknown error",
+              timestamp: new Date(),
+            },
+            updatedAt: new Date(),
+          },
+        },
+      )
+    } catch (updateError) {
+      console.error("Failed to update error status:", updateError)
+    }
+
     return NextResponse.json(
       {
         success: false,
