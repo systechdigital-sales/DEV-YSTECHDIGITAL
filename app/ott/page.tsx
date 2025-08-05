@@ -1034,8 +1034,18 @@ export default function OTTClaimPage() {
         setSuccess("Claim submitted successfully! Redirecting to payment...")
 
         setTimeout(() => {
-          // Create a simple payment page URL with query parameters
-          const paymentUrl = `/payment?claimId=${mockClaimId}&amount=299&email=${encodeURIComponent(formData.email)}&name=${encodeURIComponent(formData.firstName + " " + formData.lastName)}`
+          // Create payment URL with all required parameters
+          const paymentParams = new URLSearchParams({
+            claimId: mockClaimId,
+            customerName: `${formData.firstName} ${formData.lastName}`,
+            customerEmail: formData.email,
+            customerPhone: formData.phoneNumber,
+            amount: "99",
+            activationCode: formData.activationCode,
+            purchaseType: formData.purchaseType,
+          })
+
+          const paymentUrl = `/payment?${paymentParams.toString()}`
           router.push(paymentUrl)
         }, 2000)
       }
