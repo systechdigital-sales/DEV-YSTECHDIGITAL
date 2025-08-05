@@ -72,6 +72,11 @@ export async function POST(request: NextRequest) {
       },
     )
 
+    // If automation is enabled, schedule the next run
+    if (isEnabled) {
+      await scheduleNextRun(intervalMinutes)
+    }
+
     return NextResponse.json({
       success: true,
       message: "Automation settings updated successfully",
@@ -91,7 +96,7 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { incrementRuns, lastRun } = await request.json()
+    const { incrementRuns, lastRun, nextRun } = await request.json()
 
     const db = await getDatabase()
     const settingsCollection = db.collection("automationsettings")
@@ -106,6 +111,10 @@ export async function PATCH(request: NextRequest) {
 
     if (lastRun) {
       updateData.lastRun = new Date(lastRun)
+    }
+
+    if (nextRun) {
+      updateData.nextRun = new Date(nextRun)
     }
 
     const result = await settingsCollection.findOneAndUpdate({}, updateData, {
@@ -126,5 +135,31 @@ export async function PATCH(request: NextRequest) {
       },
       { status: 500 },
     )
+  }
+}
+
+// Helper function to schedule next run using Vercel Cron or external service
+async function scheduleNextRun(intervalMinutes: number) {
+  try {
+    const nextRunTime = new Date(Date.now() + intervalMinutes * 60 * 1000)
+
+    // Update the next run time in database
+    const db = await getDatabase()
+    const settingsCollection = db.collection("automationsettings")
+
+    await settingsCollection.findOneAndUpdate(
+      {},
+      {
+        $set: {
+          nextRun: nextRunTime,
+          updatedAt: new Date(),
+        },
+      },
+      { upsert: true },
+    )
+
+    console.log(`Next automation run scheduled for: ${nextRunTime.toISOString()}`)
+  } catch (error) {
+    console.error("Error scheduling next run:", error)
   }
 }
