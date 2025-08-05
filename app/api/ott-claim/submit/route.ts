@@ -125,27 +125,49 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Failed to save claim data" }, { status: 500 })
     }
 
-    // Send confirmation email
+    // Send order placed confirmation email
     try {
-      console.log("Sending confirmation email...")
+      console.log("Sending order placed confirmation email...")
+      const customerFullName = `${claimData.firstName || ""} ${claimData.lastName || ""}`.trim()
+
       await sendEmail(
         claimData.email,
-        "OTT Claim Submitted Successfully - SYSTECH DIGITAL",
-        "claim_submitted",
+        "Order Placed Successfully - OTT Code Claim - SYSTECH DIGITAL",
+        "order_placed",
         claimData,
         {
           to: claimData.email ?? "",
-          subject: "OTT Claim Submitted Successfully - SYSTECH DIGITAL",
-          template: "custom",
-          data: claimData,
+          subject: "Order Placed Successfully - OTT Code Claim - SYSTECH DIGITAL",
+          template: "order_placed",
+          data: {
+            customerName: customerFullName,
+            email: claimData.email,
+            phone: claimData.phone,
+            claimId: claimId,
+            activationCode: claimData.activationCode,
+            date: new Date().toLocaleDateString("en-IN", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            }),
+          },
         },
-        {
-          template: "custom",
-          data: claimData,
-          to: "",
-          subject: ""
-        }
       )
+      console.log("Order placed confirmation email sent successfully")
+    } catch (emailError) {
+      console.error("Failed to send order placed confirmation email:", emailError)
+      // Don't fail the request if email fails
+    }
+
+    // Send confirmation email (existing functionality)
+    try {
+      console.log("Sending confirmation email...")
+      await sendEmail(claimData.email, "OTT Claim Submitted Successfully - SYSTECH DIGITAL", "custom", claimData, {
+        to: claimData.email ?? "",
+        subject: "OTT Claim Submitted Successfully - SYSTECH DIGITAL",
+        template: "custom",
+        data: claimData,
+      })
       console.log("Confirmation email sent successfully")
     } catch (emailError) {
       console.error("Failed to send confirmation email:", emailError)

@@ -35,12 +35,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select" // Added for manual assignment
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { ClaimResponse, SalesRecord, OTTKey } from "@/lib/models"
 import { DashboardSidebar } from "@/components/dashboard-sidebar"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import Image from "next/image"
-import { toast } from "@/hooks/use-toast" // Added for toast notifications
+import { toast } from "@/hooks/use-toast"
 
 export default function AdminPage() {
   const [claimResponses, setClaimResponses] = useState<ClaimResponse[]>([])
@@ -63,7 +63,7 @@ export default function AdminPage() {
   // State for Manual Assignment
   const [manualAssignDialogOpen, setManualAssignDialogOpen] = useState(false)
   const [selectedClaimForManualAssign, setSelectedClaimForManualAssign] = useState<ClaimResponse | null>(null)
-  const [selectedKeyForManualAssign, setSelectedKeyForManualAssign] = useState<string>("") // Stores OTT Key _id
+  const [selectedKeyForManualAssign, setSelectedKeyForManualAssign] = useState<string>("")
   const [manualAssignPassword, setManualAssignPassword] = useState("")
   const [assigning, setAssigning] = useState(false)
 
@@ -340,11 +340,29 @@ export default function AdminPage() {
       case "failed":
       case "used":
       case "expired":
-      case "already_claimed": // Added for automation status
-      case "activation_code_not_found": // Added for automation status
+      case "already_claimed":
+      case "activation_code_not_found":
         return <Badge className="bg-red-100 text-red-800 border-red-300">{status.toUpperCase()}</Badge>
       default:
         return <Badge variant="outline">{status.toUpperCase()}</Badge>
+    }
+  }
+
+  const formatDateTime = (dateString: string) => {
+    if (!dateString) return "N/A"
+    try {
+      const date = new Date(dateString)
+      return date.toLocaleString("en-IN", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true,
+      })
+    } catch (error) {
+      return "Invalid Date"
     }
   }
 
@@ -364,8 +382,8 @@ export default function AdminPage() {
   // Manual Assignment Handlers
   const handleManualAssignClick = (claim: ClaimResponse) => {
     setSelectedClaimForManualAssign(claim)
-    setSelectedKeyForManualAssign("") // Reset selected key
-    setManualAssignPassword("") // Reset password
+    setSelectedKeyForManualAssign("")
+    setManualAssignPassword("")
     setManualAssignDialogOpen(true)
   }
 
@@ -538,8 +556,7 @@ export default function AdminPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-600">OTT Keys</p>
-                      <p className="text-3xl font-bold">{ottKeys?.length || 0}</p>{" "}
-                      {/* Corrected to show actual key count */}
+                      <p className="text-3xl font-bold">{ottKeys?.length || 0}</p>
                       <p className="text-sm text-gray-500">{stats.availableKeys} available</p>
                     </div>
                     <div className="p-3 bg-purple-100 rounded-full">
@@ -725,8 +742,13 @@ export default function AdminPage() {
                                 onCheckedChange={(checked) => handleSelectAll(claimResponses || [], checked as boolean)}
                               />
                             </TableHead>
+                            <TableHead className="font-bold text-gray-800">Name</TableHead>
                             <TableHead className="font-bold text-gray-800">Email</TableHead>
                             <TableHead className="font-bold text-gray-800">Phone</TableHead>
+                            <TableHead className="font-bold text-gray-800">Address</TableHead>
+                            <TableHead className="font-bold text-gray-800">State</TableHead>
+                            <TableHead className="font-bold text-gray-800">City</TableHead>
+                            <TableHead className="font-bold text-gray-800">Pincode</TableHead>
                             <TableHead className="font-bold text-gray-800">Activation Code</TableHead>
                             <TableHead className="font-bold text-gray-800">Payment Status</TableHead>
                             <TableHead className="font-bold text-gray-800">OTT Status</TableHead>
@@ -749,17 +771,24 @@ export default function AdminPage() {
                                   }
                                 />
                               </TableCell>
+                              <TableCell className="font-medium">
+                                {`${claim.firstName || ""} ${claim.lastName || ""}`.trim() || "N/A"}
+                              </TableCell>
                               <TableCell className="font-medium">{claim.email || "N/A"}</TableCell>
-                              <TableCell>{claim.phone || "N/A"}</TableCell>
+                              <TableCell>{claim.phoneNumber || claim.phone || "N/A"}</TableCell>
+                              <TableCell className="max-w-xs truncate" title={claim.address || "N/A"}>
+                                {claim.address || "N/A"}
+                              </TableCell>
+                              <TableCell>{claim.state || "N/A"}</TableCell>
+                              <TableCell>{claim.city || "N/A"}</TableCell>
+                              <TableCell>{claim.pincode || "N/A"}</TableCell>
                               <TableCell className="font-mono text-sm">{claim.activationCode || "N/A"}</TableCell>
                               <TableCell>{getStatusBadge(claim.paymentStatus)}</TableCell>
                               <TableCell>{getStatusBadge(claim.ottCodeStatus)}</TableCell>
                               <TableCell className="font-mono text-sm">
                                 {claim.ottCode || <span className="text-gray-400">-</span>}
                               </TableCell>
-                              <TableCell className="text-sm text-gray-600">
-                                {claim.createdAt ? new Date(claim.createdAt).toLocaleDateString() : "N/A"}
-                              </TableCell>
+                              <TableCell className="text-sm text-gray-600">{formatDateTime(claim.createdAt)}</TableCell>
                               <TableCell className="flex gap-2">
                                 <Button
                                   variant="outline"
@@ -771,12 +800,11 @@ export default function AdminPage() {
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </Button>
-                                {/* Manual Assign Button */}
                                 <Button
                                   variant="outline"
                                   size="sm"
                                   onClick={() => handleManualAssignClick(claim)}
-                                  disabled={claim.ottCodeStatus === "delivered" || claim.paymentStatus !== "paid"} // Disable if already delivered or not paid
+                                  disabled={claim.ottCodeStatus === "delivered" || claim.paymentStatus !== "paid"}
                                   className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200"
                                   title={
                                     claim.ottCodeStatus === "delivered"
@@ -792,7 +820,7 @@ export default function AdminPage() {
                             </TableRow>
                           )) || (
                             <TableRow>
-                              <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                              <TableCell colSpan={13} className="text-center py-8 text-gray-500">
                                 No claims data available
                               </TableCell>
                             </TableRow>
@@ -865,9 +893,7 @@ export default function AdminPage() {
                               <TableCell>{sale.productSubCategory || "N/A"}</TableCell>
                               <TableCell>{getStatusBadge(sale.status)}</TableCell>
                               <TableCell>{sale.claimedBy || <span className="text-gray-400">-</span>}</TableCell>
-                              <TableCell className="text-sm text-gray-600">
-                                {sale.createdAt ? new Date(sale.createdAt).toLocaleDateString() : "N/A"}
-                              </TableCell>
+                              <TableCell className="text-sm text-gray-600">{formatDateTime(sale.createdAt)}</TableCell>
                               <TableCell>
                                 <Button
                                   variant="outline"
@@ -955,9 +981,7 @@ export default function AdminPage() {
                               <TableCell>{key.productSubCategory || "N/A"}</TableCell>
                               <TableCell>{getStatusBadge(key.status)}</TableCell>
                               <TableCell>{key.assignedEmail || <span className="text-gray-400">-</span>}</TableCell>
-                              <TableCell className="text-sm text-gray-600">
-                                {key.createdAt ? new Date(key.createdAt).toLocaleDateString() : "N/A"}
-                              </TableCell>
+                              <TableCell className="text-sm text-gray-600">{formatDateTime(key.createdAt)}</TableCell>
                               <TableCell>
                                 <Button
                                   variant="outline"

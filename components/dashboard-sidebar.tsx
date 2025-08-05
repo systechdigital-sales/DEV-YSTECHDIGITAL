@@ -24,7 +24,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { LayoutDashboard, Settings, BarChart3, Mail, Zap, LogOut, User, Shield } from "lucide-react"
+import { LayoutDashboard, Settings, Mail, Zap, LogOut, User, Shield } from "lucide-react"
 
 const navigationItems = [
   {
@@ -36,11 +36,6 @@ const navigationItems = [
     title: "Admin Panel",
     url: "/admin",
     icon: Settings,
-  },
-  {
-    title: "Analytics",
-    url: "/analytics",
-    icon: BarChart3,
   },
   {
     title: "Email Logs",

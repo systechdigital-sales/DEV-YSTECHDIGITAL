@@ -83,6 +83,43 @@ export async function POST() {
             },
           )
 
+          // Send failure email
+          try {
+            const customerName = `${claim.firstName || ""} ${claim.lastName || ""}`.trim()
+            await sendEmail(
+              claim.email,
+              "OTT Code Processing Update - Action Required - SYSTECH DIGITAL",
+              "automation_failed",
+              claim,
+              {
+                to: claim.email,
+                subject: "OTT Code Processing Update - Action Required - SYSTECH DIGITAL",
+                template: "automation_failed",
+                data: claim,
+              },
+              {
+                to: claim.email,
+                subject: "OTT Code Processing Update - Action Required - SYSTECH DIGITAL",
+                template: "automation_failed",
+                data: {
+                  customerName: customerName || claim.email.split("@")[0],
+                  email: claim.email,
+                  claimId: claim._id,
+                  failureReason: "Invalid activation code - not found in sales records",
+                  status: "Failed",
+                  step: "Verification",
+                  date: new Date().toLocaleDateString("en-IN", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  }),
+                },
+              },
+            )
+          } catch (emailError) {
+            console.error(`Failed to send failure email to ${claim.email}:`, emailError)
+          }
+
           details.push({
             email: claim.email,
             status: "skipped",
@@ -113,6 +150,43 @@ export async function POST() {
             },
           )
 
+          // Send failure email
+          try {
+            const customerName = `${claim.firstName || ""} ${claim.lastName || ""}`.trim()
+            await sendEmail(
+              claim.email,
+              "OTT Code Processing Update - Duplicate Claim - SYSTECH DIGITAL",
+              "automation_failed",
+              claim,
+              {
+                to: claim.email,
+                subject: "OTT Code Processing Update - Duplicate Claim - SYSTECH DIGITAL",
+                template: "automation_failed",
+                data: claim,
+              },
+              {
+                to: claim.email,
+                subject: "OTT Code Processing Update - Duplicate Claim - SYSTECH DIGITAL",
+                template: "automation_failed",
+                data: {
+                  customerName: customerName || claim.email.split("@")[0],
+                  email: claim.email,
+                  claimId: claim._id,
+                  failureReason: "Duplicate claim - activation code already used",
+                  status: "Failed",
+                  step: "Duplicate Check",
+                  date: new Date().toLocaleDateString("en-IN", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  }),
+                },
+              },
+            )
+          } catch (emailError) {
+            console.error(`Failed to send failure email to ${claim.email}:`, emailError)
+          }
+
           details.push({
             email: claim.email,
             status: "skipped",
@@ -141,6 +215,43 @@ export async function POST() {
               },
             },
           )
+
+          // Send failure email
+          try {
+            const customerName = `${claim.firstName || ""} ${claim.lastName || ""}`.trim()
+            await sendEmail(
+              claim.email,
+              "OTT Code Processing Update - No Available Keys - SYSTECH DIGITAL",
+              "automation_failed",
+              claim,
+              {
+                to: claim.email,
+                subject: "OTT Code Processing Update - No Available Keys - SYSTECH DIGITAL",
+                template: "automation_failed",
+                data: claim,
+              },
+              {
+                to: claim.email,
+                subject: "OTT Code Processing Update - No Available Keys - SYSTECH DIGITAL",
+                template: "automation_failed",
+                data: {
+                  customerName: customerName || claim.email.split("@")[0],
+                  email: claim.email,
+                  claimId: claim._id,
+                  failureReason: `No available OTT keys for platform: ${claim.platform}`,
+                  status: "Failed",
+                  step: "Key Assignment",
+                  date: new Date().toLocaleDateString("en-IN", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  }),
+                },
+              },
+            )
+          } catch (emailError) {
+            console.error(`Failed to send failure email to ${claim.email}:`, emailError)
+          }
 
           details.push({
             email: claim.email,
@@ -207,7 +318,26 @@ export async function POST() {
             </div>
           `
 
-          await sendEmail(claim.email, emailSubject, emailBody)
+          await sendEmail(
+            claim.email,
+            emailSubject,
+            "custom",
+            claim,
+            {
+              to: claim.email,
+              subject: emailSubject,
+              template: "custom",
+              data: claim,
+            },
+            {
+              to: claim.email,
+              subject: emailSubject,
+              template: "custom",
+              data: {
+                html: emailBody,
+              },
+            },
+          )
           console.log(`📧 Email sent successfully to ${claim.email}`)
 
           details.push({
@@ -246,6 +376,43 @@ export async function POST() {
             },
           )
 
+          // Send failure email
+          try {
+            const customerName = `${claim.firstName || ""} ${claim.lastName || ""}`.trim()
+            await sendEmail(
+              claim.email,
+              "OTT Code Processing Update - Email Delivery Issue - SYSTECH DIGITAL",
+              "automation_failed",
+              claim,
+              {
+                to: claim.email,
+                subject: "OTT Code Processing Update - Email Delivery Issue - SYSTECH DIGITAL",
+                template: "automation_failed",
+                data: claim,
+              },
+              {
+                to: claim.email,
+                subject: "OTT Code Processing Update - Email Delivery Issue - SYSTECH DIGITAL",
+                template: "automation_failed",
+                data: {
+                  customerName: customerName || claim.email.split("@")[0],
+                  email: claim.email,
+                  claimId: claim._id,
+                  failureReason: "Failed to send email notification",
+                  status: "Failed",
+                  step: "Email Notification",
+                  date: new Date().toLocaleDateString("en-IN", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  }),
+                },
+              },
+            )
+          } catch (secondEmailError) {
+            console.error(`Failed to send secondary failure email to ${claim.email}:`, secondEmailError)
+          }
+
           details.push({
             email: claim.email,
             status: "failed",
@@ -267,6 +434,43 @@ export async function POST() {
             },
           },
         )
+
+        // Send failure email
+        try {
+          const customerName = `${claim.firstName || ""} ${claim.lastName || ""}`.trim()
+          await sendEmail(
+            claim.email,
+            "OTT Code Processing Update - Technical Error - SYSTECH DIGITAL",
+            "automation_failed",
+            claim,
+            {
+              to: claim.email,
+              subject: "OTT Code Processing Update - Technical Error - SYSTECH DIGITAL",
+              template: "automation_failed",
+              data: claim,
+            },
+            {
+              to: claim.email,
+              subject: "OTT Code Processing Update - Technical Error - SYSTECH DIGITAL",
+              template: "automation_failed",
+              data: {
+                customerName: customerName || claim.email.split("@")[0],
+                email: claim.email,
+                claimId: claim._id,
+                failureReason: `Processing error: ${claimError instanceof Error ? claimError.message : "Unknown error"}`,
+                status: "Failed",
+                step: "Processing",
+                date: new Date().toLocaleDateString("en-IN", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                }),
+              },
+            },
+          )
+        } catch (emailError) {
+          console.error(`Failed to send failure email to ${claim.email}:`, emailError)
+        }
 
         details.push({
           email: claim.email,

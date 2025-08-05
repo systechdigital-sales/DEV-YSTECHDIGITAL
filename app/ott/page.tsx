@@ -1328,7 +1328,6 @@ export default function OTTClaimPage() {
                     </p>
                   )}
                   <p className="text-xs text-gray-500 mt-1">This is the code you received with your purchase</p>
-                  <p className="text-xs text-gray-500 mt-1">Please ensure that the activation code entered is correct before proceeding with payment. Refunds will not be issued for payments made using an incorrect or invalid activation code.</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                   <div>

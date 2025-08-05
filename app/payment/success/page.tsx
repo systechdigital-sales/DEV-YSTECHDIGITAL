@@ -73,7 +73,7 @@ Date: ${new Date().toLocaleDateString()}
 Status: Successful
 
 Thank you for your payment!
-You will receive OTTplay Power  Pack subscription code over email within 24 hours.
+Your OTT subscription will be activated within 24 hours.
     `
 
     const blob = new Blob([receiptContent], { type: "text/plain" })
@@ -289,7 +289,11 @@ You will receive OTTplay Power  Pack subscription code over email within 24 hour
           <div className="flex items-center justify-center space-x-4 text-sm text-gray-500">
             <div className="flex items-center space-x-1">
               <Mail className="w-4 h-4" />
-              <span>supportott@systechdigital.co.in</span>
+              <span>support@systechdigital.com</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <Phone className="w-4 h-4" />
+              <span>+91-XXXXXXXXXX</span>
             </div>
           </div>
         </div>

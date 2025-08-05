@@ -31,6 +31,10 @@ interface EmailRecord {
   lastName: string
   email: string
   phoneNumber: string
+  address: string
+  state: string
+  city: string
+  pincode: string
   activationCode: string
   paymentStatus: "pending" | "paid" | "failed"
   ottCode: string
@@ -111,6 +115,10 @@ export default function EmailsPage() {
       "Name",
       "Email",
       "Phone",
+      "Address",
+      "State",
+      "City",
+      "Pincode",
       "Activation Code",
       "Payment Status",
       "OTT Status",
@@ -123,12 +131,16 @@ export default function EmailsPage() {
       `${email.firstName} ${email.lastName}`,
       email.email,
       email.phoneNumber,
+      email.address || "N/A",
+      email.state || "N/A",
+      email.city || "N/A",
+      email.pincode || "N/A",
       email.activationCode,
       email.paymentStatus,
       email.ottCodeStatus,
       email.ottCode || "Not assigned",
-      new Date(email.createdAt).toLocaleDateString(),
-      email.ottAssignedAt ? new Date(email.ottAssignedAt).toLocaleDateString() : "Not assigned",
+      formatDateTime(email.createdAt),
+      email.ottAssignedAt ? formatDateTime(email.ottAssignedAt) : "Not assigned",
     ])
 
     const csvContent = [headers, ...csvData].map((row) => row.join(",")).join("\n")
@@ -142,6 +154,24 @@ export default function EmailsPage() {
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+  }
+
+  const formatDateTime = (dateString: string) => {
+    if (!dateString) return "N/A"
+    try {
+      const date = new Date(dateString)
+      return date.toLocaleString("en-IN", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true,
+      })
+    } catch (error) {
+      return "Invalid Date"
+    }
   }
 
   const getStatusBadge = (status: string, type: "payment" | "ott") => {
@@ -396,21 +426,25 @@ export default function EmailsPage() {
                     <Table>
                       <TableHeader className="sticky top-0 bg-white z-10">
                         <TableRow className="bg-gray-50">
-                          <TableHead className="font-semibold">Customer</TableHead>
+                          <TableHead className="font-semibold">Customer Name</TableHead>
                           <TableHead className="font-semibold">Email Address</TableHead>
                           <TableHead className="font-semibold">Phone</TableHead>
+                          <TableHead className="font-semibold">Address</TableHead>
+                          <TableHead className="font-semibold">State</TableHead>
+                          <TableHead className="font-semibold">City</TableHead>
+                          <TableHead className="font-semibold">Pincode</TableHead>
                           <TableHead className="font-semibold">Activation Code</TableHead>
                           <TableHead className="font-semibold">Payment Status</TableHead>
                           <TableHead className="font-semibold">OTT Status</TableHead>
                           <TableHead className="font-semibold">OTT Code</TableHead>
-                          <TableHead className="font-semibold">Created Date</TableHead>
-                          <TableHead className="font-semibold">OTT Assigned</TableHead>
+                          <TableHead className="font-semibold">Created Date & Time</TableHead>
+                          <TableHead className="font-semibold">OTT Assigned Date & Time</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {filteredEmails.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={9} className="text-center py-12">
+                            <TableCell colSpan={13} className="text-center py-12">
                               <div className="flex flex-col items-center space-y-4">
                                 <Mail className="w-16 h-16 text-gray-300" />
                                 <div>
@@ -434,7 +468,7 @@ export default function EmailsPage() {
                                   </div>
                                   <div>
                                     <p className="font-semibold">
-                                      {email.firstName} {email.lastName}
+                                      {`${email.firstName || ""} ${email.lastName || ""}`.trim() || "N/A"}
                                     </p>
                                   </div>
                                 </div>
@@ -448,6 +482,12 @@ export default function EmailsPage() {
                                 </div>
                               </TableCell>
                               <TableCell className="font-mono text-sm">{email.phoneNumber}</TableCell>
+                              <TableCell className="max-w-xs truncate" title={email.address || "N/A"}>
+                                {email.address || "N/A"}
+                              </TableCell>
+                              <TableCell>{email.state || "N/A"}</TableCell>
+                              <TableCell>{email.city || "N/A"}</TableCell>
+                              <TableCell>{email.pincode || "N/A"}</TableCell>
                               <TableCell className="font-mono text-sm bg-gray-50 px-2 py-1 rounded">
                                 {email.activationCode}
                               </TableCell>
@@ -465,14 +505,14 @@ export default function EmailsPage() {
                               <TableCell>
                                 <div className="flex items-center space-x-2">
                                   <Calendar className="w-4 h-4 text-gray-400" />
-                                  <span>{new Date(email.createdAt).toLocaleDateString()}</span>
+                                  <span className="text-sm">{formatDateTime(email.createdAt)}</span>
                                 </div>
                               </TableCell>
                               <TableCell>
                                 {email.ottAssignedAt ? (
                                   <div className="flex items-center space-x-2">
                                     <CheckCircle className="w-4 h-4 text-green-500" />
-                                    <span>{new Date(email.ottAssignedAt).toLocaleDateString()}</span>
+                                    <span className="text-sm">{formatDateTime(email.ottAssignedAt)}</span>
                                   </div>
                                 ) : (
                                   <span className="text-gray-400 italic">Not assigned</span>
