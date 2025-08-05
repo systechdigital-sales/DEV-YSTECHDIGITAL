@@ -1,4 +1,3 @@
 # Systech digital promotion
 
-## Overview
 
