@@ -36,6 +36,7 @@ import {
   Timer,
   Save,
   Settings,
+  RefreshCw,
 } from "lucide-react"
 import Image from "next/image"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -75,6 +76,7 @@ interface AutomationSettings {
   intervalMinutes: number
   totalRuns: number
   lastRun?: string
+  nextRun?: string
 }
 
 const INTERVAL_OPTIONS = [
@@ -85,6 +87,42 @@ const INTERVAL_OPTIONS = [
   { value: 360, label: "6 Hours", description: "Every 6 hours" },
   { value: 1440, label: "1 Day", description: "Once daily" },
 ]
+
+// Helper function to format date in IST
+const formatIST = (date: Date | string) => {
+  const d = typeof date === "string" ? new Date(date) : date
+  return d.toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  })
+}
+
+// Helper function to get time until next run
+const getTimeUntilNextRun = (nextRun: string) => {
+  const now = new Date()
+  const next = new Date(nextRun)
+  const diff = next.getTime() - now.getTime()
+
+  if (diff <= 0) return "Running now..."
+
+  const seconds = Math.floor(diff / 1000)
+  const minutes = Math.floor(seconds / 60)
+  const hours = Math.floor(minutes / 60)
+
+  if (hours > 0) {
+    return `${hours}h ${minutes % 60}m ${seconds % 60}s`
+  } else if (minutes > 0) {
+    return `${minutes}m ${seconds % 60}s`
+  } else {
+    return `${seconds}s`
+  }
+}
 
 export default function AutomationPage() {
   const [isRunning, setIsRunning] = useState(false)
@@ -99,7 +137,9 @@ export default function AutomationPage() {
     totalRuns: 0,
   })
   const [isSaving, setIsSaving] = useState(false)
-  const [nextRunIn, setNextRunIn] = useState(60)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [nextRunCountdown, setNextRunCountdown] = useState("")
+  const [currentTime, setCurrentTime] = useState(new Date())
   const [progress, setProgress] = useState(0)
   const [currentStep, setCurrentStep] = useState("")
   const [results, setResults] = useState<AutomationResult | null>(null)
@@ -107,8 +147,7 @@ export default function AutomationPage() {
   const [error, setError] = useState("")
   const [activeTab, setActiveTab] = useState("overview")
   const router = useRouter()
-  const intervalRef = useRef<NodeJS.Timeout | null>(null)
-  const countdownRef = useRef<NodeJS.Timeout | null>(null)
+  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   const [steps, setSteps] = useState<AutomationStep[]>([
     {
@@ -183,7 +222,35 @@ export default function AutomationPage() {
 
     // Load automation settings
     loadAutomationSettings()
+
+    // Update current time every second
+    const timeInterval = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 1000)
+
+    // Refresh settings every 10 seconds to get latest status
+    refreshIntervalRef.current = setInterval(() => {
+      loadAutomationSettings()
+    }, 10000)
+
+    return () => {
+      clearInterval(timeInterval)
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current)
+      }
+    }
   }, [router])
+
+  // Update countdown every second
+  useEffect(() => {
+    if (settings.nextRun) {
+      const interval = setInterval(() => {
+        setNextRunCountdown(getTimeUntilNextRun(settings.nextRun!))
+      }, 1000)
+
+      return () => clearInterval(interval)
+    }
+  }, [settings.nextRun])
 
   const loadAutomationSettings = async () => {
     try {
@@ -196,21 +263,33 @@ export default function AutomationPage() {
           intervalMinutes: data.settings.intervalMinutes,
           totalRuns: data.settings.totalRuns,
           lastRun: data.settings.lastRun,
+          nextRun: data.settings.nextRun,
         }
         setSettings(loadedSettings)
         setTempSettings(loadedSettings)
 
-        // Set initial countdown based on loaded interval
-        setNextRunIn(data.settings.intervalMinutes * 60)
+        if (data.settings.nextRun) {
+          setNextRunCountdown(getTimeUntilNextRun(data.settings.nextRun))
+        }
 
-        addLog(
-          `⚙️ Loaded automation settings: ${data.settings.isEnabled ? "ENABLED" : "DISABLED"} - Interval: ${data.settings.intervalMinutes} minutes`,
-        )
+        if (!logs.length) {
+          addLog(
+            `⚙️ Loaded automation settings: ${data.settings.isEnabled ? "ENABLED" : "DISABLED"} - Interval: ${data.settings.intervalMinutes} minutes`,
+          )
+        }
       }
     } catch (error) {
       console.error("Error loading automation settings:", error)
-      addLog(`❌ Failed to load automation settings: ${error}`)
+      if (!logs.length) {
+        addLog(`❌ Failed to load automation settings: ${error}`)
+      }
     }
+  }
+
+  const refreshSettings = async () => {
+    setIsRefreshing(true)
+    await loadAutomationSettings()
+    setTimeout(() => setIsRefreshing(false), 500)
   }
 
   const saveAutomationSettings = async () => {
@@ -231,7 +310,6 @@ export default function AutomationPage() {
 
       if (data.success) {
         setSettings(tempSettings)
-        setNextRunIn(tempSettings.intervalMinutes * 60)
 
         toast({
           title: "Settings Saved",
@@ -241,6 +319,9 @@ export default function AutomationPage() {
         addLog(
           `💾 Settings saved: ${tempSettings.isEnabled ? "ENABLED" : "DISABLED"} - Interval: ${tempSettings.intervalMinutes} minutes`,
         )
+
+        // Refresh to get updated next run time
+        setTimeout(() => loadAutomationSettings(), 1000)
       } else {
         throw new Error(data.error || "Failed to save settings")
       }
@@ -257,78 +338,8 @@ export default function AutomationPage() {
     }
   }
 
-  const updateRunStats = async () => {
-    try {
-      await fetch("/api/admin/automation-settings", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          incrementRuns: true,
-          lastRun: new Date().toISOString(),
-        }),
-      })
-    } catch (error) {
-      console.error("Error updating run stats:", error)
-    }
-  }
-
-  // Auto-automation countdown effect
-  useEffect(() => {
-    if (settings.isEnabled && !isRunning) {
-      countdownRef.current = setInterval(() => {
-        setNextRunIn((prev) => {
-          if (prev <= 1) {
-            return settings.intervalMinutes * 60 // Reset based on current interval
-          }
-          return prev - 1
-        })
-      }, 1000)
-    } else {
-      if (countdownRef.current) {
-        clearInterval(countdownRef.current)
-        countdownRef.current = null
-      }
-      setNextRunIn(settings.intervalMinutes * 60)
-    }
-
-    return () => {
-      if (countdownRef.current) {
-        clearInterval(countdownRef.current)
-      }
-    }
-  }, [settings.isEnabled, settings.intervalMinutes, isRunning])
-
-  // Auto-automation interval effect
-  useEffect(() => {
-    if (settings.isEnabled) {
-      const intervalMs = settings.intervalMinutes * 60 * 1000
-
-      intervalRef.current = setInterval(() => {
-        if (!isRunning) {
-          startAutomation(true) // Pass true to indicate auto-run
-        }
-      }, intervalMs)
-
-      addLog(`🤖 Auto-automation enabled - will run every ${settings.intervalMinutes} minute(s)`)
-    } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-        intervalRef.current = null
-      }
-      addLog(`⏸️ Auto-automation disabled`)
-    }
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-      }
-    }
-  }, [settings.isEnabled, settings.intervalMinutes, isRunning])
-
   const addLog = (message: string) => {
-    const timestamp = new Date().toLocaleTimeString()
+    const timestamp = formatIST(new Date())
     setLogs((prev) => [...prev, `[${timestamp}] ${message}`])
   }
 
@@ -339,21 +350,6 @@ export default function AutomationPage() {
   const formatInterval = (minutes: number) => {
     const option = INTERVAL_OPTIONS.find((opt) => opt.value === minutes)
     return option ? option.label : `${minutes} minutes`
-  }
-
-  const formatNextRun = (seconds: number) => {
-    if (seconds >= 3600) {
-      const hours = Math.floor(seconds / 3600)
-      const mins = Math.floor((seconds % 3600) / 60)
-      const secs = seconds % 60
-      return `${hours}h ${mins}m ${secs}s`
-    } else if (seconds >= 60) {
-      const mins = Math.floor(seconds / 60)
-      const secs = seconds % 60
-      return `${mins}m ${secs}s`
-    } else {
-      return `${seconds}s`
-    }
   }
 
   const startAutomation = async (isAutoRun = false) => {
@@ -371,7 +367,6 @@ export default function AutomationPage() {
     try {
       if (isAutoRun) {
         addLog(`🤖 Auto-run #${settings.totalRuns + 1} - Automated OTT Key Assignment initiated...`)
-        await updateRunStats()
       } else {
         addLog("🚀 Manual OTT Key Assignment Automation initiated...")
       }
@@ -484,10 +479,8 @@ export default function AutomationPage() {
         }
       }
 
-      // Reset countdown after successful run
-      if (settings.isEnabled) {
-        setNextRunIn(settings.intervalMinutes * 60)
-      }
+      // Refresh settings to get updated run count and next run time
+      setTimeout(() => loadAutomationSettings(), 1000)
     } catch (error: any) {
       console.error("Automation error:", error)
       setError(error.message || "Automation failed")
@@ -505,9 +498,9 @@ export default function AutomationPage() {
       setIsRunning(false)
       setCurrentStep("")
       if (isAutoRun) {
-        addLog(`🤖 Auto-run #${settings.totalRuns} session ended at ${new Date().toLocaleString()}`)
+        addLog(`🤖 Auto-run #${settings.totalRuns} session ended at ${formatIST(new Date())}`)
       } else {
-        addLog(`🏁 Manual automation session ended at ${new Date().toLocaleString()}`)
+        addLog(`🏁 Manual automation session ended at ${formatIST(new Date())}`)
       }
     }
   }
@@ -545,6 +538,10 @@ export default function AutomationPage() {
                     </div>
                   </div>
                 </div>
+                <div className="text-right">
+                  <p className="text-sm text-green-200">Current Time (IST)</p>
+                  <p className="text-lg font-bold text-white">{formatIST(currentTime)}</p>
+                </div>
               </div>
             </div>
           </header>
@@ -554,15 +551,29 @@ export default function AutomationPage() {
               {/* Auto-Automation Control Panel */}
               <Card className="shadow-2xl border-0 bg-gradient-to-br from-white to-gray-50">
                 <CardHeader className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-t-lg border-b">
-                  <CardTitle className="flex items-center text-2xl font-bold text-gray-800">
-                    <div className="p-2 bg-purple-100 rounded-lg mr-3">
-                      <Settings className="w-6 h-6 text-purple-600" />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center text-2xl font-bold text-gray-800">
+                        <div className="p-2 bg-purple-100 rounded-lg mr-3">
+                          <Settings className="w-6 h-6 text-purple-600" />
+                        </div>
+                        Auto-Automation Settings
+                      </CardTitle>
+                      <CardDescription className="text-lg text-gray-600">
+                        Configure automatic processing intervals and enable/disable automation
+                      </CardDescription>
                     </div>
-                    Auto-Automation Settings
-                  </CardTitle>
-                  <CardDescription className="text-lg text-gray-600">
-                    Configure automatic processing intervals and enable/disable automation
-                  </CardDescription>
+                    <Button
+                      onClick={refreshSettings}
+                      disabled={isRefreshing}
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center space-x-2 bg-transparent"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                      <span>Refresh</span>
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent className="p-8">
                   <div className="space-y-8">
@@ -589,7 +600,7 @@ export default function AutomationPage() {
                               {tempSettings.isEnabled ? (
                                 <span className="flex items-center">
                                   <Power className="w-4 h-4 mr-2 text-green-600" />
-                                  Auto-processing is active
+                                  Auto-processing is active via Vercel Cron
                                 </span>
                               ) : (
                                 <span className="flex items-center">
@@ -675,9 +686,9 @@ export default function AutomationPage() {
                       <div className="space-y-4 bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-xl border border-green-200">
                         <h3 className="font-bold text-xl text-green-900 flex items-center">
                           <Timer className="w-6 h-6 mr-2" />
-                          Current Automation Status
+                          Current Automation Status (IST)
                         </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                           <div className="text-center">
                             <p className="text-sm text-green-700 font-semibold">Total Runs Completed</p>
                             <p className="text-3xl font-bold text-green-800">{settings.totalRuns}</p>
@@ -690,21 +701,32 @@ export default function AutomationPage() {
                           </div>
                           <div className="text-center">
                             <p className="text-sm text-green-700 font-semibold">Next Run In</p>
-                            <p className="text-2xl font-bold text-green-800">{formatNextRun(nextRunIn)}</p>
+                            <p className="text-2xl font-bold text-green-800">
+                              {settings.nextRun ? nextRunCountdown : "Calculating..."}
+                            </p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-sm text-green-700 font-semibold">Status</p>
+                            <Badge className="text-lg px-4 py-2 bg-green-600 text-white">
+                              {settings.nextRun && getTimeUntilNextRun(settings.nextRun) === "Running now..."
+                                ? "RUNNING"
+                                : "ACTIVE"}
+                            </Badge>
                           </div>
                         </div>
-                        <div className="w-full bg-green-200 rounded-full h-3">
-                          <div
-                            className="bg-green-600 h-3 rounded-full transition-all duration-1000"
-                            style={{
-                              width: `${((settings.intervalMinutes * 60 - nextRunIn) / (settings.intervalMinutes * 60)) * 100}%`,
-                            }}
-                          />
-                        </div>
+
                         {settings.lastRun && (
-                          <p className="text-sm text-green-700 text-center">
-                            Last run: {new Date(settings.lastRun).toLocaleString()}
-                          </p>
+                          <div className="text-center bg-white/50 p-4 rounded-lg">
+                            <p className="text-sm text-green-700 font-semibold">Last Run</p>
+                            <p className="text-lg font-bold text-green-800">{formatIST(settings.lastRun)}</p>
+                          </div>
+                        )}
+
+                        {settings.nextRun && (
+                          <div className="text-center bg-white/50 p-4 rounded-lg">
+                            <p className="text-sm text-green-700 font-semibold">Next Scheduled Run</p>
+                            <p className="text-lg font-bold text-green-800">{formatIST(settings.nextRun)}</p>
+                          </div>
                         )}
                       </div>
                     )}
@@ -715,7 +737,7 @@ export default function AutomationPage() {
                         <AlertTitle className="text-orange-800">Auto-Automation Disabled</AlertTitle>
                         <AlertDescription className="text-orange-700">
                           Automatic processing is currently disabled. Enable it above to start automatic claim
-                          processing.
+                          processing via Vercel Cron Jobs.
                         </AlertDescription>
                       </Alert>
                     )}
@@ -1118,7 +1140,7 @@ export default function AutomationPage() {
                     <CardHeader className="bg-gradient-to-r from-gray-800 to-gray-900 rounded-t-lg border-b">
                       <CardTitle className="text-2xl font-bold text-white flex items-center">
                         <Terminal className="w-6 h-6 mr-3" />
-                        System Automation Logs
+                        System Automation Logs (IST)
                       </CardTitle>
                       <CardDescription className="text-gray-300 text-lg">
                         Real-time processing logs with Claims, SalesRecord, and OTTKey table update tracking
@@ -1312,6 +1334,41 @@ export default function AutomationPage() {
                             </Badge>
                             <span className="text-purple-800">Invalid activation code</span>
                           </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Automation Status */}
+                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-xl border border-indigo-200">
+                      <h3 className="font-bold text-xl text-indigo-900 mb-4 flex items-center">
+                        <Zap className="w-6 h-6 mr-2" />
+                        Automation Status & Scheduling
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <h4 className="font-semibold text-indigo-900 mb-2">Background Processing</h4>
+                          <p className="text-indigo-800 text-sm mb-3">
+                            The automation runs continuously in the background using Vercel Cron Jobs, independent of
+                            whether the dashboard is open.
+                          </p>
+                          <ul className="text-indigo-700 text-sm space-y-1">
+                            <li>• Runs every minute when enabled</li>
+                            <li>• Processes Claims table automatically</li>
+                            <li>• Updates database records in real-time</li>
+                            <li>• Sends email notifications to customers</li>
+                          </ul>
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-indigo-900 mb-2">Time Zone & Scheduling</h4>
+                          <p className="text-indigo-800 text-sm mb-3">
+                            All timestamps are displayed in Indian Standard Time (IST) for consistency.
+                          </p>
+                          <ul className="text-indigo-700 text-sm space-y-1">
+                            <li>• Last run timestamp in IST</li>
+                            <li>• Next scheduled run in IST</li>
+                            <li>• Real-time countdown to next execution</li>
+                            <li>• Automatic scheduling via Vercel Cron</li>
+                          </ul>
                         </div>
                       </div>
                     </div>
