@@ -39,35 +39,60 @@ export default function ContactPage() {
       {/* Spacer for fixed header */}
       <div className="h-20 sm:h-24 md:h-28" />
 
-      {/* Contact Info Cards */}
-      <div className="max-w-4xl mx-auto px-4 mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Email Card */}
-        <Card className="shadow-md border-0">
-          <CardHeader className="flex items-center gap-2 bg-blue-600 text-white rounded-t-md py-3 px-4">
+      {/* Contact Info Cards in Single Row */}
+      <div className="max-w-7xl mx-auto px-4 mt-6 flex flex-wrap md:flex-nowrap gap-6 justify-center">
+
+        {/* Email Card 1 */}
+        <Card className="flex-1 min-w-[280px] shadow-md border-0 flex flex-col">
+          <CardHeader className="bg-blue-600 text-white rounded-t-md py-3 px-4 flex items-center gap-2">
             <Mail className="w-5 h-5" />
-            <CardTitle className="text-base sm:text-lg font-semibold">Email Us</CardTitle>
+            <CardTitle className="text-base sm:text-lg font-semibold leading-tight">
+              For OTTplay Power Play Pack redemption
+            </CardTitle>
           </CardHeader>
-          <CardContent className="p-4">
+          <CardContent className="p-6 flex flex-col justify-center items-center text-center flex-1">
             <p className="text-gray-700 text-sm sm:text-base">
               sales.systechdigital@gmail.com
             </p>
-            <p className="text-gray-500 text-xs mt-1">We typically reply within 24 hours.</p>
+            <p className="text-gray-500 text-xs mt-1">
+              We typically reply within 24 hours.
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Email Card 2 */}
+        <Card className="flex-1 min-w-[280px] shadow-md border-0 flex flex-col">
+          <CardHeader className="bg-blue-600 text-white rounded-t-md py-3 px-4 flex items-center gap-2">
+            <Mail className="w-5 h-5" />
+            <CardTitle className="text-base sm:text-lg font-semibold leading-tight">
+              Queries related to OTTplay Power Play Pack
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6 flex flex-col justify-center items-center text-center flex-1">
+            <p className="text-gray-700 text-sm sm:text-base">
+              Contact OTTplay Support:
+            </p>
+            <a href="mailto:support@ottplay.com" className="text-blue-600 mt-1">support@ottplay.com</a>
+            <a href="tel:+918062012555" className="text-blue-600 mt-1">+91 80-62012555</a>
           </CardContent>
         </Card>
 
         {/* Address Card */}
-        <Card className="shadow-md border-0">
-          <CardHeader className="flex items-center gap-2 bg-green-600 text-white rounded-t-md py-3 px-4">
+        <Card className="flex-1 min-w-[280px] shadow-md border-0 flex flex-col">
+          <CardHeader className="bg-green-600 text-white rounded-t-md py-3 px-4 flex items-center gap-2">
             <MapPin className="w-5 h-5" />
-            <CardTitle className="text-base sm:text-lg font-semibold">Our Address</CardTitle>
+            <CardTitle className="text-base sm:text-lg font-semibold leading-tight">
+              Our Address
+            </CardTitle>
           </CardHeader>
-          <CardContent className="p-4">
+          <CardContent className="p-6 flex flex-col justify-center items-center text-center flex-1">
             <p>Systech IT Solution Pvt. Ltd</p>
-                <p>#23/1, 1st floor , J.C.1st cross</p>
-                <p>JC Road , Near Poornima Theatre , Bangaluru</p>
-                <p>Karnataka, India - 560027</p>
+            <p>#23/1, 1st floor, J.C.1st cross</p>
+            <p>JC Road, Near Poornima Theatre, Bangaluru</p>
+            <p>Karnataka, India - 560027</p>
           </CardContent>
         </Card>
+
       </div>
     </div>
   )

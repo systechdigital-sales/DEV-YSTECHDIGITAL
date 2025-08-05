@@ -541,33 +541,6 @@ export default function DashboardPage() {
 
               {/* Secondary Metrics */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card className="shadow-lg border-0 bg-gradient-to-br from-red-500 to-red-600 text-white">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-red-100 text-sm font-medium">Sales Records</p>
-                        <p className="text-2xl font-bold">{stats.totalSalesRecords.toLocaleString()}</p>
-                        <p className="text-red-200 text-xs mt-1">
-                          {stats.availableSalesRecords} available • {stats.claimedSalesRecords} claimed
-                        </p>
-                      </div>
-                      <ShoppingCart className="w-8 h-8 text-red-200" />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="shadow-lg border-0 bg-gradient-to-br from-teal-500 to-teal-600 text-white">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-teal-100 text-sm font-medium">Conversion Rate</p>
-                        <p className="text-2xl font-bold">{stats.conversionRate.toFixed(1)}%</p>
-                        <p className="text-teal-200 text-xs mt-1">Sales to claims ratio</p>
-                      </div>
-                      <Target className="w-8 h-8 text-teal-200" />
-                    </div>
-                  </CardContent>
-                </Card>
 
                 <Card className="shadow-lg border-0 bg-gradient-to-br from-indigo-500 to-indigo-600 text-white">
                   <CardContent className="p-6">

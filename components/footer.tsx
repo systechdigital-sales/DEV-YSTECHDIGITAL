@@ -40,22 +40,7 @@ export default function Footer() {
           <div className="hidden sm:block" />
 
           {/* Contact Info */}
-          <div>
-            <h5 className="text-lg font-semibold mb-4">Contact Info</h5>
-            <div className="space-y-4 text-sm sm:text-base">
-              <div className="flex items-start sm:items-center">
-                <Mail className="w-5 h-5 text-blue-400 mr-3 mt-1 sm:mt-0" />
-                <p>sales.systechdigital@gmail.com</p>
-              </div>
-              <div className="flex items-start sm:items-center">
-                <MapPin className="w-5 h-5 text-blue-400 mr-3 mt-1 sm:mt-0" />
-                <p>Systech IT Solution Pvt. Ltd</p>
-              </div>
-              <p className="text-gray-400">
-                #23/1, 1st floor, J.C.1st cross, JC Road, Near Poornima Theatre, Bengaluru, Karnataka, India - 560027
-              </p>
-            </div>
-          </div>
+          
         </div>
 
         {/* Bottom Row */}

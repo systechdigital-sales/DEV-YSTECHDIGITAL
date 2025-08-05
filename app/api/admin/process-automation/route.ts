@@ -467,7 +467,14 @@ async function sendSuccessEmail(claim: any, ottCode: string, platform: string) {
             </div>
             
             <p style="color: #4a5568; line-height: 1.6; font-size: 14px; margin-top: 25px;">
-              <strong>Important:</strong> Please save this email for your records. If you face any issues with activation, contact our support team with your Claim ID.
+              For any queries related to OTTplay Power Play Pack, please contact:
+              <a href="mailto:support@ottplay.com" style={{ color: "#2b6cb0" }}>support@ottplay.com</a>
+              <a href="phone:+91-7709803412" style="color: #2b6cb0; margin-left: 10px;">+91 80-62012555</a>
+            </p>
+
+            <p style="color: #4a5568; line-height: 1.6; font-size: 14px; margin-top: 25px;">
+              For any queries related to OTTplay Power Play Pack, please contact:
+              <a href="mailto:support@systechdigital.com" style={{ color: "#2b6cb0" }}>support@systechdigital.com</a>
             </p>
           </div>
           

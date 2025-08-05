@@ -594,7 +594,7 @@ export default function AdminPage() {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Sales Records</p>
+                      <p className="text-sm font-medium text-gray-600">Redemption Records</p>
                       <p className="text-3xl font-bold text-gray-900">{stats.totalSales}</p>
                       <p className="text-sm text-gray-500">{stats.claimedSales} claimed</p>
                     </div>
@@ -672,9 +672,9 @@ export default function AdminPage() {
                   <div className="space-y-4">
                     <div className="bg-blue-50 p-6 rounded-xl border border-blue-200">
                       <h3 className="text-xl font-semibold text-blue-900 mb-4 flex items-center">
-                        <FileSpreadsheet className="w-5 h-5 mr-2" />📊 Sales Records Upload
+                        <FileSpreadsheet className="w-5 h-5 mr-2" /> Activation Code/Product Serial Number/IMEI Number Upload
                       </h3>
-                      <p className="text-blue-800 mb-4">Upload Excel/CSV file to salesrecords collection</p>
+                      <p className="text-blue-800 mb-4">Upload Excel/CSV file to collection</p>
                       <div className="space-y-3">
                         <Label htmlFor="sales-file" className="text-blue-900 font-medium">
                           Select Sales File (.xlsx, .xls, .csv)
@@ -704,9 +704,9 @@ export default function AdminPage() {
                   <div className="space-y-4">
                     <div className="bg-green-50 p-6 rounded-xl border border-green-200">
                       <h3 className="text-xl font-semibold text-green-900 mb-4 flex items-center">
-                        <Key className="w-5 h-5 mr-2" />🔑 OTT Keys Upload
+                        <Key className="w-5 h-5 mr-2" /> OTT Keys Upload
                       </h3>
-                      <p className="text-green-800 mb-4">Upload Excel/CSV file to ottkeys collection</p>
+                      <p className="text-green-800 mb-4 mt-12">Upload Excel/CSV file to ottkeys collection</p>
                       <div className="space-y-3">
                         <Label htmlFor="keys-file" className="text-green-900 font-medium">
                           Select Keys File (.xlsx, .xls, .csv)
@@ -786,7 +786,7 @@ export default function AdminPage() {
                   value="sales"
                   className="rounded-lg data-[state=active]:bg-purple-600 data-[state=active]:text-white text-lg font-semibold"
                 >
-                  Sales ({stats.totalSales})
+                  Redemption ({stats.totalSales})
                 </TabsTrigger>
                 <TabsTrigger
                   value="keys"
@@ -929,7 +929,7 @@ export default function AdminPage() {
                   <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-t-lg border-b">
                     <div className="flex justify-between items-center">
                       <div>
-                        <CardTitle className="text-2xl font-bold text-gray-800">Sales Records</CardTitle>
+                        <CardTitle className="text-2xl font-bold text-gray-800">Redemption Records</CardTitle>
                         <CardDescription className="text-lg text-gray-600">
                           Sales data from systech_ott_platform.salesrecords collection
                         </CardDescription>

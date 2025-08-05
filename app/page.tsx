@@ -132,7 +132,7 @@ export default function HomePage() {
                 <p className="text-sm text-red-200">Simplifying the Digital Experience</p>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
+            {/* <div className="flex items-center space-x-4">
               <Button
                 onClick={handleCustomerDashboard}
                 variant="ghost"
@@ -147,7 +147,7 @@ export default function HomePage() {
               >
                 Claim Now
               </Button>
-            </div>
+            </div> */}
           </div>
         </div>
       </header>
@@ -276,33 +276,25 @@ export default function HomePage() {
 
       {/* CTA Section */}
       <section className="py-20 bg-gradient-to-r from-blue-600 to-purple-600">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h3 className="text-4xl font-bold text-white mb-6">Ready to Start Streaming?</h3>
-          <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-            Join thousands of happy customers and get instant access to premium OTT content today. Your entertainment
-            journey starts here!
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button
-              onClick={handleGetStarted}
-              size="lg"
-              className="bg-white text-blue-600 hover:bg-blue-50 px-8 py-4 text-lg font-semibold shadow-xl"
-            >
-              <Gift className="w-5 h-5 mr-2" />
-              Claim Your OTT Code Now
-            </Button>
-            <Button
-              onClick={handleCustomerDashboard}
-              variant="outline"
-              size="lg"
-              className="border-2 border-white text-white hover:bg-white/10 px-8 py-4 text-lg font-semibold bg-transparent"
-            >
-              <User className="w-5 h-5 mr-2" />
-              Access My Dashboard
-            </Button>
-          </div>
-        </div>
-      </section>
+  <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+    <h3 className="text-4xl font-bold text-white mb-6">Ready to Start Streaming?</h3>
+    <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
+      Join thousands of happy customers and get instant access to premium OTT content today. Your entertainment
+      journey starts here!
+    </p>
+    <div className="flex justify-center">
+      <a
+        href="https://www.ottplay.com/partner/systech-it-solution/ott_sustech_annualtest"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="bg-white text-blue-600 hover:bg-blue-50 px-8 py-4 text-lg font-semibold shadow-xl rounded-md flex items-center gap-2"
+      >
+        Redeem Your Code
+      </a>
+    </div>
+  </div>
+</section>
+
 
       {/* Footer */}
       <Footer />

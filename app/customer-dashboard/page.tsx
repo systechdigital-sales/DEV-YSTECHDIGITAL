@@ -378,7 +378,7 @@ export default function CustomerDashboard() {
                         <span className="bg-blue-100 text-blue-800 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold mr-3 mt-0.5">
                           1
                         </span>
-                        Download the respective OTT platform app from your device's app store
+                        Open the  <a href="https://www.ottplay.com/partner/systech-it-solution/ott_sustech_annualtest" style={{ color: "#2b6cb0" }}>OTT Play app</a> from your web browser
                       </li>
                       <li className="flex items-start">
                         <span className="bg-blue-100 text-blue-800 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold mr-3 mt-0.5">
@@ -475,13 +475,6 @@ export default function CustomerDashboard() {
                     </div>
                   </div>
                   <div className="flex items-center">
-                    <Database className="w-4 h-4 text-gray-500 mr-2" />
-                    <div>
-                      <p className="text-sm text-gray-500">Source</p>
-                      <p className="font-semibold text-sm">ottkeys Collection</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center">
                     <Clock className="w-4 h-4 text-gray-500 mr-2" />
                     <div>
                       <p className="text-sm text-gray-500">Last Login</p>
@@ -504,17 +497,17 @@ export default function CustomerDashboard() {
                 <div className="space-y-4">
                   <div className="text-center">
                     <p className="text-sm text-gray-600 mb-3">
-                      Having trouble with your OTT codes? Our support team is here to help!
+                      Having trouble with your OTT codes? Contact Support!
                     </p>
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-center text-sm">
                       <Phone className="w-4 h-4 text-green-600 mr-2" />
-                      <span className="font-semibold">+91 7709803412</span>
+                      <span className="font-semibold">080-620125552</span>
                     </div>
                     <div className="flex items-center justify-center text-sm">
                       <Mail className="w-4 h-4 text-blue-600 mr-2" />
-                      <span className="font-semibold">sales.systechdigital@gmail.com</span>
+                      <span className="font-semibold">support@ottplay.com</span>
                     </div>
                   </div>
                   <div className="text-center">

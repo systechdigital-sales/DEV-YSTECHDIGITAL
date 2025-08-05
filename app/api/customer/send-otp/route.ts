@@ -350,9 +350,7 @@ export async function POST(request: NextRequest) {
                 
                 <div class="support-info">
                     <h4>Need Help?</h4>
-                    <p><strong>Phone:</strong> +91 7709803412</p>
                     <p><strong>Email:</strong> sales.systechdigital@gmail.com</p>
-                    <p style="font-size: 12px; margin-top: 10px;">Available 9 AM - 9 PM IST</p>
                 </div>
             </div>
             

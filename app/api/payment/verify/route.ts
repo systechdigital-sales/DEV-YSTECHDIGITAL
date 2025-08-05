@@ -139,8 +139,8 @@ export async function POST(request: NextRequest) {
               <div style="background: #eff6ff; padding: 20px; border-radius: 8px; margin-bottom: 25px; border-left: 4px solid #3b82f6;">
                 <h3 style="color: #1e40af; margin: 0 0 15px 0; font-size: 18px;">What Happens Next?</h3>
                 <ol style="color: #374151; margin: 0; padding-left: 20px;">
-                  <li style="margin-bottom: 8px;"> Your claim will be processed automatically .</li>
-                  <li style="margin-bottom: 8px;">OTT code will be generated and assigned</li>
+                  <li style="margin-bottom: 8px;">Your Activation Code, Product Serial Number, or IMEI Number will be verified.</li>
+                  <li style="margin-bottom: 8px;">Once your claim is submitted and successfully verified, your OTTplay code will be generated and sent to your registered email ID.</li>
                   <li style="margin-bottom: 8px;">You'll receive the code within 24-48 hours</li>
                   <li>Start enjoying your premium OTT subscription!</li>
                 </ol>
