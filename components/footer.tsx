@@ -54,6 +54,14 @@ export default function Footer() {
                 variant="ghost"
                 size="sm"
                 className="text-gray-400  hover:text-gray-800"
+                onClick={() => router.push("/help")}
+              >
+                Help
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-gray-400  hover:text-gray-800"
                 onClick={() => router.push("/terms-and-conditions")}
               >
                 Terms & Conditions
