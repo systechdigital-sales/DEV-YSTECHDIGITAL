@@ -13,25 +13,8 @@ const getPlatformFromProduct = (product: string): string => {
 
   // Map common product names to platforms
   const platformMapping: Record<string, string> = {
-    ottplay: "OTTplay",
+    ottplay: "OTTplay Power Package 01 Yr Subscription",
     "ott play": "OTTplay",
-    netflix: "Netflix",
-    "amazon prime": "Amazon Prime Video",
-    "prime video": "Amazon Prime Video",
-    disney: "Disney+ Hotstar",
-    hotstar: "Disney+ Hotstar",
-    zee5: "ZEE5",
-    sonyliv: "SonyLIV",
-    voot: "Voot",
-    "alt balaji": "ALTBalaji",
-    "mx player": "MX Player",
-    "jio cinema": "JioCinema",
-    "eros now": "Eros Now",
-    hungama: "Hungama Play",
-    shemaroo: "ShemarooMe",
-    lionsgate: "Lionsgate Play",
-    fancode: "FanCode",
-    "sun nxt": "Sun NXT",
   }
 
   // Check for exact matches first
@@ -256,20 +239,61 @@ export async function POST(request: NextRequest) {
         console.log(`✅ Sales record marked as claimed by: ${claim.email}`)
 
         // STEP 5: Find available OTT key
-        const platform = getPlatformFromProduct(salesRecord.product || "OTTplay")
-        console.log(`🎯 Looking for ${platform} OTT key...`)
+        // const platform = getPlatformFromProduct(salesRecord.product || "OTTplay")
+        // console.log(`🎯 Looking for ${platform} OTT key...`)
+
+        // const availableKey = await keysCollection.findOne({
+        //   status: "available",
+        //   $or: [
+        //     { product: { $regex: platform, $options: "i" } },
+        //     { productSubCategory: { $regex: platform, $options: "i" } },
+        //     { platform: { $regex: platform, $options: "i" } },
+        //   ],
+        // })
+
+        // if (!availableKey) {
+        //   console.error(`❌ No available OTT keys for platform: ${platform}`)
+
+        //   // Update claim status and send failure email ONLY if not already sent
+        //   const existingClaim = await claimsCollection.findOne({ _id: claim._id })
+        //   if (existingClaim.emailSent !== "no_keys_failed") {
+        //     await claimsCollection.updateOne(
+        //       { _id: claim._id },
+        //       {
+        //         $set: {
+        //           ottStatus: "failed",
+        //           failureReason: `No available OTT keys for ${platform}`,
+        //           updatedAt: new Date(),
+        //           emailSent: "no_keys_failed" // Mark that failure email was sent
+        //         },
+        //       },
+        //     )
+
+        //     await sendFailureEmail(claim, "no_keys", `No available OTT keys for ${platform}`)
+        //   }
+
+        //   details.push({
+        //     email: claim.email,
+        //     status: "failed",
+        //     message: `No available OTT keys for ${platform}`,
+        //     step: "Key Assignment",
+        //   })
+
+        //   failureCount++
+        //   continue
+        // }
+
+        // console.log(`🎉 Found available OTT key: ${availableKey.activationCode || availableKey.ottCode || availableKey.code}`)
+
+        // STEP 5: Find available OTT key - simplified approach
+        console.log(`🎯 Looking for any available OTT key...`)
 
         const availableKey = await keysCollection.findOne({
-          status: "available",
-          $or: [
-            { product: { $regex: platform, $options: "i" } },
-            { productSubCategory: { $regex: platform, $options: "i" } },
-            { platform: { $regex: platform, $options: "i" } },
-          ],
+          status: "available"
         })
 
         if (!availableKey) {
-          console.error(`❌ No available OTT keys for platform: ${platform}`)
+          console.error(`❌ No available OTT keys found`)
 
           // Update claim status and send failure email ONLY if not already sent
           const existingClaim = await claimsCollection.findOne({ _id: claim._id })
@@ -279,20 +303,20 @@ export async function POST(request: NextRequest) {
               {
                 $set: {
                   ottStatus: "failed",
-                  failureReason: `No available OTT keys for ${platform}`,
+                  failureReason: "No available OTT keys",
                   updatedAt: new Date(),
                   emailSent: "no_keys_failed" // Mark that failure email was sent
                 },
               },
             )
 
-            await sendFailureEmail(claim, "no_keys", `No available OTT keys for ${platform}`)
+            await sendFailureEmail(claim, "no_keys", "No available OTT keys")
           }
 
           details.push({
             email: claim.email,
             status: "failed",
-            message: `No available OTT keys for ${platform}`,
+            message: "No available OTT keys",
             step: "Key Assignment",
           })
 
@@ -304,6 +328,7 @@ export async function POST(request: NextRequest) {
 
         // STEP 6: Assign OTT key and update claim
         const ottCode = availableKey.activationCode || availableKey.ottCode || availableKey.code
+        const platform = salesRecord.product || availableKey.product || "OTTplay"
 
         try {
           // Mark OTT key as assigned
@@ -312,7 +337,7 @@ export async function POST(request: NextRequest) {
             {
               $set: {
                 status: "assigned",
-                assignedTo: claim.email, // Use assignedTo as specified
+                assignedEmail: claim.email, // Use assignedEmail to match the email field
                 assignedDate: new Date(),
                 updatedAt: new Date(),
               },
