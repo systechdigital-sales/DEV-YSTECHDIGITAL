@@ -15,6 +15,23 @@ const getPlatformFromProduct = (product: string): string => {
   const platformMapping: Record<string, string> = {
     ottplay: "OTTplay Power Package 01 Yr Subscription",
     "ott play": "OTTplay",
+    netflix: "Netflix",
+    "amazon prime": "Amazon Prime Video",
+    "prime video": "Amazon Prime Video",
+    disney: "Disney+ Hotstar",
+    hotstar: "Disney+ Hotstar",
+    zee5: "ZEE5",
+    sonyliv: "SonyLIV",
+    voot: "Voot",
+    "alt balaji": "ALTBalaji",
+    "mx player": "MX Player",
+    "jio cinema": "JioCinema",
+    "eros now": "Eros Now",
+    hungama: "Hungama Play",
+    shemaroo: "ShemarooMe",
+    lionsgate: "Lionsgate Play",
+    fancode: "FanCode",
+    "sun nxt": "Sun NXT",
   }
 
   // Check for exact matches first
@@ -25,7 +42,7 @@ const getPlatformFromProduct = (product: string): string => {
   }
 
   // Default to OTTplay if no specific platform found
-  return "OTTplay"
+  return "OTTplay Power Package 01 Yr Subscription"
 }
 
 export async function POST(request: NextRequest) {
@@ -161,7 +178,7 @@ export async function POST(request: NextRequest) {
 
           // Update claim status and send failure email ONLY if not already sent
           const existingClaim = await claimsCollection.findOne({ _id: claim._id })
-          if (existingClaim.emailSent !== "invalid_code_failed") {
+          if (existingClaim && existingClaim.emailSent !== "invalid_code_failed") {
             await claimsCollection.updateOne(
               { _id: claim._id },
               {
@@ -196,7 +213,7 @@ export async function POST(request: NextRequest) {
 
           // Update claim status and send failure email ONLY if not already sent
           const existingClaim = await claimsCollection.findOne({ _id: claim._id })
-          if (existingClaim.emailSent !== "duplicate_failed") {
+          if (existingClaim && existingClaim.emailSent !== "duplicate_failed") {
             await claimsCollection.updateOne(
               { _id: claim._id },
               {
@@ -238,66 +255,49 @@ export async function POST(request: NextRequest) {
 
         console.log(`✅ Sales record marked as claimed by: ${claim.email}`)
 
-        // STEP 5: Find available OTT key
-        // const platform = getPlatformFromProduct(salesRecord.product || "OTTplay")
-        // console.log(`🎯 Looking for ${platform} OTT key...`)
+        // STEP 5: Find available OTT key based on product matching
+        const platform = getPlatformFromProduct(salesRecord.product || "OTTplay")
+        console.log(`🎯 Looking for ${platform} OTT key...`)
 
-        // const availableKey = await keysCollection.findOne({
-        //   status: "available",
-        //   $or: [
-        //     { product: { $regex: platform, $options: "i" } },
-        //     { productSubCategory: { $regex: platform, $options: "i" } },
-        //     { platform: { $regex: platform, $options: "i" } },
-        //   ],
-        // })
-
-        // if (!availableKey) {
-        //   console.error(`❌ No available OTT keys for platform: ${platform}`)
-
-        //   // Update claim status and send failure email ONLY if not already sent
-        //   const existingClaim = await claimsCollection.findOne({ _id: claim._id })
-        //   if (existingClaim.emailSent !== "no_keys_failed") {
-        //     await claimsCollection.updateOne(
-        //       { _id: claim._id },
-        //       {
-        //         $set: {
-        //           ottStatus: "failed",
-        //           failureReason: `No available OTT keys for ${platform}`,
-        //           updatedAt: new Date(),
-        //           emailSent: "no_keys_failed" // Mark that failure email was sent
-        //         },
-        //       },
-        //     )
-
-        //     await sendFailureEmail(claim, "no_keys", `No available OTT keys for ${platform}`)
-        //   }
-
-        //   details.push({
-        //     email: claim.email,
-        //     status: "failed",
-        //     message: `No available OTT keys for ${platform}`,
-        //     step: "Key Assignment",
-        //   })
-
-        //   failureCount++
-        //   continue
-        // }
-
-        // console.log(`🎉 Found available OTT key: ${availableKey.activationCode || availableKey.ottCode || availableKey.code}`)
-
-        // STEP 5: Find available OTT key - simplified approach
-        console.log(`🎯 Looking for any available OTT key...`)
-
-        const availableKey = await keysCollection.findOne({
-          status: "available"
+        // First try to find exact product match
+        let availableKey = await keysCollection.findOne({
+          status: "Available", // Note: your database uses "Available" with capital A
+          product: platform
         })
+
+        // If no exact match, try case-insensitive product match
+        if (!availableKey) {
+          availableKey = await keysCollection.findOne({
+            status: "Available",
+            product: { $regex: platform, $options: "i" }
+          })
+        }
+
+        // If still no match, try matching with OTTplay variations
+        if (!availableKey && platform.includes("OTTplay")) {
+          availableKey = await keysCollection.findOne({
+            status: "Available",
+            $or: [
+              { product: { $regex: "ottplay", $options: "i" } },
+              { product: { $regex: "ott play", $options: "i" } }
+            ]
+          })
+        }
+
+        // Last resort: get any available key
+        if (!availableKey) {
+          console.log(`⚠️ No specific match found for ${platform}, looking for any available key...`)
+          availableKey = await keysCollection.findOne({
+            status: "Available"
+          })
+        }
 
         if (!availableKey) {
           console.error(`❌ No available OTT keys found`)
 
           // Update claim status and send failure email ONLY if not already sent
           const existingClaim = await claimsCollection.findOne({ _id: claim._id })
-          if (existingClaim.emailSent !== "no_keys_failed") {
+          if (existingClaim && existingClaim.emailSent !== "no_keys_failed") {
             await claimsCollection.updateOne(
               { _id: claim._id },
               {
@@ -324,11 +324,11 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        console.log(`🎉 Found available OTT key: ${availableKey.activationCode || availableKey.ottCode || availableKey.code}`)
+        console.log(`🎉 Found available OTT key: ${availableKey.activationCode} for product: ${availableKey.product}`)
 
         // STEP 6: Assign OTT key and update claim
-        const ottCode = availableKey.activationCode || availableKey.ottCode || availableKey.code
-        const platform = salesRecord.product || availableKey.product || "OTTplay"
+        const ottCode = availableKey.activationCode
+        const assignedPlatform = availableKey.product || platform
 
         try {
           // Mark OTT key as assigned
@@ -336,8 +336,8 @@ export async function POST(request: NextRequest) {
             { _id: availableKey._id },
             {
               $set: {
-                status: "assigned",
-                assignedEmail: claim.email, // Use assignedEmail to match the email field
+                status: "assigned", // Change from "Available" to "assigned"
+                assignedEmail: claim.email, // Add the email field
                 assignedDate: new Date(),
                 updatedAt: new Date(),
               },
@@ -351,7 +351,7 @@ export async function POST(request: NextRequest) {
               $set: {
                 ottStatus: "delivered",
                 ottCode: ottCode, // Store the activation code in ottCode field
-                platform: platform,
+                platform: assignedPlatform,
                 updatedAt: new Date(),
                 emailSent: "success_delivered" // Mark that success email was sent
               },
@@ -359,7 +359,7 @@ export async function POST(request: NextRequest) {
           )
 
           // Send success email with OTT code
-          await sendSuccessEmail(claim, ottCode, platform)
+          await sendSuccessEmail(claim, ottCode, assignedPlatform)
 
           details.push({
             email: claim.email,
@@ -377,7 +377,7 @@ export async function POST(request: NextRequest) {
 
           // Update claim status and send failure email ONLY if not already sent
           const existingClaim = await claimsCollection.findOne({ _id: claim._id })
-          if (existingClaim.emailSent !== "transaction_failed") {
+          if (existingClaim && existingClaim.emailSent !== "transaction_failed") {
             await claimsCollection.updateOne(
               { _id: claim._id },
               {
@@ -408,7 +408,7 @@ export async function POST(request: NextRequest) {
 
         // Update claim status and send failure email ONLY if not already sent
         const existingClaim = await claimsCollection.findOne({ _id: claim._id })
-        if (existingClaim.emailSent !== "processing_failed") {
+        if (existingClaim && existingClaim.emailSent !== "processing_failed") {
           await claimsCollection.updateOne(
             { _id: claim._id },
             {
