@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
       ...claimData,
       status: "pending",
       paymentStatus: "pending",
+      ottCodeStatus: "pending", // Add this field to ensure OTT status is pending by default
       createdAt: new Date(),
       updatedAt: new Date(),
     }

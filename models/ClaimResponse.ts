@@ -33,7 +33,7 @@ const ClaimResponseSchema: Schema = new Schema(
     ottCodeStatus: {
       type: String,
       enum: ["pending", "delivered", "failed", "already_claimed", "activation_code_not_found"],
-      default: "pending",
+      default: "pending", // Ensure this is set to "pending" by default
     },
     ottAssignedAt: { type: Date },
     razorpayPaymentId: { type: String },
