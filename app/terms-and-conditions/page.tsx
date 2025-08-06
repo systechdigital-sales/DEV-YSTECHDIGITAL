@@ -184,7 +184,6 @@ export default function TermsAndConditions() {
                 <li>• Processing fee of ₹99 applies for OTT subscription claims</li>
                 <li>• Payments are non-refundable once OTT codes are issued</li>
                 <li>�� Failed transactions will be automatically refunded within 5-7 business days</li>
-                <li>• All prices are inclusive of applicable taxes</li>
               </ul>
             </div>
           </CardContent>

@@ -386,7 +386,6 @@ function PaymentContent() {
               </div>
               <div className="text-right">
                 <p className="text-3xl font-bold text-blue-600">₹{paymentData.amount}</p>
-                <p className="text-sm text-gray-500">Including all taxes</p>
               </div>
             </div>
           </CardContent>

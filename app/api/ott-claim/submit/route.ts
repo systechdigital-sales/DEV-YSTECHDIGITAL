@@ -102,7 +102,6 @@ export async function POST(request: NextRequest) {
 
               <div style="text-align: center; margin: 25px 0;">
                 <p style="color: #6b7280; margin: 0;">Processing Fee: <strong style="color: #1f2937; font-size: 24px;">₹99</strong></p>
-                <p style="color: #6b7280; margin: 5px 0 0 0; font-size: 14px;">One-time payment • Includes all taxes</p>
               </div>
 
               <div style="background: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0;">

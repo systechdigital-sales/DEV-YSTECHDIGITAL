@@ -336,10 +336,7 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
                   <div className="text-sm text-gray-500">One-time payment</div>
                 </div>
               </div>
-              <div className="flex items-center text-sm text-gray-600">
-                <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
-                <span>Includes all taxes and fees</span>
-              </div>
+              
             </div>
 
             {/* Features */}

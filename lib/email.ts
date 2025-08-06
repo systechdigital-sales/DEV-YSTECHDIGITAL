@@ -109,7 +109,7 @@ const emailTemplates = {
               
               <div style="text-align: center; margin: 30px 0; padding: 20px; background: #f7fafc; border-radius: 8px;">
                   <p style="margin: 0; color: #2d3748; font-size: 18px; font-weight: bold;">Processing Fee: ₹99</p>
-                  <p style="margin: 5px 0 0 0; color: #718096; font-size: 14px;">One-time payment • Includes all taxes</p>
+                  <p style="margin: 5px 0 0 0; color: #718096; font-size: 14px;">One-time payment •</p>
               </div>
           </div>
           
