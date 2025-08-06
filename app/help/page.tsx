@@ -226,13 +226,9 @@ export default function HelpPage() {
                 <Badge variant="secondary" className="mb-3">Option 1</Badge>
                 <h3 className="font-semibold text-lg mb-2">From Homepage</h3>
                 <p className="text-gray-600 mb-4">
-                  Click on "Redeem Now" on the Systech Digital Homepage.
+                    Click on <strong>"Redeem Now"</strong> on the Systech Digital Homepage.
                 </p>
-                <Link href="/ott">
-                  <Button className="w-full bg-green-600 hover:bg-green-700">
-                    Redeem Now
-                  </Button>
-                </Link>
+            
               </div>
 
               {/* Option 2 */}
@@ -345,21 +341,6 @@ export default function HelpPage() {
           </CardContent>
         </Card>
 
-        {/* Quick Actions */}
-        <div className="mt-8 text-center">
-          <div className="inline-flex gap-4">
-            <Link href="/ott">
-              <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
-                Start Claiming
-              </Button>
-            </Link>
-            <Link href="/contact">
-              <Button size="lg" variant="outline">
-                Contact Support
-              </Button>
-            </Link>
-          </div>
-        </div>
       </div>
     </div>
   )
