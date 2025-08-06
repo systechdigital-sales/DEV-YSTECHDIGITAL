@@ -12,7 +12,7 @@ const getPlatformFromProduct = (product: string): string => {
   const productLower = product.toLowerCase()
 
   // Map common product names to platforms
-  const platformMapping: Record[string, string] = {
+  const platformMapping: Record<string, string> = {
     ottplay: "OTTplay",
     "ott play": "OTTplay",
     netflix: "Netflix",
@@ -155,10 +155,14 @@ export async function POST(request: NextRequest) {
         })
 
         if (!salesRecord) {
-          // Strategy 2: Case-insensitive match
-          salesRecord = await salesCollection.findOne({
-            activationCode: { $regex: new RegExp(`^${originalCode.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
-          })
+          // Strategy 2: Case-insensitive match - use a safer escaping approach
+          try {
+            salesRecord = await salesCollection.findOne({
+              activationCode: { $regex: originalCode, $options: "i" },
+            })
+          } catch (regexError) {
+            console.log("Regex search failed, skipping case-insensitive match")
+          }
         }
 
         if (!salesRecord) {
@@ -471,7 +475,7 @@ async function sendExpiredPaymentEmail(claim: any) {
             <div style="background: #e6fffa; padding: 15px; border-radius: 6px; margin: 20px 0;">
               <h4 style="color: #234e52; margin: 0 0 10px 0;">📞 Need Help?</h4>
               <p style="margin: 0; color: #234e52;">
-                <strong>Email:</strong> sales.systechdigital@gmail.com<br>
+                <strong>Email:</strong> sales.systechdigital@gmail.com<br />
                 <strong>Phone:</strong> +91 7709803412
               </p>
             </div>
@@ -608,8 +612,8 @@ async function sendFailureEmail(claim: any, failureType: string, reason: string)
               <div style="background: #e6fffa; padding: 15px; border-radius: 6px; margin: 20px 0;">
                 <h4 style="color: #234e52; margin: 0 0 10px 0;">📞 Need Help?</h4>
                 <p style="margin: 0; color: #234e52;">
-                  <strong>Email:</strong> sales.systechdigital@gmail.com<br>
-                  <strong>Phone:</strong> +91 7709803412<br>
+                  <strong>Email:</strong> sales.systechdigital@gmail.com<br />
+                  <strong>Phone:</strong> +91 7709803412<br />
                   <strong>Claim ID:</strong> ${claim.claimId}
                 </p>
               </div>
@@ -648,8 +652,8 @@ async function sendFailureEmail(claim: any, failureType: string, reason: string)
               <div style="background: #e6fffa; padding: 15px; border-radius: 6px; margin: 20px 0;">
                 <h4 style="color: #234e52; margin: 0 0 10px 0;">📞 Contact Support</h4>
                 <p style="margin: 0; color: #234e52;">
-                  <strong>Email:</strong> sales.systechdigital@gmail.com<br>
-                  <strong>Phone:</strong> +91 7709803412<br>
+                  <strong>Email:</strong> sales.systechdigital@gmail.com<br />
+                  <strong>Phone:</strong> +91 7709803412<br />
                   <strong>Claim ID:</strong> ${claim.claimId}
                 </p>
               </div>
@@ -688,8 +692,8 @@ async function sendFailureEmail(claim: any, failureType: string, reason: string)
               <div style="background: #e6fffa; padding: 15px; border-radius: 6px; margin: 20px 0;">
                 <h4 style="color: #234e52; margin: 0 0 10px 0;">🚨 Priority Support</h4>
                 <p style="margin: 0; color: #234e52;">
-                  <strong>Email:</strong> sales.systechdigital@gmail.com<br>
-                  <strong>Phone:</strong> +91 7709803412<br>
+                  <strong>Email:</strong> sales.systechdigital@gmail.com<br />
+                  <strong>Phone:</strong> +91 7709803412<br />
                   <strong>Reference:</strong> ${claim.claimId}
                 </p>
               </div>
