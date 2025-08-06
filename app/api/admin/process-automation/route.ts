@@ -12,7 +12,7 @@ const getPlatformFromProduct = (product: string): string => {
   const productLower = product.toLowerCase()
 
   // Map common product names to platforms
-  const platformMapping: Record<string, string> = {
+  const platformMapping: Record[string, string] = {
     ottplay: "OTTplay",
     "ott play": "OTTplay",
     netflix: "Netflix",
@@ -55,31 +55,8 @@ export async function POST(request: NextRequest) {
     const salesCollection = db.collection("salesrecords")
     const keysCollection = db.collection("ottkeys")
 
-    // Get all paid claims that haven't been processed yet
-    const unprocessedClaims = await claimsCollection
-      .find({
-        paymentStatus: "paid",
-        ottStatus: { $in: ["pending", "failed"] },
-      })
-      .toArray()
-
-    console.log(`📋 Found ${unprocessedClaims.length} unprocessed paid claims`)
-
-    if (unprocessedClaims.length === 0) {
-      return NextResponse.json({
-        success: true,
-        message: "No unprocessed claims found",
-        results: {
-          expired: 0,
-          processed: 0,
-          success: 0,
-          failed: 0,
-          skipped: 0,
-          details: [],
-        },
-      })
-    }
-
+    let expiredCount = 0
+    let processedCount = 0
     let successCount = 0
     let failureCount = 0
     let skippedCount = 0
@@ -91,38 +68,84 @@ export async function POST(request: NextRequest) {
       step?: string
     }> = []
 
-    // Process expired claims (older than 48 hours)
-    const expiredCutoff = new Date(Date.now() - 48 * 60 * 60 * 1000)
-    const expiredResult = await claimsCollection.updateMany(
-      {
-        paymentStatus: "paid",
-        ottStatus: "pending",
+    // STEP 1: Handle expired pending payments (older than 48 hours)
+    console.log("📅 Step 1: Processing expired pending payments...")
+    const expiredCutoff = new Date(Date.now() - 48 * 60 * 60 * 1000) // 48 hours ago
+    
+    const expiredClaims = await claimsCollection
+      .find({
+        paymentStatus: "pending",
         createdAt: { $lt: expiredCutoff },
-      },
-      {
-        $set: {
-          ottStatus: "failed",
-          failureReason: "Expired - exceeded 48 hour processing window",
-          updatedAt: new Date(),
-        },
-      },
-    )
+        emailSent: { $ne: "expired" } // Only process if expired email not sent
+      })
+      .toArray()
 
-    console.log(`⏰ Marked ${expiredResult.modifiedCount} expired claims as failed`)
+    console.log(`⏰ Found ${expiredClaims.length} expired pending claims`)
 
-    for (const claim of unprocessedClaims) {
+    for (const claim of expiredClaims) {
       try {
+        // Update claim status to failed
+        await claimsCollection.updateOne(
+          { _id: claim._id },
+          {
+            $set: {
+              paymentStatus: "failed",
+              failureReason: "Payment expired - exceeded 48 hour payment window",
+              updatedAt: new Date(),
+              emailSent: "expired" // Mark that expired email was sent
+            },
+          },
+        )
+
+        // Send expired payment email
+        await sendExpiredPaymentEmail(claim)
+        expiredCount++
+
+        console.log(`⏰ Expired claim processed: ${claim.claimId}`)
+      } catch (error) {
+        console.error(`❌ Error processing expired claim ${claim.claimId}:`, error)
+      }
+    }
+
+    // STEP 2: Get paid claims with pending OTT status (excluding failed ones)
+    console.log("💰 Step 2: Fetching paid claims with pending OTT status...")
+    const paidClaims = await claimsCollection
+      .find({
+        paymentStatus: "paid",
+        ottStatus: "pending" // Only process pending, skip failed ones
+      })
+      .toArray()
+
+    console.log(`📋 Found ${paidClaims.length} paid claims with pending OTT status`)
+
+    if (paidClaims.length === 0) {
+      return NextResponse.json({
+        success: true,
+        message: "No claims to process",
+        results: {
+          expired: expiredCount,
+          processed: 0,
+          success: 0,
+          failed: 0,
+          skipped: 0,
+          details: [],
+        },
+      })
+    }
+
+    // STEP 3-6: Process each paid claim
+    for (const claim of paidClaims) {
+      try {
+        processedCount++
         console.log(`\n🔄 Processing claim: ${claim.claimId}`)
         console.log(`📧 Customer: ${claim.email}`)
         console.log(`🔑 Activation Code: ${claim.activationCode}`)
 
-        // Step 1: Find matching sales record with enhanced matching
+        // STEP 3: Find matching sales record
         const originalCode = claim.activationCode
         const normalizedSearchCode = normalizeActivationCode(originalCode)
 
-        console.log(`🔍 Searching for activation code:`)
-        console.log(`   Original: "${originalCode}"`)
-        console.log(`   Normalized: "${normalizedSearchCode}"`)
+        console.log(`🔍 Searching for activation code: "${originalCode}"`)
 
         let salesRecord = null
 
@@ -133,60 +156,39 @@ export async function POST(request: NextRequest) {
 
         if (!salesRecord) {
           // Strategy 2: Case-insensitive match
-          console.log(`🔍 Trying case-insensitive match...`)
           salesRecord = await salesCollection.findOne({
             activationCode: { $regex: new RegExp(`^${originalCode.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
           })
         }
 
         if (!salesRecord) {
-          // Strategy 3: Normalized match (remove spaces, uppercase)
-          console.log(`🔍 Trying normalized match...`)
+          // Strategy 3: Normalized match
           const allSalesRecords = await salesCollection.find({}).toArray()
-
-          salesRecord =
-            allSalesRecords.find((record) => normalizeActivationCode(record.activationCode) === normalizedSearchCode) ||
-            null
-        }
-
-        if (!salesRecord) {
-          // Strategy 4: Partial match (contains)
-          console.log(`🔍 Trying partial match...`)
-          salesRecord = await salesCollection.findOne({
-            activationCode: { $regex: normalizedSearchCode, $options: "i" },
-          })
+          salesRecord = allSalesRecords.find((record) => 
+            normalizeActivationCode(record.activationCode) === normalizedSearchCode
+          ) || null
         }
 
         if (!salesRecord) {
           console.error(`❌ No sales record found for activation code: ${originalCode}`)
 
-          // Show some sample records for debugging
-          const sampleRecords = await salesCollection.find({}).limit(5).toArray()
-          console.log(`📊 Sample sales records for debugging:`)
-          sampleRecords.forEach((record, index) => {
-            console.log(`   ${index + 1}. "${record.activationCode}" (${record.product || "No product"})`)
-          })
-
-          // Update claim status and send failure email
-          await claimsCollection.updateOne(
-            { _id: claim._id },
-            {
-              $set: {
-                ottStatus: "failed",
-                failureReason: "Invalid activation code - not found in sales records",
-                updatedAt: new Date(),
-                debugInfo: {
-                  searchedCode: originalCode,
-                  normalizedCode: normalizedSearchCode,
-                  searchStrategies: ["exact", "case-insensitive", "normalized", "partial"],
-                  sampleCodes: sampleRecords.map((r) => r.activationCode),
+          // Update claim status and send failure email ONLY if not already sent
+          const existingClaim = await claimsCollection.findOne({ _id: claim._id })
+          if (existingClaim.emailSent !== "invalid_code_failed") {
+            await claimsCollection.updateOne(
+              { _id: claim._id },
+              {
+                $set: {
+                  ottStatus: "failed",
+                  failureReason: "Invalid activation code - not found in sales records",
+                  updatedAt: new Date(),
+                  emailSent: "invalid_code_failed" // Mark that failure email was sent
                 },
               },
-            },
-          )
+            )
 
-          // Send failure email to customer
-          await sendFailureEmail(claim, "invalid_code", "Invalid activation code - not found in sales records")
+            await sendFailureEmail(claim, "invalid_code", "Invalid activation code - not found in sales records")
+          }
 
           details.push({
             email: claim.email,
@@ -199,26 +201,29 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        console.log(
-          `✅ Found sales record: ${salesRecord.product || "Unknown product"} (${salesRecord.productSubCategory || "No subcategory"})`,
-        )
+        console.log(`✅ Found sales record: ${salesRecord.product || "Unknown product"}`)
 
-        // Check if already claimed
+        // STEP 4: Check if already claimed
         if (salesRecord.status === "claimed") {
           console.error(`❌ Activation code already claimed by: ${salesRecord.claimedBy}`)
 
-          await claimsCollection.updateOne(
-            { _id: claim._id },
-            {
-              $set: {
-                ottStatus: "failed",
-                failureReason: "Activation code already claimed",
-                updatedAt: new Date(),
+          // Update claim status and send failure email ONLY if not already sent
+          const existingClaim = await claimsCollection.findOne({ _id: claim._id })
+          if (existingClaim.emailSent !== "duplicate_failed") {
+            await claimsCollection.updateOne(
+              { _id: claim._id },
+              {
+                $set: {
+                  ottStatus: "failed",
+                  failureReason: "Activation code already claimed",
+                  updatedAt: new Date(),
+                  emailSent: "duplicate_failed" // Mark that failure email was sent
+                },
               },
-            },
-          )
+            )
 
-          await sendFailureEmail(claim, "duplicate_claim", "This activation code has already been claimed")
+            await sendFailureEmail(claim, "duplicate_claim", "This activation code has already been claimed")
+          }
 
           details.push({
             email: claim.email,
@@ -231,7 +236,22 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        // Step 2: Find available OTT key for the platform
+        // STEP 4: Mark sales record as claimed (add email to claimedBy)
+        await salesCollection.updateOne(
+          { _id: salesRecord._id },
+          {
+            $set: {
+              status: "claimed",
+              claimedBy: claim.email,
+              claimedDate: new Date(),
+              updatedAt: new Date(),
+            },
+          },
+        )
+
+        console.log(`✅ Sales record marked as claimed by: ${claim.email}`)
+
+        // STEP 5: Find available OTT key
         const platform = getPlatformFromProduct(salesRecord.product || "OTTplay")
         console.log(`🎯 Looking for ${platform} OTT key...`)
 
@@ -247,18 +267,23 @@ export async function POST(request: NextRequest) {
         if (!availableKey) {
           console.error(`❌ No available OTT keys for platform: ${platform}`)
 
-          await claimsCollection.updateOne(
-            { _id: claim._id },
-            {
-              $set: {
-                ottStatus: "failed",
-                failureReason: `No available OTT keys for ${platform}`,
-                updatedAt: new Date(),
+          // Update claim status and send failure email ONLY if not already sent
+          const existingClaim = await claimsCollection.findOne({ _id: claim._id })
+          if (existingClaim.emailSent !== "no_keys_failed") {
+            await claimsCollection.updateOne(
+              { _id: claim._id },
+              {
+                $set: {
+                  ottStatus: "failed",
+                  failureReason: `No available OTT keys for ${platform}`,
+                  updatedAt: new Date(),
+                  emailSent: "no_keys_failed" // Mark that failure email was sent
+                },
               },
-            },
-          )
+            )
 
-          await sendFailureEmail(claim, "no_keys", `No available OTT keys for ${platform}`)
+            await sendFailureEmail(claim, "no_keys", `No available OTT keys for ${platform}`)
+          }
 
           details.push({
             email: claim.email,
@@ -271,50 +296,35 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        console.log(
-          `🎉 Found available OTT key: ${availableKey.activationCode || availableKey.ottCode || availableKey.code}`,
-        )
+        console.log(`🎉 Found available OTT key: ${availableKey.activationCode || availableKey.ottCode || availableKey.code}`)
 
-        // Step 3: Update all records atomically
+        // STEP 6: Assign OTT key and update claim
         const ottCode = availableKey.activationCode || availableKey.ottCode || availableKey.code
 
         try {
-          // Mark sales record as claimed
-          await salesCollection.updateOne(
-            { _id: salesRecord._id },
-            {
-              $set: {
-                status: "claimed",
-                claimedBy: claim.email,
-                claimedDate: new Date(),
-                updatedAt: new Date(),
-              },
-            },
-          )
-
           // Mark OTT key as assigned
           await keysCollection.updateOne(
             { _id: availableKey._id },
             {
               $set: {
                 status: "assigned",
-                assignedEmail: claim.email,
+                assignedTo: claim.email, // Use assignedTo as specified
                 assignedDate: new Date(),
-                assignedTo: claim.claimId,
                 updatedAt: new Date(),
               },
             },
           )
 
-          // Update claim with success
+          // Update claim with success - store OTT code and change status to delivered
           await claimsCollection.updateOne(
             { _id: claim._id },
             {
               $set: {
                 ottStatus: "delivered",
-                ottCode: ottCode,
+                ottCode: ottCode, // Store the activation code in ottCode field
                 platform: platform,
                 updatedAt: new Date(),
+                emailSent: "success_delivered" // Mark that success email was sent
               },
             },
           )
@@ -325,28 +335,34 @@ export async function POST(request: NextRequest) {
           details.push({
             email: claim.email,
             status: "success",
-            message: "OTT code assigned and email sent successfully",
+            message: "OTT code assigned and delivered successfully",
             ottCode: ottCode,
             step: "Email Notification",
           })
 
           console.log(`✅ Successfully processed claim: ${claim.claimId}`)
           successCount++
+
         } catch (transactionError) {
           console.error(`❌ Transaction failed for claim ${claim.claimId}:`, transactionError)
 
-          await claimsCollection.updateOne(
-            { _id: claim._id },
-            {
-              $set: {
-                ottStatus: "failed",
-                failureReason: "Database transaction failed",
-                updatedAt: new Date(),
+          // Update claim status and send failure email ONLY if not already sent
+          const existingClaim = await claimsCollection.findOne({ _id: claim._id })
+          if (existingClaim.emailSent !== "transaction_failed") {
+            await claimsCollection.updateOne(
+              { _id: claim._id },
+              {
+                $set: {
+                  ottStatus: "failed",
+                  failureReason: "Database transaction failed",
+                  updatedAt: new Date(),
+                  emailSent: "transaction_failed" // Mark that failure email was sent
+                },
               },
-            },
-          )
+            )
 
-          await sendFailureEmail(claim, "technical_error", "Database transaction failed")
+            await sendFailureEmail(claim, "technical_error", "Database transaction failed")
+          }
 
           details.push({
             email: claim.email,
@@ -357,21 +373,27 @@ export async function POST(request: NextRequest) {
 
           failureCount++
         }
+
       } catch (claimError) {
         console.error(`❌ Error processing claim ${claim.claimId}:`, claimError)
 
-        await claimsCollection.updateOne(
-          { _id: claim._id },
-          {
-            $set: {
-              ottStatus: "failed",
-              failureReason: `Processing error: ${claimError.message}`,
-              updatedAt: new Date(),
+        // Update claim status and send failure email ONLY if not already sent
+        const existingClaim = await claimsCollection.findOne({ _id: claim._id })
+        if (existingClaim.emailSent !== "processing_failed") {
+          await claimsCollection.updateOne(
+            { _id: claim._id },
+            {
+              $set: {
+                ottStatus: "failed",
+                failureReason: `Processing error: ${claimError.message}`,
+                updatedAt: new Date(),
+                emailSent: "processing_failed" // Mark that failure email was sent
+              },
             },
-          },
-        )
+          )
 
-        await sendFailureEmail(claim, "technical_error", `Processing error: ${claimError.message}`)
+          await sendFailureEmail(claim, "technical_error", `Processing error: ${claimError.message}`)
+        }
 
         details.push({
           email: claim.email,
@@ -385,17 +407,18 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`\n🎯 Automation completed:`)
+    console.log(`   ⏰ Expired: ${expiredCount}`)
+    console.log(`   📊 Processed: ${processedCount}`)
     console.log(`   ✅ Successful: ${successCount}`)
     console.log(`   ❌ Failed: ${failureCount}`)
     console.log(`   ⏭️ Skipped: ${skippedCount}`)
-    console.log(`   📊 Total processed: ${successCount + failureCount + skippedCount}`)
 
     return NextResponse.json({
       success: true,
       message: "Automation process completed",
       results: {
-        expired: expiredResult.modifiedCount,
-        processed: successCount + failureCount + skippedCount,
+        expired: expiredCount,
+        processed: processedCount,
         success: successCount,
         failed: failureCount,
         skipped: skippedCount,
@@ -411,6 +434,59 @@ export async function POST(request: NextRequest) {
       },
       { status: 500 },
     )
+  }
+}
+
+// Helper function to send expired payment email
+async function sendExpiredPaymentEmail(claim: any) {
+  try {
+    const customerName = `${claim.firstName} ${claim.lastName}`
+
+    await sendEmail({
+      to: claim.email,
+      subject: `⏰ Payment Expired - SYSTECH DIGITAL`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #fff5f5; border: 1px solid #fed7d7; border-radius: 8px;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #e53e3e; margin: 0; font-size: 24px;">⏰ Payment Window Expired</h1>
+          </div>
+          
+          <div style="background: white; padding: 25px; border-radius: 8px; margin-bottom: 20px;">
+            <h2 style="color: #2d3748; margin-top: 0;">Hello ${customerName},</h2>
+            
+            <p style="color: #4a5568; line-height: 1.6;">
+              Your OTT code claim has expired as payment was not completed within the 48-hour window.
+            </p>
+            
+            <div style="background: #fed7d7; padding: 15px; border-radius: 6px; margin: 20px 0;">
+              <p style="margin: 0; color: #742a2a;"><strong>Claim ID:</strong> ${claim.claimId}</p>
+              <p style="margin: 5px 0 0 0; color: #742a2a;"><strong>Activation Code:</strong> ${claim.activationCode}</p>
+              <p style="margin: 5px 0 0 0; color: #742a2a;"><strong>Expired On:</strong> ${new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}</p>
+            </div>
+            
+            <p style="color: #4a5568; line-height: 1.6;">
+              To claim your OTT code, please submit a new request and complete payment within 48 hours.
+            </p>
+            
+            <div style="background: #e6fffa; padding: 15px; border-radius: 6px; margin: 20px 0;">
+              <h4 style="color: #234e52; margin: 0 0 10px 0;">📞 Need Help?</h4>
+              <p style="margin: 0; color: #234e52;">
+                <strong>Email:</strong> sales.systechdigital@gmail.com<br>
+                <strong>Phone:</strong> +91 7709803412
+              </p>
+            </div>
+          </div>
+          
+          <div style="text-align: center; color: #718096; font-size: 12px;">
+            <p>This is an automated message from SYSTECH DIGITAL</p>
+          </div>
+        </div>
+      `,
+    })
+
+    console.log(`📧 Expired payment email sent to: ${claim.email}`)
+  } catch (emailError) {
+    console.error(`❌ Failed to send expired payment email to ${claim.email}:`, emailError)
   }
 }
 
@@ -467,14 +543,14 @@ async function sendSuccessEmail(claim: any, ottCode: string, platform: string) {
             </div>
             
             <p style="color: #4a5568; line-height: 1.6; font-size: 14px; margin-top: 25px;">
-              For any queries related to OTTplay Power Play Pack, please contact:
-              <a href="mailto:support@ottplay.com" style={{ color: "#2b6cb0" }}>support@ottplay.com</a>
-              <a href="phone:+91-7709803412" style="color: #2b6cb0; margin-left: 10px;">+91 80-62012555</a>
+              For any queries related to OTTplay, please contact:
+              <a href="mailto:support@ottplay.com" style="color: #2b6cb0;">support@ottplay.com</a> or
+              <a href="tel:+91-80-62012555" style="color: #2b6cb0; margin-left: 10px;">+91 80-62012555</a>
             </p>
 
-            <p style="color: #4a5568; line-height: 1.6; font-size: 14px; margin-top: 25px;">
-              For any queries related to OTTplay Power Play Pack, please contact:
-              <a href="mailto:support@systechdigital.com" style={{ color: "#2b6cb0" }}>support@systechdigital.com</a>
+            <p style="color: #4a5568; line-height: 1.6; font-size: 14px; margin-top: 15px;">
+              For any queries related to your claim, please contact:
+              <a href="mailto:sales.systechdigital@gmail.com" style="color: #2b6cb0;">sales.systechdigital@gmail.com</a>
             </p>
           </div>
           
@@ -532,8 +608,8 @@ async function sendFailureEmail(claim: any, failureType: string, reason: string)
               <div style="background: #e6fffa; padding: 15px; border-radius: 6px; margin: 20px 0;">
                 <h4 style="color: #234e52; margin: 0 0 10px 0;">📞 Need Help?</h4>
                 <p style="margin: 0; color: #234e52;">
-                  <strong>Email:</strong> support@systechdigital.in<br>
-                  <strong>Phone:</strong> +91-XXXXXXXXXX<br>
+                  <strong>Email:</strong> sales.systechdigital@gmail.com<br>
+                  <strong>Phone:</strong> +91 7709803412<br>
                   <strong>Claim ID:</strong> ${claim.claimId}
                 </p>
               </div>
@@ -572,8 +648,8 @@ async function sendFailureEmail(claim: any, failureType: string, reason: string)
               <div style="background: #e6fffa; padding: 15px; border-radius: 6px; margin: 20px 0;">
                 <h4 style="color: #234e52; margin: 0 0 10px 0;">📞 Contact Support</h4>
                 <p style="margin: 0; color: #234e52;">
-                  <strong>Email:</strong> support@systechdigital.in<br>
-                  <strong>Phone:</strong> +91-XXXXXXXXXX<br>
+                  <strong>Email:</strong> sales.systechdigital@gmail.com<br>
+                  <strong>Phone:</strong> +91 7709803412<br>
                   <strong>Claim ID:</strong> ${claim.claimId}
                 </p>
               </div>
@@ -612,8 +688,8 @@ async function sendFailureEmail(claim: any, failureType: string, reason: string)
               <div style="background: #e6fffa; padding: 15px; border-radius: 6px; margin: 20px 0;">
                 <h4 style="color: #234e52; margin: 0 0 10px 0;">🚨 Priority Support</h4>
                 <p style="margin: 0; color: #234e52;">
-                  <strong>Email:</strong> support@systechdigital.in<br>
-                  <strong>Phone:</strong> +91-XXXXXXXXXX<br>
+                  <strong>Email:</strong> sales.systechdigital@gmail.com<br>
+                  <strong>Phone:</strong> +91 7709803412<br>
                   <strong>Reference:</strong> ${claim.claimId}
                 </p>
               </div>
