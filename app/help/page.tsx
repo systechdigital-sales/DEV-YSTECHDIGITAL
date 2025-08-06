@@ -71,7 +71,7 @@ export default function HelpPage() {
                   <p className="text-gray-600 mb-3">
                     Click on "Claim Your OTT Code" available on the homepage.
                   </p>
-                  <Link href="/ottclaim">
+                  <Link href="/ott">
                     <Button className="bg-blue-600 hover:bg-blue-700">
                       Claim Your OTT Code
                     </Button>
@@ -348,7 +348,7 @@ export default function HelpPage() {
         {/* Quick Actions */}
         <div className="mt-8 text-center">
           <div className="inline-flex gap-4">
-            <Link href="/ottclaim">
+            <Link href="/ott">
               <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
                 Start Claiming
               </Button>
