@@ -145,9 +145,9 @@ Time: ${new Date().toLocaleTimeString("en-IN")}
 Status: Successful
 
 Thank you for your payment!
-Your OTT subscription will be activated within 24-48 hours.
+Your OTTplay Power play pack will be sent within  24-48 hours.
 
-For support, contact: support@systechdigital.in
+For support, contact: sales.systechdigital@gmail.com
     `
 
     const blob = new Blob([receiptContent], { type: "text/plain" })
@@ -410,12 +410,9 @@ For support, contact: support@systechdigital.in
           <div className="flex items-center justify-center space-x-4 text-sm text-gray-500">
             <div className="flex items-center space-x-1">
               <Mail className="w-4 h-4" />
-              <span>support@systechdigital.in</span>
+              <span>sales.systechdigital@gmail.com</span>
             </div>
-            <div className="flex items-center space-x-1">
-              <Phone className="w-4 h-4" />
-              <span>+91-XXXXXXXXXX</span>
-            </div>
+          
           </div>
         </div>
       </div>

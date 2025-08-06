@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
 
               <div style="text-align: center; margin-top: 30px;">
                 <p style="color: #6b7280; font-size: 14px; margin: 0;">
-                  Need help? Contact us at <a href="mailto:support@systechdigital.in" style="color: #3b82f6;">support@systechdigital.in</a>
+                  Need help? Contact us at <a href="mailto:sales.systechdigital@gmail.com" style="color: #3b82f6;">sales.systechdigital@gmail.com</a>
                 </p>
               </div>
             </div>

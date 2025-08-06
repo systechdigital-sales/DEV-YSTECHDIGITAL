@@ -397,7 +397,7 @@ export default function DashboardPage() {
     <SidebarProvider>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex">
         <DashboardSidebar />
-        <SidebarInset className="flex-1 overflow-hidden">
+          <SidebarInset className="flex-1 w-full overflow-hidden">
           {/* Header */}
           <header className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 shadow-2xl border-b border-slate-200 sticky top-0 z-10">
             <div className="px-6 py-6">
@@ -445,7 +445,7 @@ export default function DashboardPage() {
             </div>
           </header>
 
-          <div className="p-6 max-w-7xl mx-auto">
+          <div className="p-6 w-full max-w-full">
             {error && (
               <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-3">
                 <AlertCircle className="w-5 h-5 text-red-600" />
