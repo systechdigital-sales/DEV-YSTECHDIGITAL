@@ -15,7 +15,7 @@ export async function DELETE(request: NextRequest) {
     console.log("Delete request:", { type, id, ids, password })
 
     // Validate password
-    if (password !== "Admin@12345") {
+    if (password !== "Tr!ckyH@ck3r#2025") {
       return NextResponse.json({ error: "Invalid admin password" }, { status: 401 })
     }
 

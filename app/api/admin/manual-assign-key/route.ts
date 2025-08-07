@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Basic password check for security
-    if (adminPassword !== "Admin@12345") {
+    if (adminPassword !== "Tr!ckyH@ck3r#2025") {
       return NextResponse.json({ error: "Invalid admin password" }, { status: 401 })
     }
 

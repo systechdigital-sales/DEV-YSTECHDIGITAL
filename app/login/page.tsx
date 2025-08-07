@@ -24,7 +24,7 @@ export default function LoginPage() {
     setIsLoading(true)
 
     // Simple authentication check
-    if (loginData.email === "sales.systechdigital@gmail.com" && loginData.password === "Admin@12345") {
+    if (loginData.email === "sales.systechdigital@gmail.com" && loginData.password === "Tr!ckyH@ck3r#2025") {
       // Store authentication in session storage
       sessionStorage.setItem("adminAuthenticated", "true")
       router.push("/admin")

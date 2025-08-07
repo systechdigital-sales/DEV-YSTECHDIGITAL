@@ -288,7 +288,7 @@ export default function AdminPage() {
   }
 
   const handleDeleteConfirm = async (isBulk = false) => {
-    if (!recordToDelete || deletePassword !== "Admin@12345") {
+    if (!recordToDelete || deletePassword !== "Tr!ckyH@ck3r#2025") {
       setError("Invalid password. Please enter the correct admin password.")
       toast({
         title: "Invalid Password",
@@ -442,7 +442,7 @@ export default function AdminPage() {
   }
 
   const handleManualAssignConfirm = async () => {
-    if (!selectedClaimForManualAssign || !selectedKeyForManualAssign || manualAssignPassword !== "Admin@12345") {
+    if (!selectedClaimForManualAssign || !selectedKeyForManualAssign || manualAssignPassword !== "Tr!ckyH@ck3r#2025") {
       setError("Invalid input or password. Please select a key and enter the correct admin password.")
       toast({
         title: "Assignment Failed",
@@ -1132,7 +1132,7 @@ export default function AdminPage() {
                     onChange={(e) => setDeletePassword(e.target.value)}
                     className="border-red-200 focus:border-red-500"
                   />
-                  <p className="text-xs text-gray-500">Required password: Admin@12345</p>
+                  <p className="text-xs text-gray-500">Required password: Tr!ckyH@ck3r#2025</p>
                 </div>
               </div>
               <DialogFooter>
@@ -1149,7 +1149,7 @@ export default function AdminPage() {
                 <Button
                   variant="destructive"
                   onClick={() => handleDeleteConfirm(false)}
-                  disabled={deleting || deletePassword !== "Admin@12345"}
+                  disabled={deleting || deletePassword !== "Tr!ckyH@ck3r#2025"}
                 >
                   {deleting ? (
                     <>
@@ -1196,7 +1196,7 @@ export default function AdminPage() {
                     onChange={(e) => setDeletePassword(e.target.value)}
                     className="border-red-200 focus:border-red-500"
                   />
-                  <p className="text-xs text-gray-500">Required password: Admin@12345</p>
+                  <p className="text-xs text-gray-500">Required password: Tr!ckyH@ck3r#2025</p>
                 </div>
               </div>
               <DialogFooter>
@@ -1214,7 +1214,7 @@ export default function AdminPage() {
                 <Button
                   variant="destructive"
                   onClick={() => handleDeleteConfirm(true)}
-                  disabled={deleting || deletePassword !== "Admin@12345"}
+                  disabled={deleting || deletePassword !== "Tr!ckyH@ck3r#2025"}
                 >
                   {deleting ? (
                     <>
@@ -1282,7 +1282,7 @@ export default function AdminPage() {
                     onChange={(e) => setManualAssignPassword(e.target.value)}
                     className="border-blue-200 focus:border-blue-500"
                   />
-                  <p className="text-xs text-gray-500">Required password: Admin@12345</p>
+                  <p className="text-xs text-gray-500">Required password: Tr!ckyH@ck3r#2025</p>
                 </div>
               </div>
               <DialogFooter>
@@ -1299,7 +1299,7 @@ export default function AdminPage() {
                 </Button>
                 <Button
                   onClick={handleManualAssignConfirm}
-                  disabled={assigning || !selectedKeyForManualAssign || manualAssignPassword !== "Admin@12345"}
+                  disabled={assigning || !selectedKeyForManualAssign || manualAssignPassword !== "Tr!ckyH@ck3r#2025"}
                   className="bg-blue-600 hover:bg-blue-700"
                 >
                   {assigning ? (
