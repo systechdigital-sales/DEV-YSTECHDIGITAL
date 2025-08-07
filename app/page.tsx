@@ -43,7 +43,7 @@ export default function HomePage() {
     {
       icon: <Tv className="w-8 h-8 text-blue-600" />,
       title: "Premium OTT Content",
-      description: "Access to 31 premium OTT platforms and more",
+      description: "Access to 28 premium OTT platforms and more",
     },
     {
       icon: <Smartphone className="w-8 h-8 text-green-600" />,
@@ -74,11 +74,9 @@ export default function HomePage() {
     "Hubhopper",
     "ALTT",
     "aha Tamil",
-    "Red hot",
     "Runn Tv",
     "OM TV",
     "Dangal Play",
-    "Premiumflix",
     "CHAUPAL",
     "ShortsTV",
     "Sun NXT",
@@ -92,7 +90,6 @@ export default function HomePage() {
     "aha",
     "VROTT",
     "Shortfundly",
-    "Atrangi",
     "Bhaktiflix",
     "Fridaay",
     "Gurjari",
@@ -171,7 +168,7 @@ export default function HomePage() {
                   </span>
                 </h2>
                 <p className="text-xl text-gray-600 leading-relaxed">
-                  Get instant access to 31 premium OTT platforms with our exclusive OTTplay Power Play Pack. Stream
+                  Get instant access to 28 premium OTT platforms with our exclusive OTTplay Power Play Pack. Stream
                   unlimited movies, shows, and live content across all your devices.
                 </p>
               </div>

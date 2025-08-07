@@ -54,9 +54,9 @@ export default function Footer() {
                 variant="ghost"
                 size="sm"
                 className="text-gray-400  hover:text-gray-800"
-                onClick={() => router.push("/help")}
+                onClick={() => router.push("/claim&redeem")}
               >
-                Help
+                Claim & Redeem
               </Button>
               <Button
                 variant="ghost"
