@@ -126,8 +126,8 @@ export default function ShipmentPolicyPage() {
         </Card>
       </main>
     
-  )
-         {/* Footer */}
+             {/* Footer */}
           <Footer />
+  )
   </div>
 }
