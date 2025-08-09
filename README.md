@@ -1,2 +1,2 @@
-# Systech digital 
+# Systech digita
 .
