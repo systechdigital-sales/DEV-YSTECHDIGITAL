@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Info, Home } from "lucide-react"
+import Footer from "@/components/footer"
 
 export default function PricingPolicyPage() {
   const router = useRouter()
@@ -123,5 +124,7 @@ export default function PricingPolicyPage() {
         </Card>
       </main>
     </div>
+       {/* Footer */}
+      <Footer />
   )
 }

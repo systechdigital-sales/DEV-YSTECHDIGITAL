@@ -54,6 +54,22 @@ export default function Footer() {
                 variant="ghost"
                 size="sm"
                 className="text-gray-400  hover:text-gray-800"
+                onClick={() => router.push("/shipment-policy")}
+              >
+                Shipment Policy
+              </Button>
+               <Button
+                variant="ghost"
+                size="sm"
+                className="text-gray-400  hover:text-gray-800"
+                onClick={() => router.push("/pricingpolicy")}
+              >
+                Pricing Policy
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-gray-400  hover:text-gray-800"
                 onClick={() => router.push("/claim&redeem")}
               >
                 Claim & Redeem
