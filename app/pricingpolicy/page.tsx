@@ -123,8 +123,9 @@ export default function PricingPolicyPage() {
           </CardContent>
         </Card>
       </main>
-    </div>
-       {/* Footer */}
+             {/* Footer */}
       <Footer />
+    </div>
+
   )
 }
