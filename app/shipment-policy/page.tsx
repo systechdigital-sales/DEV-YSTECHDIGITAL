@@ -26,7 +26,7 @@ export default function ShipmentPolicyPage() {
                 className="rounded-full mr-3"
               />
               <div>
-                <h1 className="text-lg sm:text-xl font-bold">SYSTECH IT SOLUTIONS</h1>
+                <h1 className="text-lg sm:text-xl font-bold">Systech Digital</h1>
                 <p className="text-[10px] sm:text-xs text-red-200">Shipment Policy</p>
               </div>
             </div>
@@ -57,7 +57,7 @@ export default function ShipmentPolicyPage() {
           </CardHeader>
           <CardContent className="prose prose-neutral max-w-none text-sm sm:text-base">
             <p>
-              SYSTECH IT SOLUTIONS Pvt. Ltd. delivers digital products such as OTTplay Power Play Pack activation codes
+              Systech IT Solutions Limited delivers digital products such as OTTplay Power Play Pack activation codes
               via electronic means. There is no physical shipment involved.
             </p>
 
@@ -65,7 +65,7 @@ export default function ShipmentPolicyPage() {
 
             <h3 className="text-lg font-semibold">1. Delivery Method</h3>
             <ul className="list-disc pl-5">
-              <li>Delivery is completed via email and/or SMS to the contact details provided during checkout.</li>
+              <li>Delivery is completed via email to the contact details provided during checkout.</li>
               <li>Customers will receive confirmation after successful payment verification.</li>
             </ul>
 
@@ -80,7 +80,7 @@ export default function ShipmentPolicyPage() {
 
             <h3 className="mt-5 text-lg font-semibold">3. Delivery Confirmation</h3>
             <ul className="list-disc pl-5">
-              <li>Please check your email inbox, spam folder, and SMS for the activation code.</li>
+              <li>Please check your email inbox, spam folder for the activation code.</li>
               <li>
                 If you do not receive the code within the communicated timeline, contact support with your order ID.
               </li>
@@ -119,7 +119,7 @@ export default function ShipmentPolicyPage() {
 
             <Separator className="my-5" />
             <p className="text-xs text-neutral-600">
-              Owned by <strong>SYSTECH IT SOLUTIONS Pvt. Ltd.</strong> • Developed by{" "}
+              Owned by <strong>Systech IT Solutions Limited</strong> • Developed by{" "}
               <strong>BYTEWISE CONSULTING LLP</strong>
             </p>
           </CardContent>

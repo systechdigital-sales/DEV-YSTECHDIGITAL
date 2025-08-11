@@ -11,31 +11,38 @@ export default function PrivacyPolicyPage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Header */}
       <header className="bg-gradient-to-r from-black via-red-900 to-black shadow-lg border-b border-red-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div className="cursor-pointer flex items-center" onClick={() => (window.location.href = "/")}>
-              <img
-                src="/logo-white.png"
-                alt="SYSTECH DIGITAL Logo"
-                className="h-10 w-auto mr-3"
-                onError={(e) => {
-                  // Fallback to text if image fails to load
-                  e.currentTarget.style.display = "none"
-                  e.currentTarget.nextElementSibling.style.display = "block"
-                }}
-              />
-              <div style={{ display: "none" }}>
-                <h1 className="text-3xl font-bold text-white">Systech Digital</h1>
-                <p className="text-sm text-red-200 mt-1">Simplifying the Digital Experience</p>
-              </div>
-            </div>
-            <Badge variant="secondary" className="bg-red-100 text-red-800 px-4 py-2 border border-red-300">
-              <Shield className="w-4 h-4 mr-2" />
-              Privacy Policy
-            </Badge>
-          </div>
+  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="flex items-center justify-between">
+      {/* Logo + Text */}
+      <div
+        className="cursor-pointer flex items-center"
+        onClick={() => (window.location.href = "/")}
+      >
+        <img
+          src="/logo.png"
+          alt="SYSTECH DIGITAL Logo"
+          className="h-10 w-auto mr-3"
+        />
+        <div>
+          <h1 className="text-3xl font-bold text-white">Systech Digital</h1>
+          <p className="text-sm text-red-200 mt-1">
+            Simplifying the Digital Experience
+          </p>
         </div>
-      </header>
+      </div>
+
+      {/* Badge */}
+      <Badge
+        variant="secondary"
+        className="bg-red-100 text-red-800 px-4 py-2 border border-red-300 flex items-center"
+      >
+        <Shield className="w-4 h-4 mr-2" />
+        Privacy Policy
+      </Badge>
+    </div>
+  </div>
+</header>
+
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6">
@@ -158,7 +165,7 @@ export default function PrivacyPolicyPage() {
                     <strong>Email:</strong> sales.systechdigital@gmail.com
                   </p>
                   <p>
-                    <strong>Address:</strong> Systech IT Solution Pvt. Ltd. Address: #23/1,1st floor , J.C.1st cross, JC Rd, Near Poornima Theatre, Bengaluru, Karnataka 560027
+                    <strong>Address:</strong> Systech IT Solution Limited Address: #23/1,1st floor , J.C.1st cross, JC Rd, Near Poornima Theatre, Bengaluru, Karnataka 560027
                   </p>
                 </div>
               </div>

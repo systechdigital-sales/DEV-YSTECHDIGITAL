@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
+import Footer from "@/components/footer"
 
 const ContactSchema = z.object({
   name: z.string().min(2, "Please enter your full name."),
@@ -100,7 +101,7 @@ export default function ContactPage() {
                 className="rounded-full mr-3"
               />
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold leading-tight">SYSTECH IT SOLUTIONS</h1>
+                <h1 className="text-xl sm:text-2xl font-bold leading-tight">Systech Digital</h1>
                 <p className="text-xs sm:text-sm text-red-200">Simplifying the Digital Experience</p>
               </div>
             </div>
@@ -110,7 +111,7 @@ export default function ContactPage() {
                 variant="ghost"
                 size="sm"
                 onClick={() => router.push("/")}
-                className="text-gray-100 hover:text-white border border-white/30 px-2 py-1 text-sm"
+                className="text-gray-100 hover:text-gray-800 border border-white/30 px-2 py-1 text-sm"
               >
                 <Home className="w-4 h-4 mr-1" />
                 Back to Home
@@ -344,13 +345,7 @@ export default function ContactPage() {
           </aside>
         </div>
 
-        {/* Credits */}
-        <div className="mt-10 rounded-lg border bg-neutral-50 p-4 text-center text-sm text-neutral-700">
-          <p>
-            Owned by <span className="font-semibold">SYSTECH IT SOLUTIONS Pvt. Ltd.</span> • Developed by{" "}
-            <span className="font-semibold">BYTEWISE CONSULTING LLP</span>
-          </p>
-        </div>
+      
       </main>
 
       {/* JSON-LD Organization schema */}
@@ -378,6 +373,8 @@ export default function ContactPage() {
           }),
         }}
       />
+
+      <Footer/>
     </div>
   )
 }

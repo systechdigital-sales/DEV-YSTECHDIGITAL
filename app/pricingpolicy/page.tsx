@@ -26,7 +26,7 @@ export default function PricingPolicyPage() {
                 className="rounded-full mr-3"
               />
               <div>
-                <h1 className="text-lg sm:text-xl font-bold">SYSTECH IT SOLUTIONS</h1>
+                <h1 className="text-lg sm:text-xl font-bold">Systech Digital</h1>
                 <p className="text-[10px] sm:text-xs text-red-200">Pricing Policy</p>
               </div>
             </div>
@@ -57,7 +57,7 @@ export default function PricingPolicyPage() {
           </CardHeader>
           <CardContent className="prose prose-neutral max-w-none text-sm sm:text-base">
             <p>
-              This Pricing Policy outlines how SYSTECH IT SOLUTIONS Pvt. Ltd. prices and sells digital products,
+              This Pricing Policy outlines how  Systech IT Solutions Limited prices and sells digital products,
               including OTTplay Power Play Pack and related services.
             </p>
 
@@ -117,7 +117,7 @@ export default function PricingPolicyPage() {
 
             <Separator className="my-5" />
             <p className="text-xs text-neutral-600">
-              Owned by <strong>SYSTECH IT SOLUTIONS Pvt. Ltd.</strong> • Developed by{" "}
+              Owned by <strong>Systech IT Solutions Limited</strong> • Developed by{" "}
               <strong>BYTEWISE CONSULTING LLP</strong>
             </p>
           </CardContent>

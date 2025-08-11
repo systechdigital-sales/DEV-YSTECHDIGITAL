@@ -70,7 +70,7 @@ export default function TermsAndConditions() {
               <div className="bg-gray-50 p-4 rounded-lg">
                 <h4 className="font-semibold text-gray-900 mb-2">Legal Entity</h4>
                 <p className="text-sm text-gray-700">
-                  <strong>Company Name:</strong> Systech IT Solutions Limited
+                  <strong>Company Name:</strong>Systech IT Solutions Limited
                 </p>
                 <p className="text-sm text-gray-700">
                   <strong>Trading As:</strong> SYSTECH DIGITAL
@@ -87,7 +87,7 @@ export default function TermsAndConditions() {
                 <div className="flex items-start">
                   <MapPin className="w-4 h-4 mr-2 text-gray-500 mt-0.5" />
                   <div className="text-sm text-gray-700">
-                    <p>Systech IT Solution Pvt. Ltd</p>
+                    <p>Systech IT Solutions Limited</p>
                     <p>#23/1, 1st floor , J.C.1st cross</p>
                     <p>JC Road , Near Poornima Theatre , Bangaluru</p>
                     <p>Karnataka, India - 560027</p>

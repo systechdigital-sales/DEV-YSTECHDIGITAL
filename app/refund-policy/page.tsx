@@ -361,7 +361,7 @@ export default function RefundPolicy() {
                   <div>
                     <h5 className="font-medium text-blue-800">Contact Customer Support</h5>
                     <p className="text-sm text-blue-700">
-                      Email us at sales.systechdigital@gmail.com or call +91 7709803412
+                      Email us at sales.systechdigital@gmail.com 
                     </p>
                   </div>
                 </div>

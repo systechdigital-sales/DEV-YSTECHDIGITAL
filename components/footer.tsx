@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Mail, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function Footer() {
@@ -31,82 +30,85 @@ export default function Footer() {
               </div>
             </div>
             <p className="text-gray-400 text-sm sm:text-base max-w-md leading-relaxed">
-              Systech Digital streamlines technology—offering secure, efficient software and digital services
-              for a smarter, frictionless experience.
+              Systech Digital streamlines technology—offering secure, efficient software and
+              digital services for a smarter, frictionless experience.
             </p>
           </div>
 
-          {/* Empty Spacer or Future Links */}
+          {/* Empty Spacer */}
           <div className="hidden sm:block" />
-
-          {/* Contact Info */}
-          
         </div>
 
         {/* Bottom Row */}
-        <div className="border-t border-gray-800 mt-10 pt-6">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-gray-400 text-xs sm:text-sm text-center md:text-left">
-              © 2025 Systech Digital. All rights reserved.
+        <div className="border-t border-gray-800 mt-10 pt-6 flex flex-col md:flex-row md:justify-between gap-6">
+          {/* Left Section */}
+          <div>
+            <p className="text-gray-400 text-sm mb-1">
+              © 2025 Systech IT Solutions Limited. All rights reserved.
             </p>
-            <div className="flex flex-wrap justify-center md:justify-end gap-3">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-gray-400  hover:text-gray-800"
-                onClick={() => router.push("/shipment-policy")}
-              >
-                Shipment Policy
-              </Button>
-               <Button
-                variant="ghost"
-                size="sm"
-                className="text-gray-400  hover:text-gray-800"
-                onClick={() => router.push("/pricingpolicy")}
-              >
-                Pricing Policy
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-gray-400  hover:text-gray-800"
-                onClick={() => router.push("/claim&redeem")}
-              >
-                Claim & Redeem
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-gray-400  hover:text-gray-800"
-                onClick={() => router.push("/terms-and-conditions")}
-              >
-                Terms & Conditions
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-gray-400 hover:text-gray-800"
-                onClick={() => router.push("/privacy-policy")}
-              >
-                Privacy Policy
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-gray-400 hover:text-gray-800"
-                onClick={() => router.push("/refund-policy")}
-              >
-                Refund Policy
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-gray-400 hover:text-gray-800"
-                onClick={() => router.push("/contact")}
-              >
-                Contact Us
-              </Button>
-            </div>
+            <p className="text-gray-400 text-sm">
+              Developed By Bytewise Consulting LLP
+            </p>
+          </div>
+
+          {/* Right Section - Buttons */}
+          <div className="grid grid-cols-4 gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-gray-400 hover:text-gray-800"
+              onClick={() => router.push("/shipment-policy")}
+            >
+              Shipment Policy
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-gray-400 hover:text-gray-800"
+              onClick={() => router.push("/pricingpolicy")}
+            >
+              Pricing Policy
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-gray-400 hover:text-gray-800"
+              onClick={() => router.push("/claim&redeem")}
+            >
+              Claim & Redeem
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-gray-400 hover:text-gray-800"
+              onClick={() => router.push("/terms-and-conditions")}
+            >
+              Terms & Conditions
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-gray-400 hover:text-gray-800"
+              onClick={() => router.push("/privacy-policy")}
+            >
+              Privacy Policy
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-gray-400 hover:text-gray-800"
+              onClick={() => router.push("/refund-policy")}
+            >
+              Refund Policy
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-gray-400 hover:text-gray-800 "
+              onClick={() => router.push("/contact")}
+            >
+              Contact Us
+            </Button>
           </div>
         </div>
       </div>

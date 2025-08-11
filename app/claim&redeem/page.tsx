@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { CheckCircle, Globe, Mail, Phone, ExternalLink, Gift, Smartphone, Laptop, Shield } from 'lucide-react'
 import Link from "next/link"
+import Footer from "@/components/footer"
 
 export default function HelpPage() {
   return (
@@ -178,9 +179,9 @@ export default function HelpPage() {
                   </div>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg mb-2">Complete the Steps</h3>
+                  <h3 className="font-semibold text-lg mb-2">Pay the processing fees</h3>
                   <p className="text-gray-600">
-                    Follow the on-screen instructions to complete the claim process.
+                    Rs. 99/- will be charged as processing fees to claim OTTplay Power Play pack 01 yr. Subscription.
                   </p>
                 </div>
               </div>
@@ -190,8 +191,25 @@ export default function HelpPage() {
               {/* Step 7 */}
               <div className="flex gap-4">
                 <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-bold">
+                  <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">
                     7
+                  </div>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg mb-2">Complete the Steps</h3>
+                  <p className="text-gray-600">
+                    Follow the on-screen instructions to complete the claim process.
+                  </p>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Step 8 */}
+              <div className="flex gap-4">
+                <div className="flex-shrink-0">
+                  <div className="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-bold">
+                    8
                   </div>
                 </div>
                 <div>
@@ -342,6 +360,8 @@ export default function HelpPage() {
         </Card>
 
       </div>
+
+      <Footer/>
     </div>
   )
 }
