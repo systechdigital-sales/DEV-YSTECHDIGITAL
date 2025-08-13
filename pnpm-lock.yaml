@@ -198,7 +198,7 @@ importers:
         specifier: latest
         version: 0.18.5
       zod:
-        specifier: ^3.24.1
+        specifier: 3.24.1
         version: 3.24.1
     devDependencies:
       '@types/node':
