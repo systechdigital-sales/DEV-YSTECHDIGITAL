@@ -1,14 +1,13 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
-import { useRouter } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState, useEffect } from "react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,93 +19,117 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 import {
   Search,
   Download,
-  Upload,
   Trash2,
-  RefreshCw,
-  Users,
-  Key,
-  ShoppingCart,
-  Settings,
+  Edit,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  Filter,
 } from "lucide-react"
 
-interface ClaimData {
+interface ClaimResponse {
   _id: string
   name: string
   email: string
   phone: string
   activationCode: string
-  ottKey?: string
-  status: "pending" | "processing" | "completed" | "failed"
-  paymentStatus: "pending" | "paid" | "failed"
-  amount: number
+  ottPlatform: string
+  status: "pending" | "approved" | "rejected"
+  createdAt: string
+  updatedAt: string
+  razorpayOrderId?: string
+  razorpayPaymentId?: string
+  paymentStatus?: "pending" | "completed" | "failed"
+}
+
+interface OTTKey {
+  _id: string
+  platform: string
+  keyValue: string
+  isUsed: boolean
+  assignedTo?: string
   createdAt: string
   updatedAt: string
 }
 
-interface SalesData {
+interface SalesRecord {
   _id: string
-  activationCode: string
   customerName: string
-  customerEmail: string
-  customerPhone: string
-  saleDate: string
+  email: string
+  phone: string
+  ottPlatform: string
+  activationCode: string
+  purchaseDate: string
   amount: number
-  status: string
+  status: "active" | "expired" | "pending"
+  createdAt: string
 }
 
-interface OTTKeyData {
-  _id: string
-  keyValue: string
-  platform: string
-  isUsed: boolean
-  assignedTo?: string
-  createdAt: string
-  usedAt?: string
-}
+const ITEMS_PER_PAGE = 25
 
 export default function AdminDashboard() {
-  const router = useRouter()
-  const [activeTab, setActiveTab] = useState("claims")
-  const [claims, setClaims] = useState<ClaimData[]>([])
-  const [sales, setSales] = useState<SalesData[]>([])
-  const [ottKeys, setOttKeys] = useState<OTTKeyData[]>([])
+  const [claims, setClaims] = useState<ClaimResponse[]>([])
+  const [keys, setKeys] = useState<OTTKey[]>([])
+  const [sales, setSales] = useState<SalesRecord[]>([])
   const [loading, setLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState("")
+  const [activeTab, setActiveTab] = useState("claims")
+
+  // Pagination states
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage] = useState(25)
+  const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
 
-  // Fetch data
+  // Dialog states
+  const [selectedClaim, setSelectedClaim] = useState<ClaimResponse | null>(null)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [editForm, setEditForm] = useState({ status: "", notes: "" })
+
+  useEffect(() => {
+    fetchData()
+  }, [])
+
+  useEffect(() => {
+    setCurrentPage(1) // Reset to first page when changing tabs or search
+  }, [activeTab, searchTerm, statusFilter])
+
   const fetchData = async () => {
-    setLoading(true)
     try {
-      const [claimsRes, salesRes, keysRes] = await Promise.all([
+      setLoading(true)
+      const [claimsRes, keysRes, salesRes] = await Promise.all([
         fetch("/api/admin/claims"),
-        fetch("/api/admin/sales"),
         fetch("/api/admin/keys"),
+        fetch("/api/admin/sales"),
       ])
 
       if (claimsRes.ok) {
         const claimsData = await claimsRes.json()
-        setClaims(claimsData.claims || [])
-      }
-
-      if (salesRes.ok) {
-        const salesData = await salesRes.json()
-        setSales(salesData.sales || [])
+        setClaims(claimsData)
       }
 
       if (keysRes.ok) {
         const keysData = await keysRes.json()
-        setOttKeys(keysData.keys || [])
+        setKeys(keysData)
+      }
+
+      if (salesRes.ok) {
+        const salesData = await salesRes.json()
+        setSales(salesData)
       }
     } catch (error) {
       console.error("Error fetching data:", error)
@@ -116,15 +139,10 @@ export default function AdminDashboard() {
     }
   }
 
-  useEffect(() => {
-    fetchData()
-  }, [])
-
-  // Filter and search logic
-  const filteredClaims = useMemo(() => {
+  // Filter and search functions
+  const getFilteredClaims = () => {
     let filtered = claims
 
-    // Apply search filter
     if (searchTerm) {
       filtered = filtered.filter(
         (claim) =>
@@ -135,600 +153,501 @@ export default function AdminDashboard() {
       )
     }
 
-    // Apply status filter
     if (statusFilter !== "all") {
       filtered = filtered.filter((claim) => claim.status === statusFilter)
     }
 
     return filtered
-  }, [claims, searchTerm, statusFilter])
+  }
 
-  const filteredSales = useMemo(() => {
+  const getFilteredKeys = () => {
+    let filtered = keys
+
+    if (searchTerm) {
+      filtered = filtered.filter(
+        (key) =>
+          key.platform.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          key.keyValue.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (key.assignedTo && key.assignedTo.toLowerCase().includes(searchTerm.toLowerCase())),
+      )
+    }
+
+    return filtered
+  }
+
+  const getFilteredSales = () => {
     let filtered = sales
 
     if (searchTerm) {
       filtered = filtered.filter(
         (sale) =>
           sale.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          sale.customerEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          sale.customerPhone.includes(searchTerm) ||
+          sale.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          sale.phone.includes(searchTerm) ||
           sale.activationCode.toLowerCase().includes(searchTerm.toLowerCase()),
       )
     }
 
     return filtered
-  }, [sales, searchTerm])
-
-  const filteredKeys = useMemo(() => {
-    let filtered = ottKeys
-
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (key) =>
-          key.keyValue.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          key.platform.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (key.assignedTo && key.assignedTo.toLowerCase().includes(searchTerm.toLowerCase())),
-      )
-    }
-
-    return filtered
-  }, [ottKeys, searchTerm])
+  }
 
   // Pagination logic
-  const getCurrentPageData = (data: any[]) => {
-    const startIndex = (currentPage - 1) * itemsPerPage
-    const endIndex = startIndex + itemsPerPage
+  const getPaginatedData = (data: any[]) => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+    const endIndex = startIndex + ITEMS_PER_PAGE
     return data.slice(startIndex, endIndex)
   }
 
-  const getTotalPages = (data: any[]) => {
-    return Math.ceil(data.length / itemsPerPage)
+  const getTotalPages = (dataLength: number) => {
+    return Math.ceil(dataLength / ITEMS_PER_PAGE)
   }
 
-  const getCurrentData = () => {
-    switch (activeTab) {
-      case "claims":
-        return filteredClaims
-      case "sales":
-        return filteredSales
-      case "keys":
-        return filteredKeys
-      default:
-        return []
+  const handleUpdateClaimStatus = async (claimId: string, status: string) => {
+    try {
+      const response = await fetch("/api/admin/claims", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ claimId, status }),
+      })
+
+      if (response.ok) {
+        toast.success("Claim status updated successfully")
+        fetchData()
+      } else {
+        toast.error("Failed to update claim status")
+      }
+    } catch (error) {
+      console.error("Error updating claim:", error)
+      toast.error("Failed to update claim status")
     }
   }
 
-  const currentData = getCurrentData()
-  const paginatedData = getCurrentPageData(currentData)
-  const totalPages = getTotalPages(currentData)
-
-  // Reset pagination when tab or search changes
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [activeTab, searchTerm, statusFilter])
-
-  // Pagination controls
-  const PaginationControls = () => (
-    <div className="flex items-center justify-between px-2 py-4">
-      <div className="text-sm text-gray-700">
-        Showing {Math.min((currentPage - 1) * itemsPerPage + 1, currentData.length)} to{" "}
-        {Math.min(currentPage * itemsPerPage, currentData.length)} of {currentData.length} entries
-      </div>
-      <div className="flex items-center space-x-2">
-        <Button variant="outline" size="sm" onClick={() => setCurrentPage(1)} disabled={currentPage === 1}>
-          <ChevronsLeft className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-          disabled={currentPage === 1}
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <span className="text-sm">
-          Page {currentPage} of {totalPages}
-        </span>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-          disabled={currentPage === totalPages}
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setCurrentPage(totalPages)}
-          disabled={currentPage === totalPages}
-        >
-          <ChevronsRight className="h-4 w-4" />
-        </Button>
-      </div>
-    </div>
-  )
-
-  // Export functions
-  const exportData = async (type: string) => {
+  const handleDeleteClaim = async (claimId: string) => {
     try {
-      const response = await fetch(`/api/admin/export?type=${type}`)
+      const response = await fetch("/api/admin/delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: claimId, type: "claim" }),
+      })
+
+      if (response.ok) {
+        toast.success("Claim deleted successfully")
+        fetchData()
+      } else {
+        toast.error("Failed to delete claim")
+      }
+    } catch (error) {
+      console.error("Error deleting claim:", error)
+      toast.error("Failed to delete claim")
+    }
+  }
+
+  const handleExportData = async () => {
+    try {
+      const response = await fetch("/api/admin/export")
       if (response.ok) {
         const blob = await response.blob()
         const url = window.URL.createObjectURL(blob)
         const a = document.createElement("a")
         a.href = url
-        a.download = `${type}-${new Date().toISOString().split("T")[0]}.csv`
+        a.download = `admin-data-${new Date().toISOString().split("T")[0]}.xlsx`
         document.body.appendChild(a)
         a.click()
         window.URL.revokeObjectURL(url)
         document.body.removeChild(a)
-        toast.success(`${type} data exported successfully`)
+        toast.success("Data exported successfully")
       } else {
         toast.error("Failed to export data")
       }
     } catch (error) {
-      console.error("Export error:", error)
+      console.error("Error exporting data:", error)
       toast.error("Failed to export data")
     }
   }
 
-  // Delete functions
-  const deleteAllData = async (type: string) => {
-    try {
-      const response = await fetch("/api/admin/delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type }),
-      })
+  const PaginationControls = ({ totalItems, dataType }: { totalItems: number; dataType: string }) => {
+    const totalPages = getTotalPages(totalItems)
+    const startItem = (currentPage - 1) * ITEMS_PER_PAGE + 1
+    const endItem = Math.min(currentPage * ITEMS_PER_PAGE, totalItems)
 
-      if (response.ok) {
-        toast.success(`All ${type} deleted successfully`)
-        fetchData()
-      } else {
-        toast.error(`Failed to delete ${type}`)
-      }
-    } catch (error) {
-      console.error("Delete error:", error)
-      toast.error(`Failed to delete ${type}`)
-    }
+    return (
+      <div className="flex items-center justify-between px-2 py-4">
+        <div className="text-sm text-muted-foreground">
+          Showing {startItem} to {endItem} of {totalItems} {dataType}
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button variant="outline" size="sm" onClick={() => setCurrentPage(1)} disabled={currentPage === 1}>
+            <ChevronsLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(currentPage - 1)}
+            disabled={currentPage === 1}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <div className="text-sm">
+            Page {currentPage} of {totalPages}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(currentPage + 1)}
+            disabled={currentPage === totalPages}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(totalPages)}
+            disabled={currentPage === totalPages}
+          >
+            <ChevronsRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    )
   }
 
-  // File upload handlers
-  const handleFileUpload = async (file: File, type: string) => {
-    const formData = new FormData()
-    formData.append("file", file)
+  const filteredClaims = getFilteredClaims()
+  const filteredKeys = getFilteredKeys()
+  const filteredSales = getFilteredSales()
 
-    try {
-      const endpoint = type === "sales" ? "/api/admin/upload-sales" : "/api/admin/upload-keys"
-      const response = await fetch(endpoint, {
-        method: "POST",
-        body: formData,
-      })
-
-      if (response.ok) {
-        const result = await response.json()
-        toast.success(`${type} uploaded successfully: ${result.message}`)
-        fetchData()
-      } else {
-        const error = await response.json()
-        toast.error(`Upload failed: ${error.message}`)
-      }
-    } catch (error) {
-      console.error("Upload error:", error)
-      toast.error("Upload failed")
-    }
-  }
-
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-      pending: "outline",
-      processing: "secondary",
-      completed: "default",
-      failed: "destructive",
-      paid: "default",
-    }
-    return <Badge variant={variants[status] || "outline"}>{status}</Badge>
-  }
+  const paginatedClaims = getPaginatedData(filteredClaims)
+  const paginatedKeys = getPaginatedData(filteredKeys)
+  const paginatedSales = getPaginatedData(filteredSales)
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p>Loading dashboard...</p>
+      <div className="container mx-auto p-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg">Loading...</div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-              <p className="text-gray-600">Manage claims, sales, and OTT keys</p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Button variant="outline" onClick={fetchData} disabled={loading}>
-                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-                Refresh
-              </Button>
-              <Button variant="outline" onClick={() => router.push("/automation")}>
-                <Settings className="h-4 w-4 mr-2" />
-                Automation
-              </Button>
-            </div>
-          </div>
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+        <Button onClick={handleExportData} className="flex items-center gap-2">
+          <Download className="h-4 w-4" />
+          Export Data
+        </Button>
+      </div>
+
+      {/* Search and Filter Bar */}
+      <div className="flex flex-col sm:flex-row gap-4 items-center">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <Input
+            placeholder="Search by name, email, phone, or activation code..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
         </div>
-      </header>
+        {activeTab === "claims" && (
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[180px]">
+              <Filter className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="approved">Approved</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
+      </div>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="claims">Claims ({filteredClaims.length})</TabsTrigger>
+          <TabsTrigger value="keys">OTT Keys ({filteredKeys.length})</TabsTrigger>
+          <TabsTrigger value="sales">Sales ({filteredSales.length})</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="claims" className="space-y-4">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Claims</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+            <CardHeader>
+              <CardTitle>OTT Claims Management</CardTitle>
+              <CardDescription>Manage and review OTT platform claims from customers</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{claims.length}</div>
-              <p className="text-xs text-muted-foreground">
-                {claims.filter((c) => c.status === "completed").length} completed
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Sales Records</CardTitle>
-              <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{sales.length}</div>
-              <p className="text-xs text-muted-foreground">Total sales entries</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">OTT Keys</CardTitle>
-              <Key className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{ottKeys.length}</div>
-              <p className="text-xs text-muted-foreground">{ottKeys.filter((k) => !k.isUsed).length} available</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Search and Filters */}
-        <Card className="mb-6">
-          <CardContent className="pt-6">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <Input
-                    placeholder="Search by name, email, phone, or activation code..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-              {activeTab === "claims" && (
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Filter by status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="processing">Processing</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="failed">Failed</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="claims">Claims ({filteredClaims.length})</TabsTrigger>
-            <TabsTrigger value="sales">Sales ({filteredSales.length})</TabsTrigger>
-            <TabsTrigger value="keys">OTT Keys ({filteredKeys.length})</TabsTrigger>
-          </TabsList>
-
-          {/* Claims Tab */}
-          <TabsContent value="claims">
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle>Claims Management</CardTitle>
-                  <div className="flex space-x-2">
-                    <Button variant="outline" size="sm" onClick={() => exportData("claims")}>
-                      <Download className="h-4 w-4 mr-2" />
-                      Export
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="sm">
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete All
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete All Claims</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete all claims data.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => deleteAllData("claims")}
-                            className="bg-red-600 hover:bg-red-700"
-                          >
-                            Delete All
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>Platform</TableHead>
+                      <TableHead>Activation Code</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Payment</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedClaims.length === 0 ? (
                       <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Phone</TableHead>
-                        <TableHead>Activation Code</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Payment</TableHead>
-                        <TableHead>Amount</TableHead>
-                        <TableHead>Created</TableHead>
+                        <TableCell colSpan={9} className="text-center py-8">
+                          No claims found
+                        </TableCell>
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {paginatedData.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={8} className="text-center py-8 text-gray-500">
-                            No claims found
+                    ) : (
+                      paginatedClaims.map((claim) => (
+                        <TableRow key={claim._id}>
+                          <TableCell className="font-medium">{claim.name}</TableCell>
+                          <TableCell>{claim.email}</TableCell>
+                          <TableCell>{claim.phone}</TableCell>
+                          <TableCell>{claim.ottPlatform}</TableCell>
+                          <TableCell className="font-mono text-sm">{claim.activationCode}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
+                                claim.status === "approved"
+                                  ? "default"
+                                  : claim.status === "rejected"
+                                    ? "destructive"
+                                    : "secondary"
+                              }
+                            >
+                              {claim.status}
+                            </Badge>
                           </TableCell>
-                        </TableRow>
-                      ) : (
-                        paginatedData.map((claim: ClaimData) => (
-                          <TableRow key={claim._id}>
-                            <TableCell className="font-medium">{claim.name}</TableCell>
-                            <TableCell>{claim.email}</TableCell>
-                            <TableCell>{claim.phone}</TableCell>
-                            <TableCell className="font-mono text-sm">{claim.activationCode}</TableCell>
-                            <TableCell>{getStatusBadge(claim.status)}</TableCell>
-                            <TableCell>{getStatusBadge(claim.paymentStatus)}</TableCell>
-                            <TableCell>₹{claim.amount}</TableCell>
-                            <TableCell>{new Date(claim.createdAt).toLocaleDateString()}</TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-                <PaginationControls />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Sales Tab */}
-          <TabsContent value="sales">
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle>Sales Management</CardTitle>
-                  <div className="flex space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const input = document.createElement("input")
-                        input.type = "file"
-                        input.accept = ".xlsx,.xls,.csv"
-                        input.onchange = (e) => {
-                          const file = (e.target as HTMLInputElement).files?.[0]
-                          if (file) handleFileUpload(file, "sales")
-                        }
-                        input.click()
-                      }}
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Upload
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => exportData("sales")}>
-                      <Download className="h-4 w-4 mr-2" />
-                      Export
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="sm">
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete All
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete All Sales</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete all sales data.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => deleteAllData("sales")}
-                            className="bg-red-600 hover:bg-red-700"
-                          >
-                            Delete All
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Customer Name</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Phone</TableHead>
-                        <TableHead>Activation Code</TableHead>
-                        <TableHead>Amount</TableHead>
-                        <TableHead>Sale Date</TableHead>
-                        <TableHead>Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {paginatedData.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={7} className="text-center py-8 text-gray-500">
-                            No sales records found
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        paginatedData.map((sale: SalesData) => (
-                          <TableRow key={sale._id}>
-                            <TableCell className="font-medium">{sale.customerName}</TableCell>
-                            <TableCell>{sale.customerEmail}</TableCell>
-                            <TableCell>{sale.customerPhone}</TableCell>
-                            <TableCell className="font-mono text-sm">{sale.activationCode}</TableCell>
-                            <TableCell>₹{sale.amount}</TableCell>
-                            <TableCell>{new Date(sale.saleDate).toLocaleDateString()}</TableCell>
-                            <TableCell>{getStatusBadge(sale.status)}</TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-                <PaginationControls />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* OTT Keys Tab */}
-          <TabsContent value="keys">
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle>OTT Keys Management</CardTitle>
-                  <div className="flex space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const input = document.createElement("input")
-                        input.type = "file"
-                        input.accept = ".xlsx,.xls,.csv"
-                        input.onchange = (e) => {
-                          const file = (e.target as HTMLInputElement).files?.[0]
-                          if (file) handleFileUpload(file, "keys")
-                        }
-                        input.click()
-                      }}
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Upload
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => exportData("keys")}>
-                      <Download className="h-4 w-4 mr-2" />
-                      Export
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="sm">
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete All
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete All Keys</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete all OTT keys.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => deleteAllData("keys")}
-                            className="bg-red-600 hover:bg-red-700"
-                          >
-                            Delete All
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Key Value</TableHead>
-                        <TableHead>Platform</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Assigned To</TableHead>
-                        <TableHead>Created</TableHead>
-                        <TableHead>Used At</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {paginatedData.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                            No OTT keys found
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        paginatedData.map((key: OTTKeyData) => (
-                          <TableRow key={key._id}>
-                            <TableCell className="font-mono text-sm">{key.keyValue}</TableCell>
-                            <TableCell>{key.platform}</TableCell>
-                            <TableCell>
-                              <Badge variant={key.isUsed ? "secondary" : "default"}>
-                                {key.isUsed ? "Used" : "Available"}
+                          <TableCell>
+                            {claim.paymentStatus && (
+                              <Badge
+                                variant={
+                                  claim.paymentStatus === "completed"
+                                    ? "default"
+                                    : claim.paymentStatus === "failed"
+                                      ? "destructive"
+                                      : "secondary"
+                                }
+                              >
+                                {claim.paymentStatus}
                               </Badge>
-                            </TableCell>
-                            <TableCell>{key.assignedTo || "-"}</TableCell>
-                            <TableCell>{new Date(key.createdAt).toLocaleDateString()}</TableCell>
-                            <TableCell>{key.usedAt ? new Date(key.usedAt).toLocaleDateString() : "-"}</TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-                <PaginationControls />
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </main>
+                            )}
+                          </TableCell>
+                          <TableCell>{new Date(claim.createdAt).toLocaleDateString()}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                                <DialogTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedClaim(claim)
+                                      setEditForm({ status: claim.status, notes: "" })
+                                    }}
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                  <DialogHeader>
+                                    <DialogTitle>Update Claim Status</DialogTitle>
+                                    <DialogDescription>Update the status of this OTT claim</DialogDescription>
+                                  </DialogHeader>
+                                  <div className="space-y-4">
+                                    <div>
+                                      <Label htmlFor="status">Status</Label>
+                                      <Select
+                                        value={editForm.status}
+                                        onValueChange={(value) => setEditForm({ ...editForm, status: value })}
+                                      >
+                                        <SelectTrigger>
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="pending">Pending</SelectItem>
+                                          <SelectItem value="approved">Approved</SelectItem>
+                                          <SelectItem value="rejected">Rejected</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                    <div>
+                                      <Label htmlFor="notes">Notes (Optional)</Label>
+                                      <Textarea
+                                        id="notes"
+                                        value={editForm.notes}
+                                        onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                                        placeholder="Add any notes about this status change..."
+                                      />
+                                    </div>
+                                  </div>
+                                  <DialogFooter>
+                                    <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                                      Cancel
+                                    </Button>
+                                    <Button
+                                      onClick={() => {
+                                        if (selectedClaim) {
+                                          handleUpdateClaimStatus(selectedClaim._id, editForm.status)
+                                          setIsEditDialogOpen(false)
+                                        }
+                                      }}
+                                    >
+                                      Update Status
+                                    </Button>
+                                  </DialogFooter>
+                                </DialogContent>
+                              </Dialog>
+
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="outline" size="sm">
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Claim</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Are you sure you want to delete this claim? This action cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDeleteClaim(claim._id)}>
+                                      Delete
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+              <PaginationControls totalItems={filteredClaims.length} dataType="claims" />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="keys" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>OTT Keys Management</CardTitle>
+              <CardDescription>Manage OTT platform keys and their assignments</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Platform</TableHead>
+                      <TableHead>Key Value</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Assigned To</TableHead>
+                      <TableHead>Created Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedKeys.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8">
+                          No keys found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      paginatedKeys.map((key) => (
+                        <TableRow key={key._id}>
+                          <TableCell className="font-medium">{key.platform}</TableCell>
+                          <TableCell className="font-mono text-sm">{key.keyValue}</TableCell>
+                          <TableCell>
+                            <Badge variant={key.isUsed ? "secondary" : "default"}>
+                              {key.isUsed ? "Used" : "Available"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{key.assignedTo || "Unassigned"}</TableCell>
+                          <TableCell>{new Date(key.createdAt).toLocaleDateString()}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+              <PaginationControls totalItems={filteredKeys.length} dataType="keys" />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="sales" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Sales Records</CardTitle>
+              <CardDescription>View and manage sales records and customer purchases</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Customer Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>Platform</TableHead>
+                      <TableHead>Activation Code</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Purchase Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedSales.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center py-8">
+                          No sales records found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      paginatedSales.map((sale) => (
+                        <TableRow key={sale._id}>
+                          <TableCell className="font-medium">{sale.customerName}</TableCell>
+                          <TableCell>{sale.email}</TableCell>
+                          <TableCell>{sale.phone}</TableCell>
+                          <TableCell>{sale.ottPlatform}</TableCell>
+                          <TableCell className="font-mono text-sm">{sale.activationCode}</TableCell>
+                          <TableCell>₹{sale.amount}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
+                                sale.status === "active"
+                                  ? "default"
+                                  : sale.status === "expired"
+                                    ? "destructive"
+                                    : "secondary"
+                              }
+                            >
+                              {sale.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{new Date(sale.purchaseDate).toLocaleDateString()}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+              <PaginationControls totalItems={filteredSales.length} dataType="sales" />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
