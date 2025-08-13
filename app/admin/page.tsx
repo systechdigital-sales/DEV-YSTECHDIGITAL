@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -25,6 +25,11 @@ import {
   Lock,
   X,
   Send,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
@@ -41,6 +46,8 @@ import { DashboardSidebar } from "@/components/dashboard-sidebar"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import Image from "next/image"
 import { toast } from "@/hooks/use-toast"
+
+const ITEMS_PER_PAGE = 25
 
 export default function AdminPage() {
   const [claimResponses, setClaimResponses] = useState<ClaimResponse[]>([])
@@ -60,6 +67,10 @@ export default function AdminPage() {
   const [selectedRecords, setSelectedRecords] = useState<Set<string>>(new Set())
   const router = useRouter()
 
+  // Pagination and Search States
+  const [currentPage, setCurrentPage] = useState(1)
+  const [searchTerm, setSearchTerm] = useState("")
+
   // State for Manual Assignment
   const [manualAssignDialogOpen, setManualAssignDialogOpen] = useState(false)
   const [selectedClaimForManualAssign, setSelectedClaimForManualAssign] = useState<ClaimResponse | null>(null)
@@ -77,6 +88,11 @@ export default function AdminPage() {
 
     fetchData()
   }, [router])
+
+  // Reset pagination when tab or search changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [activeTab, searchTerm])
 
   const fetchData = async () => {
     setLoading(true)
@@ -137,6 +153,95 @@ export default function AdminPage() {
       setError("Failed to fetch data from systech_ott_platform database")
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Filter data based on search term
+  const filteredClaims = useMemo(() => {
+    if (!searchTerm) return claimResponses
+    return claimResponses.filter(
+      (claim) =>
+        claim.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        claim.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        claim.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        claim.phoneNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        claim.activationCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        claim.claimId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        claim.address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        claim.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        claim.state?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        claim.pincode?.toLowerCase().includes(searchTerm.toLowerCase()),
+    )
+  }, [claimResponses, searchTerm])
+
+  const filteredSales = useMemo(() => {
+    if (!searchTerm) return salesRecords
+    return salesRecords.filter(
+      (sale) =>
+        sale.activationCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        sale.product?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        sale.productSubCategory?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        sale.claimedBy?.toLowerCase().includes(searchTerm.toLowerCase()),
+    )
+  }, [salesRecords, searchTerm])
+
+  const filteredKeys = useMemo(() => {
+    if (!searchTerm) return ottKeys
+    return ottKeys.filter(
+      (key) =>
+        key.activationCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        key.product?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        key.productSubCategory?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        key.assignedEmail?.toLowerCase().includes(searchTerm.toLowerCase()),
+    )
+  }, [ottKeys, searchTerm])
+
+  // Get current page data
+  const getCurrentPageData = () => {
+    let data: any[] = []
+    switch (activeTab) {
+      case "claims":
+        data = filteredClaims
+        break
+      case "sales":
+        data = filteredSales
+        break
+      case "keys":
+        data = filteredKeys
+        break
+    }
+
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+    const endIndex = startIndex + ITEMS_PER_PAGE
+    return data.slice(startIndex, endIndex)
+  }
+
+  const getTotalPages = () => {
+    let totalItems = 0
+    switch (activeTab) {
+      case "claims":
+        totalItems = filteredClaims.length
+        break
+      case "sales":
+        totalItems = filteredSales.length
+        break
+      case "keys":
+        totalItems = filteredKeys.length
+        break
+    }
+    return Math.ceil(totalItems / ITEMS_PER_PAGE)
+  }
+
+  const getTotalItems = () => {
+    switch (activeTab) {
+      case "claims":
+        return filteredClaims.length
+      case "sales":
+        return filteredSales.length
+      case "keys":
+        return filteredKeys.length
+      default:
+        return 0
     }
   }
 
@@ -503,6 +608,68 @@ export default function AdminPage() {
     }
   }
 
+  // Pagination Component
+  const PaginationControls = () => {
+    const totalPages = getTotalPages()
+    const totalItems = getTotalItems()
+    const startItem = (currentPage - 1) * ITEMS_PER_PAGE + 1
+    const endItem = Math.min(currentPage * ITEMS_PER_PAGE, totalItems)
+
+    if (totalPages <= 1) return null
+
+    return (
+      <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200">
+        <div className="flex items-center text-sm text-gray-700">
+          <span>
+            Showing <span className="font-medium">{startItem}</span> to <span className="font-medium">{endItem}</span>{" "}
+            of <span className="font-medium">{totalItems}</span> results
+          </span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(1)}
+            disabled={currentPage === 1}
+            className="p-2"
+          >
+            <ChevronsLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="p-2"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="px-3 py-1 text-sm font-medium">
+            Page {currentPage} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="p-2"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(totalPages)}
+            disabled={currentPage === totalPages}
+            className="p-2"
+          >
+            <ChevronsRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   if (loading) {
     return (
       <SidebarProvider>
@@ -519,6 +686,8 @@ export default function AdminPage() {
       </SidebarProvider>
     )
   }
+
+  const currentPageData = getCurrentPageData()
 
   return (
     <SidebarProvider>
@@ -655,6 +824,26 @@ export default function AdminPage() {
               </Alert>
             )}
 
+            {/* Search Bar */}
+            <Card className="mb-6 shadow-lg">
+              <CardContent className="p-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Input
+                    placeholder="Search by name, email, phone, activation code, address, city, state, pincode..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 text-base"
+                  />
+                </div>
+                {searchTerm && (
+                  <div className="mt-2 text-sm text-gray-600">
+                    Found {getTotalItems()} results for "{searchTerm}"
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             {/* File Upload Section */}
             <Card className="mb-8 shadow-lg">
               <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-t-lg border-b">
@@ -672,7 +861,8 @@ export default function AdminPage() {
                   <div className="space-y-4">
                     <div className="bg-blue-50 p-6 rounded-xl border border-blue-200">
                       <h3 className="text-xl font-semibold text-blue-900 mb-4 flex items-center">
-                        <FileSpreadsheet className="w-5 h-5 mr-2" /> Activation Code/Product Serial Number/IMEI Number Upload
+                        <FileSpreadsheet className="w-5 h-5 mr-2" /> Activation Code/Product Serial Number/IMEI Number
+                        Upload
                       </h3>
                       <p className="text-blue-800 mb-4">Upload Excel/CSV file to collection</p>
                       <div className="space-y-3">
@@ -780,19 +970,19 @@ export default function AdminPage() {
                   value="claims"
                   className="rounded-lg data-[state=active]:bg-purple-600 data-[state=active]:text-white text-lg font-semibold"
                 >
-                  Claims ({stats.totalClaims})
+                  Claims ({filteredClaims.length})
                 </TabsTrigger>
                 <TabsTrigger
                   value="sales"
                   className="rounded-lg data-[state=active]:bg-purple-600 data-[state=active]:text-white text-lg font-semibold"
                 >
-                  Redemption ({stats.totalSales})
+                  Redemption ({filteredSales.length})
                 </TabsTrigger>
                 <TabsTrigger
                   value="keys"
                   className="rounded-lg data-[state=active]:bg-purple-600 data-[state=active]:text-white text-lg font-semibold"
                 >
-                  OTT Keys ({ottKeys?.length || 0})
+                  OTT Keys ({filteredKeys.length})
                 </TabsTrigger>
               </TabsList>
 
@@ -826,10 +1016,12 @@ export default function AdminPage() {
                             <TableHead className="w-12">
                               <Checkbox
                                 checked={
-                                  claimResponses?.length > 0 &&
-                                  claimResponses.every((claim) => selectedRecords.has(claim._id || claim.id))
+                                  currentPageData?.length > 0 &&
+                                  currentPageData.every((claim) => selectedRecords.has(claim._id || claim.id))
                                 }
-                                onCheckedChange={(checked) => handleSelectAll(claimResponses || [], checked as boolean)}
+                                onCheckedChange={(checked) =>
+                                  handleSelectAll(currentPageData || [], checked as boolean)
+                                }
                               />
                             </TableHead>
                             <TableHead className="font-bold text-gray-800">Claim ID</TableHead>
@@ -849,7 +1041,7 @@ export default function AdminPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {claimResponses?.map((claim, index) => (
+                          {currentPageData?.map((claim, index) => (
                             <TableRow
                               key={claim._id || claim.id}
                               className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
@@ -920,6 +1112,7 @@ export default function AdminPage() {
                         </TableBody>
                       </Table>
                     </div>
+                    <PaginationControls />
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -954,10 +1147,12 @@ export default function AdminPage() {
                             <TableHead className="w-12">
                               <Checkbox
                                 checked={
-                                  salesRecords?.length > 0 &&
-                                  salesRecords.every((sale) => selectedRecords.has(sale._id || sale.id))
+                                  currentPageData?.length > 0 &&
+                                  currentPageData.every((sale) => selectedRecords.has(sale._id || sale.id))
                                 }
-                                onCheckedChange={(checked) => handleSelectAll(salesRecords || [], checked as boolean)}
+                                onCheckedChange={(checked) =>
+                                  handleSelectAll(currentPageData || [], checked as boolean)
+                                }
                               />
                             </TableHead>
                             <TableHead className="font-bold text-gray-800">Activation Code</TableHead>
@@ -970,7 +1165,7 @@ export default function AdminPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {salesRecords?.map((sale, index) => (
+                          {currentPageData?.map((sale, index) => (
                             <TableRow key={sale._id || sale.id} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                               <TableCell>
                                 <Checkbox
@@ -1009,6 +1204,7 @@ export default function AdminPage() {
                         </TableBody>
                       </Table>
                     </div>
+                    <PaginationControls />
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -1043,9 +1239,12 @@ export default function AdminPage() {
                             <TableHead className="w-12">
                               <Checkbox
                                 checked={
-                                  ottKeys?.length > 0 && ottKeys.every((key) => selectedRecords.has(key._id || key.id))
+                                  currentPageData?.length > 0 &&
+                                  currentPageData.every((key) => selectedRecords.has(key._id || key.id))
                                 }
-                                onCheckedChange={(checked) => handleSelectAll(ottKeys || [], checked as boolean)}
+                                onCheckedChange={(checked) =>
+                                  handleSelectAll(currentPageData || [], checked as boolean)
+                                }
                               />
                             </TableHead>
                             <TableHead className="font-bold text-gray-800">Activation Code</TableHead>
@@ -1058,7 +1257,7 @@ export default function AdminPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {ottKeys?.map((key, index) => (
+                          {currentPageData?.map((key, index) => (
                             <TableRow key={key._id || key.id} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                               <TableCell>
                                 <Checkbox
@@ -1097,6 +1296,7 @@ export default function AdminPage() {
                         </TableBody>
                       </Table>
                     </div>
+                    <PaginationControls />
                   </CardContent>
                 </Card>
               </TabsContent>
