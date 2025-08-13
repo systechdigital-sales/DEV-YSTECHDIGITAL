@@ -107,7 +107,7 @@ export default function Footer() {
               className="text-gray-400 hover:text-gray-800 "
               onClick={() => router.push("/contact")}
             >
-              Contact Us
+              About Us
             </Button>
           </div>
         </div>

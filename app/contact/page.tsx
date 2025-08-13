@@ -293,7 +293,7 @@ export default function ContactPage() {
                 <div className="flex items-start gap-2">
                   <MapPin className="mt-0.5 h-5 w-5 text-red-600" />
                   <div className="text-sm">
-                    <p>SYSTECH IT SOLUTIONS Pvt. Ltd.</p>
+                    <p>SYSTECH IT SOLUTIONS </p>
                     <p>#23/1, 1st Floor, J.C. 1st Cross</p>
                     <p>JC Road, Near Poornima Theatre, Bengaluru</p>
                     <p>Karnataka, India - 560027</p>
@@ -356,7 +356,7 @@ export default function ContactPage() {
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "Organization",
-            name: "SYSTECH IT SOLUTIONS Pvt. Ltd.",
+            name: "SYSTECH IT SOLUTIONS",
             url: typeof window !== "undefined" ? window.location.origin : "https://example.com",
             logo: "/logo.png",
             email: "sales.systechdigital@gmail.com",
