@@ -20,10 +20,8 @@ import {
   Key,
   DollarSign,
   FileSpreadsheet,
-  RefreshCw,
   Trash2,
   Lock,
-  X,
   Send,
 } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -41,6 +39,14 @@ import { DashboardSidebar } from "@/components/dashboard-sidebar"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import Image from "next/image"
 import { toast } from "@/hooks/use-toast"
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination"
 
 export default function AdminPage() {
   const [claimResponses, setClaimResponses] = useState<ClaimResponse[]>([])
@@ -60,10 +66,13 @@ export default function AdminPage() {
   const [selectedRecords, setSelectedRecords] = useState<Set<string>>(new Set())
   const router = useRouter()
 
-  // State for Manual Assignment
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(25)
+  const [searchQuery, setSearchQuery] = useState("")
+
   const [manualAssignDialogOpen, setManualAssignDialogOpen] = useState(false)
   const [selectedClaimForManualAssign, setSelectedClaimForManualAssign] = useState<ClaimResponse | null>(null)
-  const [selectedKeyForManualAssign, setSelectedKeyForManualAssign] = useState<string>("")
+  const [selectedKeyForManualAssign, setSelectedKeyForManualAssign] = useState("")
   const [manualAssignPassword, setManualAssignPassword] = useState("")
   const [assigning, setAssigning] = useState(false)
 
@@ -433,20 +442,41 @@ export default function AdminPage() {
     usedKeys: ottKeys?.filter((k) => k.status === "used")?.length || 0,
   }
 
-  // Manual Assignment Handlers
+  const filteredClaims = claimResponses?.filter((claim) => {
+    const searchTerm = searchQuery.toLowerCase()
+    return (
+      claim.claimId?.toLowerCase().includes(searchTerm) ||
+      claim.firstName?.toLowerCase().includes(searchTerm) ||
+      claim.lastName?.toLowerCase().includes(searchTerm) ||
+      claim.email?.toLowerCase().includes(searchTerm) ||
+      claim.phoneNumber?.toLowerCase().includes(searchTerm) ||
+      claim.address?.toLowerCase().includes(searchTerm) ||
+      claim.state?.toLowerCase().includes(searchTerm) ||
+      claim.city?.toLowerCase().includes(searchTerm) ||
+      claim.pincode?.toLowerCase().includes(searchTerm) ||
+      claim.activationCode?.toLowerCase().includes(searchTerm)
+    )
+  })
+
+  const paginatedClaims = filteredClaims?.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+
+  const totalPages = Math.ceil((filteredClaims?.length || 0) / itemsPerPage)
+
+  const handlePageChange = (pageNumber: number) => {
+    setCurrentPage(pageNumber)
+  }
+
   const handleManualAssignClick = (claim: ClaimResponse) => {
     setSelectedClaimForManualAssign(claim)
-    setSelectedKeyForManualAssign("")
-    setManualAssignPassword("")
     setManualAssignDialogOpen(true)
   }
 
   const handleManualAssignConfirm = async () => {
     if (!selectedClaimForManualAssign || !selectedKeyForManualAssign || manualAssignPassword !== "Tr!ckyH@ck3r#2025") {
-      setError("Invalid input or password. Please select a key and enter the correct admin password.")
+      setError("Invalid input or password. Please check your selection and password.")
       toast({
-        title: "Assignment Failed",
-        description: "Invalid input or password. Please select a key and enter the correct admin password.",
+        title: "Invalid Input",
+        description: "Please check your selection and admin password.",
         variant: "destructive",
       })
       return
@@ -454,28 +484,22 @@ export default function AdminPage() {
 
     setAssigning(true)
     setError("")
-    setMessage("")
 
     try {
-      const response = await fetch("/api/admin/manual-assign-key", {
+      const url = `/api/admin/assign-key?claimId=${selectedClaimForManualAssign._id}&keyId=${selectedKeyForManualAssign}&password=${encodeURIComponent(manualAssignPassword)}`
+
+      const response = await fetch(url, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          claimId: selectedClaimForManualAssign._id || selectedClaimForManualAssign.id,
-          ottKeyId: selectedKeyForManualAssign,
-          adminPassword: manualAssignPassword,
-        }),
       })
 
       const result = await response.json()
+      console.log("Manual assign response:", result)
 
       if (response.ok) {
-        setMessage(result.message || "OTT Key manually assigned successfully!")
+        setMessage(result.message || "Key assigned successfully")
         toast({
           title: "Assignment Successful",
-          description: result.message || "OTT Key manually assigned successfully!",
+          description: result.message || "Key assigned successfully.",
         })
         setManualAssignDialogOpen(false)
         setSelectedClaimForManualAssign(null)
@@ -483,41 +507,24 @@ export default function AdminPage() {
         setManualAssignPassword("")
         fetchData() // Refresh data
       } else {
-        setError(result.error || "Manual assignment failed.")
+        setError(result.error || "Assignment failed")
         toast({
           title: "Assignment Failed",
-          description: result.error || "Manual assignment failed.",
+          description: result.error || "Failed to assign key.",
           variant: "destructive",
         })
       }
     } catch (error) {
-      console.error("Manual assignment error:", error)
-      setError("An unexpected error occurred during manual assignment.")
+      console.error("Assignment error:", error)
+      setError("Assignment operation failed")
       toast({
         title: "Assignment Error",
-        description: "An unexpected error occurred during manual assignment.",
+        description: "An unexpected error occurred during assignment.",
         variant: "destructive",
       })
     } finally {
       setAssigning(false)
     }
-  }
-
-  if (loading) {
-    return (
-      <SidebarProvider>
-        <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex">
-          <DashboardSidebar />
-          <SidebarInset className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-600 mx-auto mb-4"></div>
-              <p className="text-purple-600 text-lg font-medium">Loading admin panel...</p>
-              <p className="text-gray-500 text-sm mt-2">Connecting to systech_ott_platform database</p>
-            </div>
-          </SidebarInset>
-        </div>
-      </SidebarProvider>
-    )
   }
 
   return (
@@ -546,25 +553,6 @@ export default function AdminPage() {
                       <p className="text-purple-200 text-lg">systech_ott_platform Database Management</p>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center space-x-4">
-                  {selectedRecords.size > 0 && (
-                    <div className="bg-white/20 px-4 py-2 rounded-lg">
-                      <span className="text-white font-medium">{selectedRecords.size} selected</span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setSelectedRecords(new Set())}
-                        className="ml-2 bg-white/20 text-white border-white/30 hover:bg-white/30"
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  )}
-                  <Button onClick={fetchData} className="bg-white/20 hover:bg-white/30 text-white border-white/30">
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Refresh Data
-                  </Button>
                 </div>
               </div>
             </div>
@@ -672,7 +660,8 @@ export default function AdminPage() {
                   <div className="space-y-4">
                     <div className="bg-blue-50 p-6 rounded-xl border border-blue-200">
                       <h3 className="text-xl font-semibold text-blue-900 mb-4 flex items-center">
-                        <FileSpreadsheet className="w-5 h-5 mr-2" /> Activation Code/Product Serial Number/IMEI Number Upload
+                        <FileSpreadsheet className="w-5 h-5 mr-2" /> Activation Code/Product Serial Number/IMEI Number
+                        Upload
                       </h3>
                       <p className="text-blue-800 mb-4">Upload Excel/CSV file to collection</p>
                       <div className="space-y-3">
@@ -819,6 +808,15 @@ export default function AdminPage() {
                     </div>
                   </CardHeader>
                   <CardContent className="p-0">
+                    <div className="flex px-4 py-2 justify-between items-center">
+                      <Input
+                        type="search"
+                        placeholder="Search claims..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="max-w-xs"
+                      />
+                    </div>
                     <div className="overflow-x-auto">
                       <Table>
                         <TableHeader className="bg-gray-50">
@@ -826,10 +824,12 @@ export default function AdminPage() {
                             <TableHead className="w-12">
                               <Checkbox
                                 checked={
-                                  claimResponses?.length > 0 &&
-                                  claimResponses.every((claim) => selectedRecords.has(claim._id || claim.id))
+                                  paginatedClaims?.length > 0 &&
+                                  paginatedClaims.every((claim) => selectedRecords.has(claim._id || claim.id))
                                 }
-                                onCheckedChange={(checked) => handleSelectAll(claimResponses || [], checked as boolean)}
+                                onCheckedChange={(checked) =>
+                                  handleSelectAll(paginatedClaims || [], checked as boolean)
+                                }
                               />
                             </TableHead>
                             <TableHead className="font-bold text-gray-800">Claim ID</TableHead>
@@ -849,7 +849,7 @@ export default function AdminPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {claimResponses?.map((claim, index) => (
+                          {paginatedClaims?.map((claim, index) => (
                             <TableRow
                               key={claim._id || claim.id}
                               className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
@@ -920,6 +920,31 @@ export default function AdminPage() {
                         </TableBody>
                       </Table>
                     </div>
+                    <Pagination className="w-full justify-center">
+                      <PaginationContent>
+                        <PaginationPrevious
+                          href="#"
+                          onClick={() => handlePageChange(currentPage - 1)}
+                          disabled={currentPage === 1}
+                        />
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                          <PaginationItem key={page}>
+                            <PaginationLink
+                              href="#"
+                              onClick={() => handlePageChange(page)}
+                              isActive={page === currentPage}
+                            >
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        ))}
+                        <PaginationNext
+                          href="#"
+                          onClick={() => handlePageChange(currentPage + 1)}
+                          disabled={currentPage === totalPages}
+                        />
+                      </PaginationContent>
+                    </Pagination>
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -947,6 +972,15 @@ export default function AdminPage() {
                     </div>
                   </CardHeader>
                   <CardContent className="p-0">
+                    <div className="flex px-4 py-2 justify-between items-center">
+                      <Input
+                        type="search"
+                        placeholder="Search sales records..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="max-w-xs"
+                      />
+                    </div>
                     <div className="overflow-x-auto">
                       <Table>
                         <TableHeader className="bg-gray-50">
@@ -1036,6 +1070,15 @@ export default function AdminPage() {
                     </div>
                   </CardHeader>
                   <CardContent className="p-0">
+                    <div className="flex px-4 py-2 justify-between items-center">
+                      <Input
+                        type="search"
+                        placeholder="Search OTT keys..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="max-w-xs"
+                      />
+                    </div>
                     <div className="overflow-x-auto">
                       <Table>
                         <TableHeader className="bg-gray-50">
