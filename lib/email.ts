@@ -4,6 +4,7 @@ interface EmailOptions {
   to: string
   subject: string
   html: string
+  cc?: string[] // Added optional CC field
 }
 
 interface EmailData {
@@ -12,6 +13,8 @@ interface EmailData {
   template: string
   data: Record<string, any>
 }
+
+const DEFAULT_CC_RECIPIENTS = ["kshivshankar@live.com", "abhishek@systechitsolutions.co.in"]
 
 const emailTemplates = {
   // 1. Order Placed Email (After form submission)
@@ -122,7 +125,8 @@ const emailTemplates = {
   </body>
   </html>`,
 
-  // 2. Payment Success Email (After payment completion)
+  // ... existing code for other templates ...
+
   payment_success_detailed: (data: any) => `
   <!DOCTYPE html>
   <html>
@@ -234,7 +238,8 @@ const emailTemplates = {
   </body>
   </html>`,
 
-  // 3. OTT Success Email (After automation runs successfully)
+  // ... existing code for other templates ...
+
   ott_success: (data: any) => `
   <!DOCTYPE html>
   <html>
@@ -359,7 +364,8 @@ const emailTemplates = {
   </body>
   </html>`,
 
-  // 4. OTT Failure Email (When automation fails)
+  // ... existing code for other templates ...
+
   ott_failure: (data: any) => `
   <!DOCTYPE html>
   <html>
@@ -661,7 +667,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
 
   try {
     console.log("Creating transporter...")
-    const transporter = nodemailer.createTransport({
+    const transporter = nodemailer.createTransporter({
       service: "gmail",
       host: "smtp.gmail.com",
       port: 587,
@@ -679,9 +685,15 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     await transporter.verify()
     console.log("Transporter verified successfully")
 
+    const allCcRecipients = [...DEFAULT_CC_RECIPIENTS]
+    if (options.cc && options.cc.length > 0) {
+      allCcRecipients.push(...options.cc)
+    }
+
     const mailOptions = {
       from: `"Systech Digital" <${user}>`,
       to: options.to,
+      cc: allCcRecipients.join(", "), // Add CC recipients
       subject: options.subject,
       html: options.html,
     }
@@ -689,12 +701,14 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     console.log("Sending email with options:", {
       from: mailOptions.from,
       to: mailOptions.to,
+      cc: mailOptions.cc, // Log CC recipients
       subject: mailOptions.subject,
       htmlLength: options.html.length,
     })
 
     const result = await transporter.sendMail(mailOptions)
     console.log("Email sent successfully:", result.messageId)
+    console.log("CC recipients included:", allCcRecipients) // Log CC confirmation
     console.log("=== EMAIL SEND SUCCESS ===")
     return true
   } catch (error) {
@@ -709,4 +723,23 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     console.error("=== EMAIL SEND ERROR END ===")
     return false
   }
+}
+
+export { emailTemplates }
+
+export async function sendTemplatedEmail(emailData: EmailData): Promise<boolean> {
+  const template = emailTemplates[emailData.template as keyof typeof emailTemplates]
+
+  if (!template) {
+    console.error(`Template '${emailData.template}' not found`)
+    return false
+  }
+
+  const html = template(emailData.data)
+
+  return await sendEmail({
+    to: emailData.to,
+    subject: emailData.subject,
+    html: html,
+  })
 }
