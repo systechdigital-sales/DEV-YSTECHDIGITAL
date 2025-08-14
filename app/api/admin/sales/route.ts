@@ -11,6 +11,8 @@ export async function GET(request: NextRequest) {
     const limit = Number.parseInt(searchParams.get("limit") || "10")
     const search = searchParams.get("search") || ""
     const status = searchParams.get("status")
+    const sortBy = searchParams.get("sortBy") || "createdAt"
+    const sortOrder = searchParams.get("sortOrder") || "desc"
 
     const db = await getDatabase()
     const salesCollection = db.collection<ISalesRecord>("salesrecords")
@@ -30,13 +32,17 @@ export async function GET(request: NextRequest) {
       query.status = status
     }
 
+    // Build sort object
+    const sortObj: any = {}
+    sortObj[sortBy] = sortOrder === "asc" ? 1 : -1
+
     // Get total count for pagination
     const total = await salesCollection.countDocuments(query)
     const totalPages = Math.ceil(total / limit)
     const skip = (page - 1) * limit
 
     // Fetch paginated data
-    const sales = await salesCollection.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).toArray()
+    const sales = await salesCollection.find(query).sort(sortObj).skip(skip).limit(limit).toArray()
 
     const formattedSales: SalesRecord[] = sales.map((sale) => ({
       ...sale,

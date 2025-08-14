@@ -26,6 +26,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Search,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
@@ -58,12 +61,26 @@ interface Stats {
   paidClaims: number
   pendingClaims: number
   failedClaims: number
+  deliveredClaims: number
   totalSales: number
+  availableSales: number
   claimedSales: number
   availableKeys: number
   assignedKeys: number
   usedKeys: number
   totalKeys: number
+}
+
+interface SortConfig {
+  key: string
+  direction: "asc" | "desc"
+}
+
+interface FilterConfig {
+  paymentStatus: string
+  ottStatus: string
+  salesStatus: string
+  keysStatus: string
 }
 
 export default function AdminPage() {
@@ -97,22 +114,35 @@ export default function AdminPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [searchLoading, setSearchLoading] = useState(false)
 
+  // Filter state
+  const [filters, setFilters] = useState<FilterConfig>({
+    paymentStatus: "all",
+    ottStatus: "all",
+    salesStatus: "all",
+    keysStatus: "all",
+  })
+
+  // Sort state
+  const [sortConfig, setSortConfig] = useState<SortConfig>({
+    key: "createdAt",
+    direction: "desc",
+  })
+
   // Stats state
   const [stats, setStats] = useState<Stats>({
     totalClaims: 0,
     paidClaims: 0,
     pendingClaims: 0,
     failedClaims: 0,
+    deliveredClaims: 0,
     totalSales: 0,
+    availableSales: 0,
     claimedSales: 0,
     availableKeys: 0,
     assignedKeys: 0,
     usedKeys: 0,
     totalKeys: 0,
   })
-
-  // Selection state
-  const [selectedRecords, setSelectedRecords] = useState<Set<string>>(new Set())
 
   // Dialog states
   const [deletePassword, setDeletePassword] = useState("")
@@ -144,8 +174,7 @@ export default function AdminPage() {
   // Load data when tab changes
   useEffect(() => {
     loadCurrentTabData()
-    setSelectedRecords(new Set())
-  }, [activeTab])
+  }, [activeTab, sortConfig, filters])
 
   // Load stats (lightweight operation)
   const loadStats = async () => {
@@ -174,7 +203,27 @@ export default function AdminPage() {
           page: page.toString(),
           limit: ITEMS_PER_PAGE.toString(),
           search: search,
+          sortBy: sortConfig.key,
+          sortOrder: sortConfig.direction,
         })
+
+        // Add filters based on active tab
+        if (activeTab === "claims") {
+          if (filters.paymentStatus !== "all") {
+            params.append("paymentStatus", filters.paymentStatus)
+          }
+          if (filters.ottStatus !== "all") {
+            params.append("ottStatus", filters.ottStatus)
+          }
+        } else if (activeTab === "sales") {
+          if (filters.salesStatus !== "all") {
+            params.append("status", filters.salesStatus)
+          }
+        } else if (activeTab === "keys") {
+          if (filters.keysStatus !== "all") {
+            params.append("status", filters.keysStatus)
+          }
+        }
 
         const response = await fetch(`/api/admin/${activeTab}?${params}`, {
           method: "GET",
@@ -214,7 +263,7 @@ export default function AdminPage() {
         setLoading(false)
       }
     },
-    [activeTab],
+    [activeTab, sortConfig, filters],
   )
 
   // Handle search with debouncing
@@ -235,20 +284,47 @@ export default function AdminPage() {
       [activeTab]: { ...prev[activeTab as keyof typeof prev], page },
     }))
     loadCurrentTabData(page, searchTerm)
-    setSelectedRecords(new Set())
   }
 
   // Handle tab change
   const handleTabChange = (value: string) => {
     setActiveTab(value)
     setSearchTerm("")
-    setSelectedRecords(new Set())
+    // Reset sort to default
+    setSortConfig({ key: "createdAt", direction: "desc" })
   }
 
   // Handle search change
   const handleSearchChange = (value: string) => {
     setSearchTerm(value)
-    setSelectedRecords(new Set())
+  }
+
+  // Handle filter change
+  const handleFilterChange = (filterType: keyof FilterConfig, value: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      [filterType]: value,
+    }))
+  }
+
+  // Handle sort change
+  const handleSort = (key: string) => {
+    setSortConfig((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
+    }))
+  }
+
+  // Get sort icon
+  const getSortIcon = (key: string) => {
+    if (sortConfig.key !== key) {
+      return <ArrowUpDown className="w-4 h-4 ml-1 text-gray-400" />
+    }
+    return sortConfig.direction === "asc" ? (
+      <ArrowUp className="w-4 h-4 ml-1 text-blue-600" />
+    ) : (
+      <ArrowDown className="w-4 h-4 ml-1 text-blue-600" />
+    )
   }
 
   // File upload handler
@@ -567,6 +643,19 @@ export default function AdminPage() {
     }
   }
 
+  // Sortable table header component
+  const SortableHeader = ({ children, sortKey }: { children: React.ReactNode; sortKey: string }) => (
+    <TableHead
+      className="font-bold text-gray-800 cursor-pointer hover:bg-gray-100 select-none"
+      onClick={() => handleSort(sortKey)}
+    >
+      <div className="flex items-center">
+        {children}
+        {getSortIcon(sortKey)}
+      </div>
+    </TableHead>
+  )
+
   // Pagination component
   const PaginationControls = () => {
     const currentPagination = pagination[activeTab as keyof typeof pagination]
@@ -706,7 +795,7 @@ export default function AdminPage() {
                       <p className="text-sm font-medium text-gray-600">Total Claims</p>
                       <p className="text-3xl font-bold text-gray-900">{stats.totalClaims}</p>
                       <p className="text-sm text-gray-500">
-                        {stats.paidClaims} paid • {stats.pendingClaims} pending
+                        {stats.paidClaims} paid • {stats.pendingClaims} pending • {stats.deliveredClaims} delivered
                       </p>
                     </div>
                     <div className="p-3 bg-blue-100 rounded-full">
@@ -723,7 +812,7 @@ export default function AdminPage() {
                       <p className="text-sm font-medium text-gray-600">Redemption Records</p>
                       <p className="text-3xl font-bold text-gray-900">{stats.totalSales}</p>
                       <p className="text-sm text-gray-500">
-                        {stats.totalSales - stats.claimedSales} available • {stats.claimedSales} claimed
+                        {stats.availableSales} available • {stats.claimedSales} claimed
                       </p>
                     </div>
                     <div className="p-3 bg-green-100 rounded-full">
@@ -936,8 +1025,8 @@ export default function AdminPage() {
                       </div>
                     </div>
 
-                    {/* Search */}
-                    <div className="mt-6">
+                    {/* Search and Filters */}
+                    <div className="mt-6 space-y-4">
                       <div className="flex items-center space-x-4">
                         <div className="flex-1 relative">
                           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -952,6 +1041,44 @@ export default function AdminPage() {
                           <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
                         )}
                       </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700">Payment Status</Label>
+                          <Select
+                            value={filters.paymentStatus}
+                            onValueChange={(value) => handleFilterChange("paymentStatus", value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="All Payment Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Payment Status</SelectItem>
+                              <SelectItem value="pending">Pending</SelectItem>
+                              <SelectItem value="paid">Paid</SelectItem>
+                              <SelectItem value="failed">Failed</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700">OTT Status</Label>
+                          <Select
+                            value={filters.ottStatus}
+                            onValueChange={(value) => handleFilterChange("ottStatus", value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="All OTT Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All OTT Status</SelectItem>
+                              <SelectItem value="pending">Pending</SelectItem>
+                              <SelectItem value="delivered">Delivered</SelectItem>
+                              <SelectItem value="failed">Failed</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="p-0">
@@ -959,13 +1086,25 @@ export default function AdminPage() {
                       <Table>
                         <TableHeader className="bg-gray-50">
                           <TableRow>
-                            <TableHead className="font-bold text-gray-800">Name</TableHead>
-                            <TableHead className="font-bold text-gray-800">Email</TableHead>
-                            <TableHead className="font-bold text-gray-800">Phone</TableHead>
-                            <TableHead className="font-bold text-gray-800">Activation Code</TableHead>
-                            <TableHead className="font-bold text-gray-800">Payment Status</TableHead>
-                            <TableHead className="font-bold text-gray-800">OTT Status</TableHead>
-                            <TableHead className="font-bold text-gray-800">Created</TableHead>
+                            <SortableHeader sortKey="claimId">Claim ID</SortableHeader>
+                            <SortableHeader sortKey="firstName">First Name</SortableHeader>
+                            <SortableHeader sortKey="lastName">Last Name</SortableHeader>
+                            <SortableHeader sortKey="email">Email</SortableHeader>
+                            <SortableHeader sortKey="phoneNumber">Phone</SortableHeader>
+                            <SortableHeader sortKey="streetAddress">Street Address</SortableHeader>
+                            <SortableHeader sortKey="addressLine2">Address Line 2</SortableHeader>
+                            <SortableHeader sortKey="state">State</SortableHeader>
+                            <SortableHeader sortKey="city">City</SortableHeader>
+                            <SortableHeader sortKey="pincode">Pincode</SortableHeader>
+                            <SortableHeader sortKey="activationCode">Activation Code</SortableHeader>
+                            <SortableHeader sortKey="paymentStatus">Payment Status</SortableHeader>
+                            <SortableHeader sortKey="ottStatus">OTT Status</SortableHeader>
+                            <SortableHeader sortKey="ottCode">OTT Code</SortableHeader>
+                            <SortableHeader sortKey="paymentId">Payment ID</SortableHeader>
+                            <SortableHeader sortKey="razorpayOrderId">Razorpay Order ID</SortableHeader>
+                            <SortableHeader sortKey="amount">Amount</SortableHeader>
+                            <SortableHeader sortKey="createdAt">Created</SortableHeader>
+                            <SortableHeader sortKey="updatedAt">Updated</SortableHeader>
                             <TableHead className="font-bold text-gray-800">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -976,16 +1115,34 @@ export default function AdminPage() {
                                 key={claim._id || claim.id}
                                 className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
                               >
-                                <TableCell className="font-medium">
-                                  {`${claim.firstName || ""} ${claim.lastName || ""}`.trim() || "N/A"}
-                                </TableCell>
+                                <TableCell className="font-mono text-sm">{claim.claimId || "N/A"}</TableCell>
+                                <TableCell className="font-medium">{claim.firstName || "N/A"}</TableCell>
+                                <TableCell className="font-medium">{claim.lastName || "N/A"}</TableCell>
                                 <TableCell>{claim.email || "N/A"}</TableCell>
-                                <TableCell>{claim.phoneNumber || claim.phone || "N/A"}</TableCell>
+                                <TableCell>{claim.phoneNumber || "N/A"}</TableCell>
+                                <TableCell className="max-w-xs truncate" title={claim.streetAddress || "N/A"}>
+                                  {claim.streetAddress || "N/A"}
+                                </TableCell>
+                                <TableCell className="max-w-xs truncate" title={claim.addressLine2 || "N/A"}>
+                                  {claim.addressLine2 || "N/A"}
+                                </TableCell>
+                                <TableCell>{claim.state || "N/A"}</TableCell>
+                                <TableCell>{claim.city || "N/A"}</TableCell>
+                                <TableCell>{claim.pincode || "N/A"}</TableCell>
                                 <TableCell className="font-mono text-sm">{claim.activationCode || "N/A"}</TableCell>
                                 <TableCell>{getStatusBadge(claim.paymentStatus)}</TableCell>
-                                <TableCell>{getStatusBadge(claim.ottCodeStatus || claim.ottStatus)}</TableCell>
+                                <TableCell>{getStatusBadge(claim.ottStatus)}</TableCell>
+                                <TableCell className="font-mono text-sm">
+                                  {claim.ottCode || <span className="text-gray-400">-</span>}
+                                </TableCell>
+                                <TableCell className="font-mono text-xs">{claim.paymentId || "N/A"}</TableCell>
+                                <TableCell className="font-mono text-xs">{claim.razorpayOrderId || "N/A"}</TableCell>
+                                <TableCell className="font-semibold">₹{claim.amount || 99}</TableCell>
                                 <TableCell className="text-sm text-gray-600">
                                   {formatDateTime(claim.createdAt)}
+                                </TableCell>
+                                <TableCell className="text-sm text-gray-600">
+                                  {formatDateTime(claim.updatedAt)}
                                 </TableCell>
                                 <TableCell className="flex gap-2">
                                   <Button
@@ -1002,7 +1159,7 @@ export default function AdminPage() {
                                     variant="outline"
                                     size="sm"
                                     onClick={() => handleManualAssignClick(claim)}
-                                    disabled={claim.ottCodeStatus === "delivered" || claim.paymentStatus !== "paid"}
+                                    disabled={claim.ottStatus === "delivered" || claim.paymentStatus !== "paid"}
                                     className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200"
                                   >
                                     <Send className="w-4 h-4" />
@@ -1012,7 +1169,7 @@ export default function AdminPage() {
                             ))
                           ) : (
                             <TableRow>
-                              <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                              <TableCell colSpan={20} className="text-center py-8 text-gray-500">
                                 {searchLoading ? "Searching..." : "No claims data available"}
                               </TableCell>
                             </TableRow>
@@ -1037,8 +1194,8 @@ export default function AdminPage() {
                       </div>
                     </div>
 
-                    {/* Search */}
-                    <div className="mt-6">
+                    {/* Search and Filters */}
+                    <div className="mt-6 space-y-4">
                       <div className="flex items-center space-x-4">
                         <div className="flex-1 relative">
                           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -1053,6 +1210,25 @@ export default function AdminPage() {
                           <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
                         )}
                       </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700">Status</Label>
+                          <Select
+                            value={filters.salesStatus}
+                            onValueChange={(value) => handleFilterChange("salesStatus", value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="All Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Status</SelectItem>
+                              <SelectItem value="available">Available</SelectItem>
+                              <SelectItem value="claimed">Claimed</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="p-0">
@@ -1060,12 +1236,14 @@ export default function AdminPage() {
                       <Table>
                         <TableHeader className="bg-gray-50">
                           <TableRow>
-                            <TableHead className="font-bold text-gray-800">Activation Code</TableHead>
-                            <TableHead className="font-bold text-gray-800">Product</TableHead>
-                            <TableHead className="font-bold text-gray-800">Category</TableHead>
-                            <TableHead className="font-bold text-gray-800">Status</TableHead>
-                            <TableHead className="font-bold text-gray-800">Claimed By</TableHead>
-                            <TableHead className="font-bold text-gray-800">Created</TableHead>
+                            <SortableHeader sortKey="activationCode">Activation Code</SortableHeader>
+                            <SortableHeader sortKey="product">Product</SortableHeader>
+                            <SortableHeader sortKey="productSubCategory">Category</SortableHeader>
+                            <SortableHeader sortKey="status">Status</SortableHeader>
+                            <SortableHeader sortKey="claimedBy">Claimed By</SortableHeader>
+                            <SortableHeader sortKey="claimedDate">Claimed Date</SortableHeader>
+                            <SortableHeader sortKey="createdAt">Created</SortableHeader>
+                            <SortableHeader sortKey="updatedAt">Updated</SortableHeader>
                             <TableHead className="font-bold text-gray-800">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -1082,7 +1260,13 @@ export default function AdminPage() {
                                 <TableCell>{getStatusBadge(sale.status)}</TableCell>
                                 <TableCell>{sale.claimedBy || <span className="text-gray-400">-</span>}</TableCell>
                                 <TableCell className="text-sm text-gray-600">
+                                  {formatDateTime(sale.claimedDate)}
+                                </TableCell>
+                                <TableCell className="text-sm text-gray-600">
                                   {formatDateTime(sale.createdAt)}
+                                </TableCell>
+                                <TableCell className="text-sm text-gray-600">
+                                  {formatDateTime(sale.updatedAt)}
                                 </TableCell>
                                 <TableCell>
                                   <Button
@@ -1100,7 +1284,7 @@ export default function AdminPage() {
                             ))
                           ) : (
                             <TableRow>
-                              <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                              <TableCell colSpan={9} className="text-center py-8 text-gray-500">
                                 {searchLoading ? "Searching..." : "No sales data available"}
                               </TableCell>
                             </TableRow>
@@ -1125,8 +1309,8 @@ export default function AdminPage() {
                       </div>
                     </div>
 
-                    {/* Search */}
-                    <div className="mt-6">
+                    {/* Search and Filters */}
+                    <div className="mt-6 space-y-4">
                       <div className="flex items-center space-x-4">
                         <div className="flex-1 relative">
                           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -1141,6 +1325,26 @@ export default function AdminPage() {
                           <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
                         )}
                       </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700">Status</Label>
+                          <Select
+                            value={filters.keysStatus}
+                            onValueChange={(value) => handleFilterChange("keysStatus", value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="All Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Status</SelectItem>
+                              <SelectItem value="available">Available</SelectItem>
+                              <SelectItem value="assigned">Assigned</SelectItem>
+                              <SelectItem value="used">Used</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="p-0">
@@ -1148,12 +1352,14 @@ export default function AdminPage() {
                       <Table>
                         <TableHeader className="bg-gray-50">
                           <TableRow>
-                            <TableHead className="font-bold text-gray-800">Activation Code</TableHead>
-                            <TableHead className="font-bold text-gray-800">Product</TableHead>
-                            <TableHead className="font-bold text-gray-800">Category</TableHead>
-                            <TableHead className="font-bold text-gray-800">Status</TableHead>
-                            <TableHead className="font-bold text-gray-800">Assigned To</TableHead>
-                            <TableHead className="font-bold text-gray-800">Created</TableHead>
+                            <SortableHeader sortKey="activationCode">Activation Code</SortableHeader>
+                            <SortableHeader sortKey="product">Product</SortableHeader>
+                            <SortableHeader sortKey="productSubCategory">Category</SortableHeader>
+                            <SortableHeader sortKey="status">Status</SortableHeader>
+                            <SortableHeader sortKey="assignedEmail">Assigned To</SortableHeader>
+                            <SortableHeader sortKey="assignedDate">Assigned Date</SortableHeader>
+                            <SortableHeader sortKey="createdAt">Created</SortableHeader>
+                            <SortableHeader sortKey="updatedAt">Updated</SortableHeader>
                             <TableHead className="font-bold text-gray-800">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -1166,7 +1372,11 @@ export default function AdminPage() {
                                 <TableCell>{key.productSubCategory || "N/A"}</TableCell>
                                 <TableCell>{getStatusBadge(key.status)}</TableCell>
                                 <TableCell>{key.assignedEmail || <span className="text-gray-400">-</span>}</TableCell>
+                                <TableCell className="text-sm text-gray-600">
+                                  {formatDateTime(key.assignedDate)}
+                                </TableCell>
                                 <TableCell className="text-sm text-gray-600">{formatDateTime(key.createdAt)}</TableCell>
+                                <TableCell className="text-sm text-gray-600">{formatDateTime(key.updatedAt)}</TableCell>
                                 <TableCell>
                                   <Button
                                     variant="outline"
@@ -1183,7 +1393,7 @@ export default function AdminPage() {
                             ))
                           ) : (
                             <TableRow>
-                              <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                              <TableCell colSpan={9} className="text-center py-8 text-gray-500">
                                 {searchLoading ? "Searching..." : "No keys data available"}
                               </TableCell>
                             </TableRow>

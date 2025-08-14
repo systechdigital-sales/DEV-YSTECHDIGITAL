@@ -1,117 +1,96 @@
-import { type NextRequest, NextResponse } from "next/server"
+export const dynamic = "force-dynamic"
+
+import { NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const db = await getDatabase()
 
-    // Get counts from all collections in parallel
-    const [claimsStats, salesStats, keysStats] = await Promise.all([
-      // Claims stats
-      db
-        .collection("claims")
-        .aggregate([
-          {
-            $group: {
-              _id: null,
-              totalClaims: { $sum: 1 },
-              paidClaims: {
-                $sum: {
-                  $cond: [{ $eq: ["$paymentStatus", "paid"] }, 1, 0],
-                },
-              },
-              pendingClaims: {
-                $sum: {
-                  $cond: [{ $eq: ["$paymentStatus", "pending"] }, 1, 0],
-                },
-              },
-              failedClaims: {
-                $sum: {
-                  $cond: [{ $eq: ["$paymentStatus", "failed"] }, 1, 0],
-                },
-              },
-            },
+    // Get claims statistics
+    const claimsStats = await db
+      .collection("claims")
+      .aggregate([
+        {
+          $group: {
+            _id: null,
+            total: { $sum: 1 },
+            paid: { $sum: { $cond: [{ $eq: ["$paymentStatus", "paid"] }, 1, 0] } },
+            pending: { $sum: { $cond: [{ $eq: ["$paymentStatus", "pending"] }, 1, 0] } },
+            failed: { $sum: { $cond: [{ $eq: ["$paymentStatus", "failed"] }, 1, 0] } },
+            delivered: { $sum: { $cond: [{ $eq: ["$ottCodeStatus", "delivered"] }, 1, 0] } },
           },
-        ])
-        .toArray(),
+        },
+      ])
+      .toArray()
 
-      // Sales stats
-      db
-        .collection("salesrecords")
-        .aggregate([
-          {
-            $group: {
-              _id: null,
-              totalSales: { $sum: 1 },
-              claimedSales: {
-                $sum: {
-                  $cond: [{ $eq: ["$status", "claimed"] }, 1, 0],
-                },
-              },
-            },
+    // Get sales statistics
+    const salesStats = await db
+      .collection("salesrecords")
+      .aggregate([
+        {
+          $group: {
+            _id: null,
+            total: { $sum: 1 },
+            available: { $sum: { $cond: [{ $eq: ["$status", "available"] }, 1, 0] } },
+            claimed: { $sum: { $cond: [{ $eq: ["$status", "claimed"] }, 1, 0] } },
           },
-        ])
-        .toArray(),
+        },
+      ])
+      .toArray()
 
-      // Keys stats
-      db
-        .collection("ottkeys")
-        .aggregate([
-          {
-            $group: {
-              _id: null,
-              totalKeys: { $sum: 1 },
-              availableKeys: {
-                $sum: {
-                  $cond: [{ $eq: ["$status", "available"] }, 1, 0],
-                },
-              },
-              assignedKeys: {
-                $sum: {
-                  $cond: [{ $eq: ["$status", "assigned"] }, 1, 0],
-                },
-              },
-              usedKeys: {
-                $sum: {
-                  $cond: [{ $eq: ["$status", "used"] }, 1, 0],
-                },
-              },
-            },
+    // Get keys statistics
+    const keysStats = await db
+      .collection("ottkeys")
+      .aggregate([
+        {
+          $group: {
+            _id: null,
+            total: { $sum: 1 },
+            available: { $sum: { $cond: [{ $eq: ["$status", "available"] }, 1, 0] } },
+            assigned: { $sum: { $cond: [{ $eq: ["$status", "assigned"] }, 1, 0] } },
+            used: { $sum: { $cond: [{ $eq: ["$status", "used"] }, 1, 0] } },
           },
-        ])
-        .toArray(),
-    ])
+        },
+      ])
+      .toArray()
 
-    const stats = {
-      totalClaims: claimsStats[0]?.totalClaims || 0,
-      paidClaims: claimsStats[0]?.paidClaims || 0,
-      pendingClaims: claimsStats[0]?.pendingClaims || 0,
-      failedClaims: claimsStats[0]?.failedClaims || 0,
-      totalSales: salesStats[0]?.totalSales || 0,
-      claimedSales: salesStats[0]?.claimedSales || 0,
-      availableKeys: keysStats[0]?.availableKeys || 0,
-      assignedKeys: keysStats[0]?.assignedKeys || 0,
-      usedKeys: keysStats[0]?.usedKeys || 0,
-      totalKeys: keysStats[0]?.totalKeys || 0,
-    }
+    const claims = claimsStats[0] || { total: 0, paid: 0, pending: 0, failed: 0, delivered: 0 }
+    const sales = salesStats[0] || { total: 0, available: 0, claimed: 0 }
+    const keys = keysStats[0] || { total: 0, available: 0, assigned: 0, used: 0 }
 
-    return NextResponse.json(stats)
+    return NextResponse.json({
+      totalClaims: claims.total,
+      paidClaims: claims.paid,
+      pendingClaims: claims.pending,
+      failedClaims: claims.failed,
+      deliveredClaims: claims.delivered,
+      totalSales: sales.total,
+      availableSales: sales.available,
+      claimedSales: sales.claimed,
+      totalKeys: keys.total,
+      availableKeys: keys.available,
+      assignedKeys: keys.assigned,
+      usedKeys: keys.used,
+    })
   } catch (error: any) {
-    console.error("❌ Error fetching stats:", error)
+    console.error("Error fetching stats:", error)
     return NextResponse.json(
       {
         totalClaims: 0,
         paidClaims: 0,
         pendingClaims: 0,
         failedClaims: 0,
+        deliveredClaims: 0,
         totalSales: 0,
+        availableSales: 0,
         claimedSales: 0,
+        totalKeys: 0,
         availableKeys: 0,
         assignedKeys: 0,
         usedKeys: 0,
-        totalKeys: 0,
       },
-      { status: 200 },
+      { status: 500 },
     )
   }
 }

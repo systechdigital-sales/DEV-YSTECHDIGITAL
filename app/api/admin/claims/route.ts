@@ -8,6 +8,10 @@ export async function GET(request: NextRequest) {
     const limit = Number.parseInt(searchParams.get("limit") || "10")
     const search = searchParams.get("search") || ""
     const claimId = searchParams.get("claimId")
+    const paymentStatus = searchParams.get("paymentStatus")
+    const ottStatus = searchParams.get("ottStatus")
+    const sortBy = searchParams.get("sortBy") || "createdAt"
+    const sortOrder = searchParams.get("sortOrder") || "desc"
 
     const db = await getDatabase()
     const claimsCollection = db.collection("claims")
@@ -31,10 +35,11 @@ export async function GET(request: NextRequest) {
           lastName: claim.lastName || "",
           email: claim.email || "",
           phoneNumber: claim.phoneNumber || claim.phone || "",
-          address: claim.address || "",
+          streetAddress: claim.streetAddress || claim.address || "",
+          addressLine2: claim.addressLine2 || "",
           state: claim.state || "",
           city: claim.city || "",
-          pincode: claim.pincode || "",
+          pincode: claim.pincode || claim.postalCode || "",
           activationCode: claim.activationCode || "",
           paymentStatus: claim.paymentStatus || "pending",
           ottStatus: claim.ottStatus || claim.ottCodeStatus || "pending",
@@ -49,20 +54,43 @@ export async function GET(request: NextRequest) {
     }
 
     // Build search query
-    let query = {}
+    let query: any = {}
     if (search) {
-      query = {
-        $or: [
-          { firstName: { $regex: search, $options: "i" } },
-          { lastName: { $regex: search, $options: "i" } },
-          { email: { $regex: search, $options: "i" } },
-          { phoneNumber: { $regex: search, $options: "i" } },
-          { phone: { $regex: search, $options: "i" } },
-          { activationCode: { $regex: search, $options: "i" } },
-          { claimId: { $regex: search, $options: "i" } },
-        ],
+      query.$or = [
+        { firstName: { $regex: search, $options: "i" } },
+        { lastName: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+        { phoneNumber: { $regex: search, $options: "i" } },
+        { phone: { $regex: search, $options: "i" } },
+        { activationCode: { $regex: search, $options: "i" } },
+        { claimId: { $regex: search, $options: "i" } },
+        { state: { $regex: search, $options: "i" } },
+        { city: { $regex: search, $options: "i" } },
+      ]
+    }
+
+    // Add filters
+    if (paymentStatus && paymentStatus !== "all") {
+      query.paymentStatus = paymentStatus
+    }
+
+    if (ottStatus && ottStatus !== "all") {
+      query.$or = query.$or || []
+      if (query.$or.length === 0) {
+        query = { ...query, $or: [{ ottStatus: ottStatus }, { ottCodeStatus: ottStatus }] }
+      } else {
+        // If search is already applied, we need to combine filters differently
+        const searchQuery = query.$or
+        query = {
+          $and: [{ $or: searchQuery }, { $or: [{ ottStatus: ottStatus }, { ottCodeStatus: ottStatus }] }],
+        }
+        delete query.$or
       }
     }
+
+    // Build sort object
+    const sortObj: any = {}
+    sortObj[sortBy] = sortOrder === "asc" ? 1 : -1
 
     // Get total count for pagination
     const total = await claimsCollection.countDocuments(query)
@@ -70,7 +98,7 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit
 
     // Fetch paginated data
-    const claims = await claimsCollection.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).toArray()
+    const claims = await claimsCollection.find(query).sort(sortObj).skip(skip).limit(limit).toArray()
 
     const formattedClaims = claims.map((claim) => ({
       _id: claim._id?.toString(),
@@ -79,10 +107,11 @@ export async function GET(request: NextRequest) {
       lastName: claim.lastName || "",
       email: claim.email || "",
       phoneNumber: claim.phoneNumber || claim.phone || "",
-      address: claim.address || "",
+      streetAddress: claim.streetAddress || claim.address || "",
+      addressLine2: claim.addressLine2 || "",
       state: claim.state || "",
       city: claim.city || "",
-      pincode: claim.pincode || "",
+      pincode: claim.pincode || claim.postalCode || "",
       activationCode: claim.activationCode || "",
       paymentStatus: claim.paymentStatus || "pending",
       ottStatus: claim.ottStatus || claim.ottCodeStatus || "pending",
@@ -132,10 +161,11 @@ export async function POST() {
       lastName: claim.lastName || "",
       email: claim.email || "",
       phoneNumber: claim.phoneNumber || claim.phone || "",
-      address: claim.address || "",
+      streetAddress: claim.streetAddress || claim.address || "",
+      addressLine2: claim.addressLine2 || "",
       state: claim.state || "",
       city: claim.city || "",
-      pincode: claim.pincode || "",
+      pincode: claim.pincode || claim.postalCode || "",
       activationCode: claim.activationCode || "",
       paymentStatus: claim.paymentStatus || "pending",
       ottStatus: claim.ottStatus || claim.ottCodeStatus || "pending",
