@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -27,6 +27,7 @@ import {
   Send,
   ChevronLeft,
   ChevronRight,
+  Search,
 } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
@@ -62,6 +63,32 @@ export default function AdminPage() {
   const [selectedRecords, setSelectedRecords] = useState<Set<string>>(new Set())
   const router = useRouter()
 
+  // Search and Filter States
+  const [searchTerms, setSearchTerms] = useState({
+    claims: "",
+    sales: "",
+    keys: "",
+  })
+
+  const [filters, setFilters] = useState({
+    claims: {
+      paymentStatus: "all",
+      ottStatus: "all",
+      state: "all",
+      city: "all",
+    },
+    sales: {
+      status: "all",
+      product: "all",
+      productSubCategory: "all",
+    },
+    keys: {
+      status: "all",
+      product: "all",
+      productSubCategory: "all",
+    },
+  })
+
   const [currentPage, setCurrentPage] = useState({
     claims: 1,
     sales: 1,
@@ -75,6 +102,111 @@ export default function AdminPage() {
   const [selectedKeyForManualAssign, setSelectedKeyForManualAssign] = useState<string>("")
   const [manualAssignPassword, setManualAssignPassword] = useState("")
   const [assigning, setAssigning] = useState(false)
+
+  // Filter and Search Logic
+  const filteredData = useMemo(() => {
+    const filterClaims = (claims: ClaimResponse[]) => {
+      return claims.filter((claim) => {
+        const searchMatch =
+          !searchTerms.claims ||
+          `${claim.firstName || ""} ${claim.lastName || ""}`.toLowerCase().includes(searchTerms.claims.toLowerCase()) ||
+          (claim.email || "").toLowerCase().includes(searchTerms.claims.toLowerCase()) ||
+          (claim.phoneNumber || claim.phone || "").toLowerCase().includes(searchTerms.claims.toLowerCase()) ||
+          (claim.activationCode || "").toLowerCase().includes(searchTerms.claims.toLowerCase()) ||
+          (claim.claimId || "").toLowerCase().includes(searchTerms.claims.toLowerCase())
+
+        const paymentStatusMatch =
+          filters.claims.paymentStatus === "all" ||
+          (claim.paymentStatus || "").toLowerCase() === filters.claims.paymentStatus.toLowerCase()
+
+        const ottStatusMatch =
+          filters.claims.ottStatus === "all" ||
+          (claim.ottCodeStatus || claim.ottStatus || "").toLowerCase() === filters.claims.ottStatus.toLowerCase()
+
+        const stateMatch =
+          filters.claims.state === "all" || (claim.state || "").toLowerCase() === filters.claims.state.toLowerCase()
+
+        const cityMatch =
+          filters.claims.city === "all" || (claim.city || "").toLowerCase() === filters.claims.city.toLowerCase()
+
+        return searchMatch && paymentStatusMatch && ottStatusMatch && stateMatch && cityMatch
+      })
+    }
+
+    const filterSales = (sales: SalesRecord[]) => {
+      return sales.filter((sale) => {
+        const searchMatch =
+          !searchTerms.sales ||
+          (sale.activationCode || "").toLowerCase().includes(searchTerms.sales.toLowerCase()) ||
+          (sale.product || "").toLowerCase().includes(searchTerms.sales.toLowerCase()) ||
+          (sale.productSubCategory || "").toLowerCase().includes(searchTerms.sales.toLowerCase()) ||
+          (sale.claimedBy || "").toLowerCase().includes(searchTerms.sales.toLowerCase())
+
+        const statusMatch =
+          filters.sales.status === "all" || (sale.status || "").toLowerCase() === filters.sales.status.toLowerCase()
+
+        const productMatch =
+          filters.sales.product === "all" || (sale.product || "").toLowerCase() === filters.sales.product.toLowerCase()
+
+        const categoryMatch =
+          filters.sales.productSubCategory === "all" ||
+          (sale.productSubCategory || "").toLowerCase() === filters.sales.productSubCategory.toLowerCase()
+
+        return searchMatch && statusMatch && productMatch && categoryMatch
+      })
+    }
+
+    const filterKeys = (keys: OTTKey[]) => {
+      return keys.filter((key) => {
+        const searchMatch =
+          !searchTerms.keys ||
+          (key.activationCode || "").toLowerCase().includes(searchTerms.keys.toLowerCase()) ||
+          (key.product || "").toLowerCase().includes(searchTerms.keys.toLowerCase()) ||
+          (key.productSubCategory || "").toLowerCase().includes(searchTerms.keys.toLowerCase()) ||
+          (key.assignedEmail || "").toLowerCase().includes(searchTerms.keys.toLowerCase())
+
+        const statusMatch =
+          filters.keys.status === "all" || (key.status || "").toLowerCase() === filters.keys.status.toLowerCase()
+
+        const productMatch =
+          filters.keys.product === "all" || (key.product || "").toLowerCase() === filters.keys.product.toLowerCase()
+
+        const categoryMatch =
+          filters.keys.productSubCategory === "all" ||
+          (key.productSubCategory || "").toLowerCase() === filters.keys.productSubCategory.toLowerCase()
+
+        return searchMatch && statusMatch && productMatch && categoryMatch
+      })
+    }
+
+    return {
+      claims: filterClaims(claimResponses),
+      sales: filterSales(salesRecords),
+      keys: filterKeys(ottKeys),
+    }
+  }, [claimResponses, salesRecords, ottKeys, searchTerms, filters])
+
+  // Get unique values for filter options
+  const filterOptions = useMemo(() => {
+    return {
+      claims: {
+        paymentStatuses: [...new Set(claimResponses.map((c) => c.paymentStatus).filter(Boolean))],
+        ottStatuses: [...new Set(claimResponses.map((c) => c.ottCodeStatus || c.ottStatus).filter(Boolean))],
+        states: [...new Set(claimResponses.map((c) => c.state).filter(Boolean))].sort(),
+        cities: [...new Set(claimResponses.map((c) => c.city).filter(Boolean))].sort(),
+      },
+      sales: {
+        statuses: [...new Set(salesRecords.map((s) => s.status).filter(Boolean))],
+        products: [...new Set(salesRecords.map((s) => s.product).filter(Boolean))].sort(),
+        categories: [...new Set(salesRecords.map((s) => s.productSubCategory).filter(Boolean))].sort(),
+      },
+      keys: {
+        statuses: [...new Set(ottKeys.map((k) => k.status).filter(Boolean))],
+        products: [...new Set(ottKeys.map((k) => k.product).filter(Boolean))].sort(),
+        categories: [...new Set(ottKeys.map((k) => k.productSubCategory).filter(Boolean))].sort(),
+      },
+    }
+  }, [claimResponses, salesRecords, ottKeys])
 
   const getPaginatedData = (data: any[], tabName: "claims" | "sales" | "keys") => {
     const startIndex = (currentPage[tabName] - 1) * ITEMS_PER_PAGE
@@ -97,6 +229,78 @@ export default function AdminPage() {
 
   const handleTabChange = (value: string) => {
     setActiveTab(value)
+    setSelectedRecords(new Set())
+  }
+
+  const handleSearchChange = (tabName: "claims" | "sales" | "keys", value: string) => {
+    setSearchTerms((prev) => ({
+      ...prev,
+      [tabName]: value,
+    }))
+    // Reset to first page when searching
+    setCurrentPage((prev) => ({
+      ...prev,
+      [tabName]: 1,
+    }))
+    setSelectedRecords(new Set())
+  }
+
+  const handleFilterChange = (tabName: "claims" | "sales" | "keys", filterType: string, value: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      [tabName]: {
+        ...prev[tabName],
+        [filterType]: value,
+      },
+    }))
+    // Reset to first page when filtering
+    setCurrentPage((prev) => ({
+      ...prev,
+      [tabName]: 1,
+    }))
+    setSelectedRecords(new Set())
+  }
+
+  const clearFilters = (tabName: "claims" | "sales" | "keys") => {
+    setSearchTerms((prev) => ({
+      ...prev,
+      [tabName]: "",
+    }))
+
+    if (tabName === "claims") {
+      setFilters((prev) => ({
+        ...prev,
+        claims: {
+          paymentStatus: "all",
+          ottStatus: "all",
+          state: "all",
+          city: "all",
+        },
+      }))
+    } else if (tabName === "sales") {
+      setFilters((prev) => ({
+        ...prev,
+        sales: {
+          status: "all",
+          product: "all",
+          productSubCategory: "all",
+        },
+      }))
+    } else if (tabName === "keys") {
+      setFilters((prev) => ({
+        ...prev,
+        keys: {
+          status: "all",
+          product: "all",
+          productSubCategory: "all",
+        },
+      }))
+    }
+
+    setCurrentPage((prev) => ({
+      ...prev,
+      [tabName]: 1,
+    }))
     setSelectedRecords(new Set())
   }
 
@@ -462,18 +666,18 @@ export default function AdminPage() {
     }
   }
 
-  // Safe statistics calculation
+  // Safe statistics calculation using filtered data
   const stats = {
-    totalClaims: claimResponses?.length || 0,
-    paidClaims: claimResponses?.filter((c) => c.paymentStatus === "paid")?.length || 0,
-    pendingClaims: claimResponses?.filter((c) => c.paymentStatus === "pending")?.length || 0,
-    failedClaims: claimResponses?.filter((c) => c.paymentStatus === "failed")?.length || 0,
-    totalSales: salesRecords?.length || 0,
-    claimedSales: salesRecords?.filter((s) => s.status === "claimed")?.length || 0,
-    availableKeys: ottKeys?.filter((k) => k.status === "available")?.length || 0,
-    assignedKeys: ottKeys?.filter((k) => k.status === "assigned")?.length || 0,
-    usedKeys: ottKeys?.filter((k) => k.status === "used")?.length || 0,
-    totalKeys: ottKeys?.length || 0,
+    totalClaims: filteredData.claims?.length || 0,
+    paidClaims: filteredData.claims?.filter((c) => c.paymentStatus === "paid")?.length || 0,
+    pendingClaims: filteredData.claims?.filter((c) => c.paymentStatus === "pending")?.length || 0,
+    failedClaims: filteredData.claims?.filter((c) => c.paymentStatus === "failed")?.length || 0,
+    totalSales: filteredData.sales?.length || 0,
+    claimedSales: filteredData.sales?.filter((s) => s.status === "claimed")?.length || 0,
+    availableKeys: filteredData.keys?.filter((k) => k.status === "available")?.length || 0,
+    assignedKeys: filteredData.keys?.filter((k) => k.status === "assigned")?.length || 0,
+    usedKeys: filteredData.keys?.filter((k) => k.status === "used")?.length || 0,
+    totalKeys: filteredData.keys?.length || 0,
   }
 
   // Manual Assignment Handlers
@@ -707,7 +911,7 @@ export default function AdminPage() {
                     <div>
                       <p className="text-sm font-medium text-gray-600">Redemption Records</p>
                       <p className="text-3xl font-bold text-gray-900">{stats.totalSales}</p>
-                       <p className="text-sm text-gray-500">
+                      <p className="text-sm text-gray-500">
                         {Number(stats.totalSales) - Number(stats.claimedSales)} available • {stats.claimedSales} claimed
                       </p>
                     </div>
@@ -908,7 +1112,7 @@ export default function AdminPage() {
                   value="keys"
                   className="rounded-lg data-[state=active]:bg-purple-600 data-[state=active]:text-white text-lg font-semibold"
                 >
-                  OTT Keys ({ottKeys?.length || 0})
+                  OTT Keys ({stats.totalKeys})
                 </TabsTrigger>
               </TabsList>
 
@@ -933,6 +1137,107 @@ export default function AdminPage() {
                         </Button>
                       )}
                     </div>
+
+                    {/* Claims Search and Filters */}
+                    <div className="mt-6 space-y-4">
+                      <div className="flex items-center space-x-4">
+                        <div className="flex-1 relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                          <Input
+                            placeholder="Search by name, email, phone, activation code, or claim ID..."
+                            value={searchTerms.claims}
+                            onChange={(e) => handleSearchChange("claims", e.target.value)}
+                            className="pl-10"
+                          />
+                        </div>
+                        <Button variant="outline" onClick={() => clearFilters("claims")} className="flex items-center">
+                          <X className="w-4 h-4 mr-2" />
+                          Clear
+                        </Button>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700">Payment Status</Label>
+                          <Select
+                            value={filters.claims.paymentStatus}
+                            onValueChange={(value) => handleFilterChange("claims", "paymentStatus", value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="All Payment Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Payment Status</SelectItem>
+                              {filterOptions.claims.paymentStatuses.map((status) => (
+                                <SelectItem key={status} value={status.toLowerCase()}>
+                                  {status.toUpperCase()}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700">OTT Status</Label>
+                          <Select
+                            value={filters.claims.ottStatus}
+                            onValueChange={(value) => handleFilterChange("claims", "ottStatus", value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="All OTT Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All OTT Status</SelectItem>
+                              {filterOptions.claims.ottStatuses.map((status) => (
+                                <SelectItem key={status} value={status.toLowerCase()}>
+                                  {status.toUpperCase()}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700">State</Label>
+                          <Select
+                            value={filters.claims.state}
+                            onValueChange={(value) => handleFilterChange("claims", "state", value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="All States" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All States</SelectItem>
+                              {filterOptions.claims.states.map((state) => (
+                                <SelectItem key={state} value={state.toLowerCase()}>
+                                  {state}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700">City</Label>
+                          <Select
+                            value={filters.claims.city}
+                            onValueChange={(value) => handleFilterChange("claims", "city", value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="All Cities" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Cities</SelectItem>
+                              {filterOptions.claims.cities.map((city) => (
+                                <SelectItem key={city} value={city.toLowerCase()}>
+                                  {city}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
                   </CardHeader>
                   <CardContent className="p-0">
                     <div className="overflow-x-auto">
@@ -942,13 +1247,16 @@ export default function AdminPage() {
                             <TableHead className="w-12">
                               <Checkbox
                                 checked={
-                                  getPaginatedData(claimResponses || [], "claims")?.length > 0 &&
-                                  getPaginatedData(claimResponses || [], "claims").every((claim) =>
+                                  getPaginatedData(filteredData.claims || [], "claims")?.length > 0 &&
+                                  getPaginatedData(filteredData.claims || [], "claims").every((claim) =>
                                     selectedRecords.has(claim._id || claim.id),
                                   )
                                 }
                                 onCheckedChange={(checked) =>
-                                  handleSelectAll(getPaginatedData(claimResponses || [], "claims"), checked as boolean)
+                                  handleSelectAll(
+                                    getPaginatedData(filteredData.claims || [], "claims"),
+                                    checked as boolean,
+                                  )
                                 }
                               />
                             </TableHead>
@@ -963,17 +1271,15 @@ export default function AdminPage() {
                             <TableHead className="font-bold text-gray-800">Activation Code</TableHead>
                             <TableHead className="font-bold text-gray-800">Payment Status</TableHead>
                             <TableHead className="font-bold text-gray-800">OTT Status</TableHead>
-                            <TableHead className="font-bold text-gray-800">OTT Code</TableHead>                                                        
-                            {/* NEW COLUMNS */}
+                            <TableHead className="font-bold text-gray-800">OTT Code</TableHead>
                             <TableHead className="font-bold text-gray-800">Payment ID</TableHead>
                             <TableHead className="font-bold text-gray-800">Razorpay Order ID</TableHead>
-                            
                             <TableHead className="font-bold text-gray-800">Created</TableHead>
                             <TableHead className="font-bold text-gray-800">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {getPaginatedData(claimResponses || [], "claims")?.map((claim, index) => (
+                          {getPaginatedData(filteredData.claims || [], "claims")?.map((claim, index) => (
                             <TableRow
                               key={claim._id || claim.id}
                               className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
@@ -992,15 +1298,12 @@ export default function AdminPage() {
                               </TableCell>
                               <TableCell className="font-medium">{claim.email || "N/A"}</TableCell>
                               <TableCell>{claim.phoneNumber || claim.phone || "N/A"}</TableCell>
-
-                              {/* Address fix */}
                               <TableCell
                                 className="max-w-xs truncate"
                                 title={`${claim.streetAddress || ""} ${claim.addressLine2 || ""}`.trim() || "N/A"}
                               >
                                 {`${claim.streetAddress || ""} ${claim.addressLine2 || ""}`.trim() || "N/A"}
                               </TableCell>
-
                               <TableCell>{claim.state || "N/A"}</TableCell>
                               <TableCell>{claim.city || "N/A"}</TableCell>
                               <TableCell>{claim.pincode || claim.postalCode || "N/A"}</TableCell>
@@ -1010,11 +1313,8 @@ export default function AdminPage() {
                               <TableCell className="font-mono text-sm">
                                 {claim.ottCode || <span className="text-gray-400">-</span>}
                               </TableCell>
-
-                              {/* New payment fields */}
                               <TableCell className="font-mono text-xs">{claim.paymentId || "N/A"}</TableCell>
                               <TableCell className="font-mono text-xs">{claim.razorpayOrderId || "N/A"}</TableCell>
-
                               <TableCell className="text-sm text-gray-600">{formatDateTime(claim.createdAt)}</TableCell>
                               <TableCell className="flex gap-2">
                                 <Button
@@ -1037,8 +1337,8 @@ export default function AdminPage() {
                                     claim.ottCodeStatus === "delivered"
                                       ? "Key already assigned"
                                       : claim.paymentStatus !== "paid"
-                                      ? "Claim not paid"
-                                      : "Manually assign OTT Key"
+                                        ? "Claim not paid"
+                                        : "Manually assign OTT Key"
                                   }
                                 >
                                   <Send className="w-4 h-4" />
@@ -1047,16 +1347,15 @@ export default function AdminPage() {
                             </TableRow>
                           )) || (
                             <TableRow>
-                              <TableCell colSpan={18} className="text-center py-8 text-gray-500">
+                              <TableCell colSpan={17} className="text-center py-8 text-gray-500">
                                 No claims data available
                               </TableCell>
                             </TableRow>
                           )}
                         </TableBody>
-
                       </Table>
                     </div>
-                    <PaginationControls data={claimResponses || []} tabName="claims" />
+                    <PaginationControls data={filteredData.claims || []} tabName="claims" />
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -1082,6 +1381,87 @@ export default function AdminPage() {
                         </Button>
                       )}
                     </div>
+
+                    {/* Sales Search and Filters */}
+                    <div className="mt-6 space-y-4">
+                      <div className="flex items-center space-x-4">
+                        <div className="flex-1 relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                          <Input
+                            placeholder="Search by activation code, product, category, or claimed by..."
+                            value={searchTerms.sales}
+                            onChange={(e) => handleSearchChange("sales", e.target.value)}
+                            className="pl-10"
+                          />
+                        </div>
+                        <Button variant="outline" onClick={() => clearFilters("sales")} className="flex items-center">
+                          <X className="w-4 h-4 mr-2" />
+                          Clear
+                        </Button>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700">Status</Label>
+                          <Select
+                            value={filters.sales.status}
+                            onValueChange={(value) => handleFilterChange("sales", "status", value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="All Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Status</SelectItem>
+                              {filterOptions.sales.statuses.map((status) => (
+                                <SelectItem key={status} value={status.toLowerCase()}>
+                                  {status.toUpperCase()}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700">Product</Label>
+                          <Select
+                            value={filters.sales.product}
+                            onValueChange={(value) => handleFilterChange("sales", "product", value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="All Products" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Products</SelectItem>
+                              {filterOptions.sales.products.map((product) => (
+                                <SelectItem key={product} value={product.toLowerCase()}>
+                                  {product}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700">Category</Label>
+                          <Select
+                            value={filters.sales.productSubCategory}
+                            onValueChange={(value) => handleFilterChange("sales", "productSubCategory", value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="All Categories" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Categories</SelectItem>
+                              {filterOptions.sales.categories.map((category) => (
+                                <SelectItem key={category} value={category.toLowerCase()}>
+                                  {category}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
                   </CardHeader>
                   <CardContent className="p-0">
                     <div className="overflow-x-auto">
@@ -1091,13 +1471,16 @@ export default function AdminPage() {
                             <TableHead className="w-12">
                               <Checkbox
                                 checked={
-                                  getPaginatedData(salesRecords || [], "sales")?.length > 0 &&
-                                  getPaginatedData(salesRecords || [], "sales").every((sale) =>
+                                  getPaginatedData(filteredData.sales || [], "sales")?.length > 0 &&
+                                  getPaginatedData(filteredData.sales || [], "sales").every((sale) =>
                                     selectedRecords.has(sale._id || sale.id),
                                   )
                                 }
                                 onCheckedChange={(checked) =>
-                                  handleSelectAll(getPaginatedData(salesRecords || [], "sales"), checked as boolean)
+                                  handleSelectAll(
+                                    getPaginatedData(filteredData.sales || [], "sales"),
+                                    checked as boolean,
+                                  )
                                 }
                               />
                             </TableHead>
@@ -1111,7 +1494,7 @@ export default function AdminPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {getPaginatedData(salesRecords || [], "sales")?.map((sale, index) => (
+                          {getPaginatedData(filteredData.sales || [], "sales")?.map((sale, index) => (
                             <TableRow key={sale._id || sale.id} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                               <TableCell>
                                 <Checkbox
@@ -1150,7 +1533,7 @@ export default function AdminPage() {
                         </TableBody>
                       </Table>
                     </div>
-                    <PaginationControls data={salesRecords || []} tabName="sales" />
+                    <PaginationControls data={filteredData.sales || []} tabName="sales" />
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -1176,6 +1559,87 @@ export default function AdminPage() {
                         </Button>
                       )}
                     </div>
+
+                    {/* Keys Search and Filters */}
+                    <div className="mt-6 space-y-4">
+                      <div className="flex items-center space-x-4">
+                        <div className="flex-1 relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                          <Input
+                            placeholder="Search by activation code, product, category, or assigned email..."
+                            value={searchTerms.keys}
+                            onChange={(e) => handleSearchChange("keys", e.target.value)}
+                            className="pl-10"
+                          />
+                        </div>
+                        <Button variant="outline" onClick={() => clearFilters("keys")} className="flex items-center">
+                          <X className="w-4 h-4 mr-2" />
+                          Clear
+                        </Button>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700">Status</Label>
+                          <Select
+                            value={filters.keys.status}
+                            onValueChange={(value) => handleFilterChange("keys", "status", value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="All Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Status</SelectItem>
+                              {filterOptions.keys.statuses.map((status) => (
+                                <SelectItem key={status} value={status.toLowerCase()}>
+                                  {status.toUpperCase()}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700">Product</Label>
+                          <Select
+                            value={filters.keys.product}
+                            onValueChange={(value) => handleFilterChange("keys", "product", value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="All Products" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Products</SelectItem>
+                              {filterOptions.keys.products.map((product) => (
+                                <SelectItem key={product} value={product.toLowerCase()}>
+                                  {product}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700">Category</Label>
+                          <Select
+                            value={filters.keys.productSubCategory}
+                            onValueChange={(value) => handleFilterChange("keys", "productSubCategory", value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="All Categories" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Categories</SelectItem>
+                              {filterOptions.keys.categories.map((category) => (
+                                <SelectItem key={category} value={category.toLowerCase()}>
+                                  {category}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
                   </CardHeader>
                   <CardContent className="p-0">
                     <div className="overflow-x-auto">
@@ -1185,13 +1649,13 @@ export default function AdminPage() {
                             <TableHead className="w-12">
                               <Checkbox
                                 checked={
-                                  getPaginatedData(ottKeys || [], "keys")?.length > 0 &&
-                                  getPaginatedData(ottKeys || [], "keys").every((key) =>
+                                  getPaginatedData(filteredData.keys || [], "keys")?.length > 0 &&
+                                  getPaginatedData(filteredData.keys || [], "keys").every((key) =>
                                     selectedRecords.has(key._id || key.id),
                                   )
                                 }
                                 onCheckedChange={(checked) =>
-                                  handleSelectAll(getPaginatedData(ottKeys || [], "keys"), checked as boolean)
+                                  handleSelectAll(getPaginatedData(filteredData.keys || [], "keys"), checked as boolean)
                                 }
                               />
                             </TableHead>
@@ -1205,7 +1669,7 @@ export default function AdminPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {getPaginatedData(ottKeys || [], "keys")?.map((key, index) => (
+                          {getPaginatedData(filteredData.keys || [], "keys")?.map((key, index) => (
                             <TableRow key={key._id || key.id} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                               <TableCell>
                                 <Checkbox
@@ -1244,7 +1708,7 @@ export default function AdminPage() {
                         </TableBody>
                       </Table>
                     </div>
-                    <PaginationControls data={ottKeys || []} tabName="keys" />
+                    <PaginationControls data={filteredData.keys || []} tabName="keys" />
                   </CardContent>
                 </Card>
               </TabsContent>
