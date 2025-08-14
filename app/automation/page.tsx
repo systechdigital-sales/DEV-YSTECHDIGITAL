@@ -1,41 +1,35 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState, useEffect, useCallback } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
+import { Separator } from "@/components/ui/separator"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Play,
   Pause,
-  Settings,
+  RotateCcw,
+  Clock,
   CheckCircle,
   XCircle,
   AlertCircle,
-  Eye,
-  Zap,
+  Activity,
   Database,
   Mail,
   Key,
-  Activity,
+  Eye,
+  EyeOff,
+  Zap,
 } from "lucide-react"
 
 interface AutomationSettings {
   enabled: boolean
   intervalMinutes: number
-  emailEnabled: boolean
+  emailNotifications: boolean
   processOnlyPaid: boolean
-}
-
-interface AutomationLog {
-  timestamp: string
-  type: "info" | "success" | "error" | "warning"
-  message: string
-  details?: any
 }
 
 interface AutomationStats {
@@ -46,239 +40,219 @@ interface AutomationStats {
   lastRun?: string
 }
 
-interface ClaimsMonitorStats {
-  newClaims: number
-  claimIds: string[]
-  lastCheck?: string
+interface ActivityLog {
+  id: string
+  timestamp: string
+  type: "info" | "success" | "warning" | "error"
+  message: string
+  details?: any
 }
 
 export default function AutomationPage() {
+  // Automation state
+  const [isRunning, setIsRunning] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
   const [settings, setSettings] = useState<AutomationSettings>({
     enabled: false,
     intervalMinutes: 30,
-    emailEnabled: true,
+    emailNotifications: true,
     processOnlyPaid: true,
   })
-
-  const [isRunning, setIsRunning] = useState(false)
-  const [isClaimsMonitoring, setIsClaimsMonitoring] = useState(false)
-  const [logs, setLogs] = useState<AutomationLog[]>([])
   const [stats, setStats] = useState<AutomationStats>({
     totalProcessed: 0,
     keysAssigned: 0,
     emailsSent: 0,
     errors: 0,
   })
-  const [claimsStats, setClaimsStats] = useState<ClaimsMonitorStats>({
-    newClaims: 0,
-    claimIds: [],
-  })
-  const [loading, setLoading] = useState(false)
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([])
+  const [expandedLogs, setExpandedLogs] = useState<Set<string>>(new Set())
 
-  // Load settings on component mount
-  useEffect(() => {
-    loadSettings()
-  }, [])
+  // Claims monitoring state
+  const [claimsMonitorEnabled, setClaimsMonitorEnabled] = useState(false)
+  const [claimsMonitorStatus, setClaimsMonitorStatus] = useState<"idle" | "monitoring" | "processing">("idle")
+  const [lastClaimsCheck, setLastClaimsCheck] = useState<string>("")
+  const [claimsFound, setClaimsFound] = useState(0)
 
-  // Start automation timer when enabled
-  useEffect(() => {
-    let interval: NodeJS.Timeout | null = null
-
-    if (settings.enabled && isRunning) {
-      addLog("info", `Automation started with ${settings.intervalMinutes} minute intervals`)
-
-      interval = setInterval(
-        () => {
-          runAutomation()
-        },
-        settings.intervalMinutes * 60 * 1000,
-      )
-    }
-
-    return () => {
-      if (interval) {
-        clearInterval(interval)
-      }
-    }
-  }, [settings.enabled, settings.intervalMinutes, isRunning])
-
-  // Start claims monitoring (every 30 seconds)
-  useEffect(() => {
-    let claimsInterval: NodeJS.Timeout | null = null
-
-    if (isClaimsMonitoring) {
-      addLog("info", "Claims monitoring started (checking every 30 seconds)")
-
-      // Run immediately
-      monitorClaims()
-
-      // Then run every 30 seconds
-      claimsInterval = setInterval(() => {
-        monitorClaims()
-      }, 30000) // 30 seconds
-    }
-
-    return () => {
-      if (claimsInterval) {
-        clearInterval(claimsInterval)
-        addLog("info", "Claims monitoring stopped")
-      }
-    }
-  }, [isClaimsMonitoring])
-
-  const addLog = (type: AutomationLog["type"], message: string, details?: any) => {
-    const newLog: AutomationLog = {
+  // Add activity log
+  const addLog = useCallback((type: ActivityLog["type"], message: string, details?: any) => {
+    const newLog: ActivityLog = {
+      id: Date.now().toString(),
       timestamp: new Date().toLocaleString(),
       type,
       message,
       details,
     }
-    setLogs((prev) => [newLog, ...prev.slice(0, 49)]) // Keep last 50 logs
-  }
+    setActivityLogs((prev) => [newLog, ...prev.slice(0, 49)]) // Keep last 50 logs
+  }, [])
 
-  const loadSettings = async () => {
+  // Claims monitoring function
+  const checkForNewClaims = useCallback(async () => {
+    if (!claimsMonitorEnabled) return
+
     try {
-      const response = await fetch("/api/admin/automation-settings")
-      if (response.ok) {
-        const data = await response.json()
-        if (data.settings) {
-          setSettings(data.settings)
-        }
-      }
-    } catch (error) {
-      addLog("error", "Failed to load automation settings", error)
-    }
-  }
-
-  const saveSettings = async () => {
-    try {
-      setLoading(true)
-      const response = await fetch("/api/admin/automation-settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(settings),
-      })
-
-      if (response.ok) {
-        addLog("success", "Automation settings saved successfully")
-      } else {
-        throw new Error("Failed to save settings")
-      }
-    } catch (error) {
-      addLog("error", "Failed to save automation settings", error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const monitorClaims = async () => {
-    try {
+      setClaimsMonitorStatus("monitoring")
       const response = await fetch("/api/admin/claims-monitor")
-      const data = await response.json()
+      const result = await response.json()
 
-      if (data.success) {
-        setClaimsStats({
-          newClaims: data.newClaims,
-          claimIds: data.claimIds || [],
-          lastCheck: new Date().toLocaleString(),
-        })
+      setLastClaimsCheck(new Date().toLocaleString())
 
-        if (data.newClaims > 0) {
-          addLog("success", `🎯 Found ${data.newClaims} new claims - triggering automation`, {
-            claimIds: data.claimIds,
-            automationResult: data.automationResult,
+      if (result.success) {
+        if (result.claimsFound > 0) {
+          setClaimsFound(result.claimsFound)
+          setClaimsMonitorStatus("processing")
+          addLog("success", `Found ${result.claimsFound} new claims - triggering automation`, {
+            claimIds: result.claimIds,
+            automationResult: result.automationResult,
           })
 
           // Update stats if automation was successful
-          if (data.automationResult?.success) {
+          if (result.automationResult?.success) {
             setStats((prev) => ({
               ...prev,
-              totalProcessed: prev.totalProcessed + data.newClaims,
+              totalProcessed: prev.totalProcessed + result.claimsFound,
               lastRun: new Date().toLocaleString(),
             }))
           }
+        } else {
+          addLog("info", "Claims monitor: No new claims found")
         }
       } else {
-        addLog("warning", "Claims monitoring failed", data)
+        addLog("error", `Claims monitor error: ${result.message}`, result)
       }
     } catch (error) {
-      addLog("error", "Claims monitoring error", error)
+      addLog("error", "Claims monitor failed", error)
+    } finally {
+      setTimeout(() => setClaimsMonitorStatus("idle"), 2000)
     }
-  }
+  }, [claimsMonitorEnabled, addLog])
 
+  // Claims monitoring interval
+  useEffect(() => {
+    if (!claimsMonitorEnabled) return
+
+    const interval = setInterval(checkForNewClaims, 30000) // Check every 30 seconds
+    addLog("info", "Claims monitoring started - checking every 30 seconds")
+
+    return () => {
+      clearInterval(interval)
+      addLog("info", "Claims monitoring stopped")
+    }
+  }, [claimsMonitorEnabled, checkForNewClaims, addLog])
+
+  // Scheduled automation interval
+  useEffect(() => {
+    if (!isRunning || !settings.enabled) return
+
+    const interval = setInterval(
+      async () => {
+        await runAutomation()
+      },
+      settings.intervalMinutes * 60 * 1000,
+    )
+
+    return () => clearInterval(interval)
+  }, [isRunning, settings.enabled, settings.intervalMinutes])
+
+  // Load settings on mount
+  useEffect(() => {
+    const savedSettings = localStorage.getItem("automationSettings")
+    if (savedSettings) {
+      setSettings(JSON.parse(savedSettings))
+    }
+
+    const savedClaimsMonitor = localStorage.getItem("claimsMonitorEnabled")
+    if (savedClaimsMonitor) {
+      setClaimsMonitorEnabled(JSON.parse(savedClaimsMonitor))
+    }
+
+    addLog("info", "Automation system initialized")
+  }, [addLog])
+
+  // Save settings
+  const saveSettings = useCallback(
+    (newSettings: AutomationSettings) => {
+      setSettings(newSettings)
+      localStorage.setItem("automationSettings", JSON.stringify(newSettings))
+      addLog("info", "Settings updated", newSettings)
+    },
+    [addLog],
+  )
+
+  // Run automation manually or scheduled
   const runAutomation = async () => {
-    try {
-      addLog("info", "🚀 Running scheduled automation...")
+    if (isProcessing) return
 
+    setIsProcessing(true)
+    addLog("info", "Starting automation process...")
+
+    try {
       const response = await fetch("/api/admin/process-automation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       })
 
-      const data = await response.json()
+      const result = await response.json()
 
-      if (data.success) {
-        addLog("success", `✅ Automation completed successfully`, data)
+      if (result.success) {
         setStats((prev) => ({
-          ...prev,
-          totalProcessed: prev.totalProcessed + (data.processedCount || 0),
-          keysAssigned: prev.keysAssigned + (data.keysAssigned || 0),
-          emailsSent: prev.emailsSent + (data.emailsSent || 0),
+          totalProcessed: prev.totalProcessed + (result.stats?.processed || 0),
+          keysAssigned: prev.keysAssigned + (result.stats?.keysAssigned || 0),
+          emailsSent: prev.emailsSent + (result.stats?.emailsSent || 0),
+          errors: prev.errors + (result.stats?.errors || 0),
           lastRun: new Date().toLocaleString(),
         }))
+        addLog("success", `Automation completed successfully`, result.stats)
       } else {
-        addLog("error", "❌ Automation failed", data)
         setStats((prev) => ({ ...prev, errors: prev.errors + 1 }))
+        addLog("error", `Automation failed: ${result.message}`, result)
       }
     } catch (error) {
-      addLog("error", "💥 Automation error", error)
       setStats((prev) => ({ ...prev, errors: prev.errors + 1 }))
+      addLog("error", "Automation process failed", error)
+    } finally {
+      setIsProcessing(false)
     }
   }
 
-  const runManualAutomation = async () => {
-    setLoading(true)
-    addLog("info", "🔧 Running manual automation...")
-    await runAutomation()
-    setLoading(false)
+  // Toggle log expansion
+  const toggleLogExpansion = (logId: string) => {
+    setExpandedLogs((prev) => {
+      const newSet = new Set(prev)
+      if (newSet.has(logId)) {
+        newSet.delete(logId)
+      } else {
+        newSet.add(logId)
+      }
+      return newSet
+    })
   }
 
-  const toggleAutomation = () => {
-    setIsRunning(!isRunning)
-    if (!isRunning) {
-      addLog("info", "Automation enabled")
-    } else {
-      addLog("info", "Automation disabled")
-    }
-  }
-
-  const toggleClaimsMonitoring = () => {
-    setIsClaimsMonitoring(!isClaimsMonitoring)
-  }
-
-  const getStatusColor = (type: string) => {
-    switch (type) {
-      case "success":
-        return "text-green-600"
-      case "error":
-        return "text-red-600"
-      case "warning":
-        return "text-yellow-600"
+  // Get status badge
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "monitoring":
+        return (
+          <Badge variant="default" className="bg-blue-500">
+            <Activity className="w-3 h-3 mr-1" />
+            Monitoring
+          </Badge>
+        )
+      case "processing":
+        return (
+          <Badge variant="default" className="bg-orange-500">
+            <Zap className="w-3 h-3 mr-1" />
+            Processing
+          </Badge>
+        )
+      case "idle":
+        return (
+          <Badge variant="secondary">
+            <Clock className="w-3 h-3 mr-1" />
+            Idle
+          </Badge>
+        )
       default:
-        return "text-blue-600"
-    }
-  }
-
-  const getStatusIcon = (type: string) => {
-    switch (type) {
-      case "success":
-        return <CheckCircle className="h-4 w-4" />
-      case "error":
-        return <XCircle className="h-4 w-4" />
-      case "warning":
-        return <AlertCircle className="h-4 w-4" />
-      default:
-        return <Activity className="h-4 w-4" />
+        return <Badge variant="outline">Unknown</Badge>
     }
   }
 
@@ -286,21 +260,27 @@ export default function AutomationPage() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Smart Automation Control</h1>
+          <h1 className="text-3xl font-bold">Smart Automation System</h1>
           <p className="text-muted-foreground">Automated OTT key processing with real-time claims monitoring</p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant={isClaimsMonitoring ? "default" : "secondary"} className="flex items-center gap-1">
-            <Eye className="h-3 w-3" />
-            Claims Monitor: {isClaimsMonitoring ? "Active" : "Inactive"}
-          </Badge>
-          <Badge variant={isRunning && settings.enabled ? "default" : "secondary"} className="flex items-center gap-1">
-            <Zap className="h-3 w-3" />
-            Automation: {isRunning && settings.enabled ? "Running" : "Stopped"}
-          </Badge>
+          {getStatusBadge(claimsMonitorStatus)}
+          {isRunning && (
+            <Badge variant="default" className="bg-green-500">
+              <Play className="w-3 h-3 mr-1" />
+              Running
+            </Badge>
+          )}
+          {isProcessing && (
+            <Badge variant="default" className="bg-orange-500">
+              <RotateCcw className="w-3 h-3 mr-1 animate-spin" />
+              Processing
+            </Badge>
+          )}
         </div>
       </div>
 
+      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -309,9 +289,7 @@ export default function AutomationPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalProcessed}</div>
-            <p className="text-xs text-muted-foreground">
-              {claimsStats.newClaims > 0 ? `${claimsStats.newClaims} new found` : "No new claims"}
-            </p>
+            <p className="text-xs text-muted-foreground">Total automated</p>
           </CardContent>
         </Card>
 
@@ -340,158 +318,226 @@ export default function AutomationPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Errors</CardTitle>
-            <XCircle className="h-4 w-4 text-muted-foreground" />
+            <AlertCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{stats.errors}</div>
+            <div className="text-2xl font-bold text-red-500">{stats.errors}</div>
             <p className="text-xs text-muted-foreground">Processing failures</p>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Claims Monitor */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5" />
-              Automation Settings
+              <Database className="h-5 w-5" />
+              Smart Claims Monitor
             </CardTitle>
-            <CardDescription>Configure automated OTT key processing</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label htmlFor="claims-monitor">Claims Monitoring (30s)</Label>
-              <Switch id="claims-monitor" checked={isClaimsMonitoring} onCheckedChange={toggleClaimsMonitoring} />
+              <div className="space-y-1">
+                <Label htmlFor="claims-monitor">Real-time Claims Detection</Label>
+                <p className="text-sm text-muted-foreground">Monitors database every 30 seconds for new paid claims</p>
+              </div>
+              <Switch
+                id="claims-monitor"
+                checked={claimsMonitorEnabled}
+                onCheckedChange={(checked) => {
+                  setClaimsMonitorEnabled(checked)
+                  localStorage.setItem("claimsMonitorEnabled", JSON.stringify(checked))
+                  addLog("info", `Claims monitoring ${checked ? "enabled" : "disabled"}`)
+                }}
+              />
             </div>
 
+            <Separator />
+
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Status:</span>
+                {getStatusBadge(claimsMonitorStatus)}
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Last Check:</span>
+                <span className="text-muted-foreground">{lastClaimsCheck || "Never"}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Claims Found:</span>
+                <span className="font-medium">{claimsFound}</span>
+              </div>
+            </div>
+
+            <Button
+              onClick={checkForNewClaims}
+              disabled={claimsMonitorStatus === "monitoring"}
+              className="w-full bg-transparent"
+              variant="outline"
+            >
+              {claimsMonitorStatus === "monitoring" ? (
+                <>
+                  <RotateCcw className="w-4 h-4 mr-2 animate-spin" />
+                  Checking...
+                </>
+              ) : (
+                <>
+                  <Database className="w-4 h-4 mr-2" />
+                  Check Now
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Scheduled Automation */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Scheduled Automation
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label htmlFor="automation-enabled">Scheduled Automation</Label>
+              <div className="space-y-1">
+                <Label htmlFor="automation-enabled">Enable Scheduled Processing</Label>
+                <p className="text-sm text-muted-foreground">Runs automation at regular intervals as backup</p>
+              </div>
               <Switch
                 id="automation-enabled"
                 checked={settings.enabled}
-                onCheckedChange={(checked) => setSettings((prev) => ({ ...prev, enabled: checked }))}
+                onCheckedChange={(checked) => saveSettings({ ...settings, enabled: checked })}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="interval">Automation Interval (minutes)</Label>
-              <Input
+              <Label htmlFor="interval">Interval (minutes)</Label>
+              <select
                 id="interval"
-                type="number"
-                min="30"
-                max="1440"
                 value={settings.intervalMinutes}
-                onChange={(e) =>
-                  setSettings((prev) => ({
-                    ...prev,
-                    intervalMinutes: Number.parseInt(e.target.value) || 30,
-                  }))
-                }
-              />
+                onChange={(e) => saveSettings({ ...settings, intervalMinutes: Number.parseInt(e.target.value) })}
+                className="w-full p-2 border rounded-md"
+              >
+                <option value={30}>30 minutes</option>
+                <option value={60}>1 hour</option>
+                <option value={120}>2 hours</option>
+                <option value={240}>4 hours</option>
+              </select>
             </div>
 
             <div className="flex items-center justify-between">
-              <Label htmlFor="email-enabled">Email Notifications</Label>
+              <Label htmlFor="email-notifications">Email Notifications</Label>
               <Switch
-                id="email-enabled"
-                checked={settings.emailEnabled}
-                onCheckedChange={(checked) => setSettings((prev) => ({ ...prev, emailEnabled: checked }))}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Label htmlFor="paid-only">Process Only Paid Claims</Label>
-              <Switch
-                id="paid-only"
-                checked={settings.processOnlyPaid}
-                onCheckedChange={(checked) => setSettings((prev) => ({ ...prev, processOnlyPaid: checked }))}
+                id="email-notifications"
+                checked={settings.emailNotifications}
+                onCheckedChange={(checked) => saveSettings({ ...settings, emailNotifications: checked })}
               />
             </div>
 
             <Separator />
 
             <div className="flex gap-2">
-              <Button onClick={saveSettings} disabled={loading} className="flex-1">
-                <Settings className="h-4 w-4 mr-2" />
-                Save Settings
-              </Button>
-
               <Button
-                onClick={toggleAutomation}
-                variant={isRunning ? "destructive" : "default"}
+                onClick={() => {
+                  if (isRunning) {
+                    setIsRunning(false)
+                    addLog("info", "Scheduled automation stopped")
+                  } else {
+                    setIsRunning(true)
+                    addLog("info", `Scheduled automation started (${settings.intervalMinutes} min intervals)`)
+                  }
+                }}
                 disabled={!settings.enabled}
+                className="flex-1"
               >
                 {isRunning ? (
                   <>
-                    <Pause className="h-4 w-4 mr-2" />
+                    <Pause className="w-4 h-4 mr-2" />
                     Stop
                   </>
                 ) : (
                   <>
-                    <Play className="h-4 w-4 mr-2" />
+                    <Play className="w-4 h-4 mr-2" />
                     Start
+                  </>
+                )}
+              </Button>
+
+              <Button
+                onClick={runAutomation}
+                disabled={isProcessing}
+                variant="outline"
+                className="flex-1 bg-transparent"
+              >
+                {isProcessing ? (
+                  <>
+                    <RotateCcw className="w-4 h-4 mr-2 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-4 h-4 mr-2" />
+                    Run Now
                   </>
                 )}
               </Button>
             </div>
 
-            <Button
-              onClick={runManualAutomation}
-              disabled={loading}
-              variant="outline"
-              className="w-full bg-transparent"
-            >
-              <Zap className="h-4 w-4 mr-2" />
-              Run Now
-            </Button>
-
             {stats.lastRun && <p className="text-sm text-muted-foreground">Last run: {stats.lastRun}</p>}
-
-            {claimsStats.lastCheck && (
-              <p className="text-sm text-muted-foreground">Last claims check: {claimsStats.lastCheck}</p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5" />
-              Activity Logs
-            </CardTitle>
-            <CardDescription>Real-time automation and monitoring activity</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[400px] w-full">
-              <div className="space-y-2">
-                {logs.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    No activity logs yet. Start automation to see logs here.
-                  </p>
-                ) : (
-                  logs.map((log, index) => (
-                    <div key={index} className="flex items-start gap-2 p-2 rounded-lg bg-muted/50">
-                      <div className={`mt-0.5 ${getStatusColor(log.type)}`}>{getStatusIcon(log.type)}</div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium">{log.message}</p>
-                        <p className="text-xs text-muted-foreground">{log.timestamp}</p>
-                        {log.details && (
-                          <details className="mt-1">
-                            <summary className="text-xs cursor-pointer text-blue-600">View details</summary>
-                            <pre className="text-xs mt-1 p-2 bg-muted rounded overflow-auto">
-                              {JSON.stringify(log.details, null, 2)}
-                            </pre>
-                          </details>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </ScrollArea>
           </CardContent>
         </Card>
       </div>
+
+      {/* Activity Logs */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="h-5 w-5" />
+            Activity Logs
+            <Badge variant="outline" className="ml-auto">
+              {activityLogs.length} entries
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ScrollArea className="h-96">
+            <div className="space-y-2">
+              {activityLogs.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">No activity logs yet</p>
+              ) : (
+                activityLogs.map((log) => (
+                  <div key={log.id} className="border rounded-lg p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {log.type === "success" && <CheckCircle className="h-4 w-4 text-green-500" />}
+                        {log.type === "error" && <XCircle className="h-4 w-4 text-red-500" />}
+                        {log.type === "warning" && <AlertCircle className="h-4 w-4 text-yellow-500" />}
+                        {log.type === "info" && <Activity className="h-4 w-4 text-blue-500" />}
+                        <span className="font-medium">{log.message}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">{log.timestamp}</span>
+                        {log.details && (
+                          <Button variant="ghost" size="sm" onClick={() => toggleLogExpansion(log.id)}>
+                            {expandedLogs.has(log.id) ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    {log.details && expandedLogs.has(log.id) && (
+                      <div className="mt-2 p-2 bg-muted rounded text-xs">
+                        <pre className="whitespace-pre-wrap">{JSON.stringify(log.details, null, 2)}</pre>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </ScrollArea>
+        </CardContent>
+      </Card>
     </div>
   )
 }

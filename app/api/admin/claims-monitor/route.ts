@@ -5,7 +5,7 @@ export async function GET(request: NextRequest) {
   try {
     const { db } = await connectToDatabase()
 
-    // Find new paid claims that haven't been processed yet
+    // Find new paid claims that haven't been processed by automation
     const newClaims = await db
       .collection("claims")
       .find({
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         success: true,
         message: "No new claims to process",
-        newClaims: 0,
+        claimsFound: 0,
         claimIds: [],
       })
     }
@@ -28,10 +28,13 @@ export async function GET(request: NextRequest) {
     const claimIds = newClaims.map((claim) => claim._id)
     await db
       .collection("claims")
-      .updateMany({ _id: { $in: claimIds } }, { $set: { automationProcessed: true, processedAt: new Date() } })
+      .updateMany(
+        { _id: { $in: claimIds } },
+        { $set: { automationProcessed: true, automationTriggeredAt: new Date() } },
+      )
 
     // Trigger the automation process
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
+    const baseUrl = request.nextUrl.origin
     const automationResponse = await fetch(`${baseUrl}/api/admin/process-automation`, {
       method: "POST",
       headers: {
@@ -43,8 +46,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Found and processed ${newClaims.length} new claims`,
-      newClaims: newClaims.length,
+      message: `Found ${newClaims.length} new claims and triggered automation`,
+      claimsFound: newClaims.length,
       claimIds: claimIds.map((id) => id.toString()),
       automationResult,
     })
@@ -53,10 +56,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        message: "Failed to monitor claims",
+        message: "Error monitoring claims",
         error: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 },
     )
   }
+}
+
+export async function POST(request: NextRequest) {
+  // Allow POST method as well for manual triggering
+  return GET(request)
 }
