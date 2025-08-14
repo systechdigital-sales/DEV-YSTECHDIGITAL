@@ -38,6 +38,7 @@ import {
   Settings,
   RefreshCw,
   Activity,
+  Eye,
 } from "lucide-react"
 import Image from "next/image"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -143,6 +144,7 @@ const getNextRunProgress = (nextRun: string, intervalMinutes: number) => {
 
 export default function AutomationPage() {
   const [isRunning, setIsRunning] = useState(false)
+  const [isMonitoring, setIsMonitoring] = useState(false)
   const [settings, setSettings] = useState<AutomationSettings>({
     isEnabled: true,
     intervalMinutes: 1,
@@ -169,6 +171,7 @@ export default function AutomationPage() {
   // Refs for intervals
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const automationIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const claimsMonitorIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const timeIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -259,6 +262,37 @@ export default function AutomationPage() {
     }
   }
 
+  // Claims monitoring function - checks for new claims every 30 seconds
+  const runClaimsMonitor = async () => {
+    if (isRunning || isMonitoring) {
+      return
+    }
+
+    try {
+      setIsMonitoring(true)
+      const response = await fetch("/api/admin/claims-monitor", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      const data = await response.json()
+
+      if (data.success && data.claimsFound > 0) {
+        addLog(`🔔 Claims monitor detected ${data.claimsFound} new paid claims - triggering automation...`)
+        setResults(data.results)
+
+        // Refresh settings to get updated run count
+        setTimeout(() => loadAutomationSettings(), 1000)
+      }
+    } catch (error) {
+      console.error("Error in claims monitor:", error)
+    } finally {
+      setIsMonitoring(false)
+    }
+  }
+
   useEffect(() => {
     // Check authentication
     const isAuthenticated = sessionStorage.getItem("adminAuthenticated")
@@ -285,11 +319,17 @@ export default function AutomationPage() {
       runAutomationCycle()
     }, 60000) // 60 seconds = 1 minute
 
+    // Run claims monitor every 30 seconds
+    claimsMonitorIntervalRef.current = setInterval(() => {
+      runClaimsMonitor()
+    }, 30000) // 30 seconds
+
     return () => {
       // Cleanup all intervals
       if (timeIntervalRef.current) clearInterval(timeIntervalRef.current)
       if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current)
       if (automationIntervalRef.current) clearInterval(automationIntervalRef.current)
+      if (claimsMonitorIntervalRef.current) clearInterval(claimsMonitorIntervalRef.current)
       if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current)
     }
   }, [router])
@@ -318,6 +358,9 @@ export default function AutomationPage() {
     if (automationIntervalRef.current) {
       clearInterval(automationIntervalRef.current)
     }
+    if (claimsMonitorIntervalRef.current) {
+      clearInterval(claimsMonitorIntervalRef.current)
+    }
 
     if (settings.isEnabled) {
       // Run automation check every minute
@@ -325,13 +368,21 @@ export default function AutomationPage() {
         runAutomationCycle()
       }, 60000) // 60 seconds = 1 minute
 
+      // Run claims monitor every 30 seconds
+      claimsMonitorIntervalRef.current = setInterval(() => {
+        runClaimsMonitor()
+      }, 30000) // 30 seconds
+
       addLog(`🔄 Client-side automation timer restarted - checking every minute`)
+      addLog(`👁️ Claims monitor started - checking for new claims every 30 seconds`)
     } else {
       addLog(`⏸️ Client-side automation timer stopped`)
+      addLog(`⏸️ Claims monitor stopped`)
     }
 
     return () => {
       if (automationIntervalRef.current) clearInterval(automationIntervalRef.current)
+      if (claimsMonitorIntervalRef.current) clearInterval(claimsMonitorIntervalRef.current)
     }
   }, [settings.isEnabled, settings.intervalMinutes, isRunning])
 
@@ -660,7 +711,7 @@ export default function AutomationPage() {
                     <div>
                       <h1 className="text-2xl font-bold text-white flex items-center">
                         <Zap className="w-6 h-6 mr-2" />
-                        Client-Side Automation Control
+                        Smart Claims Automation
                         {isAutomationActive && (
                           <Badge
                             className={`ml-3 text-white animate-pulse ${isCurrentlyRunning ? "bg-orange-500" : "bg-green-500"}`}
@@ -669,9 +720,15 @@ export default function AutomationPage() {
                             {isCurrentlyRunning ? "RUNNING" : "ACTIVE"}
                           </Badge>
                         )}
+                        {isMonitoring && (
+                          <Badge className="ml-2 bg-blue-500 text-white animate-pulse">
+                            <Eye className="w-3 h-3 mr-1" />
+                            MONITORING
+                          </Badge>
+                        )}
                       </h1>
                       <p className="text-sm text-green-200 mt-1">
-                        Client-side automation - runs every minute automatically
+                        Auto-triggers when new claims are added to database + scheduled automation
                       </p>
                     </div>
                   </div>
@@ -686,6 +743,17 @@ export default function AutomationPage() {
 
           <div className="p-6 max-w-7xl mx-auto">
             <div className="space-y-8">
+              {/* Claims Monitor Alert */}
+              <Alert className="border-blue-200 bg-blue-50">
+                <Eye className="h-5 w-5 text-blue-600" />
+                <AlertTitle className="text-blue-800">Smart Claims Detection Active</AlertTitle>
+                <AlertDescription className="text-blue-700">
+                  System automatically monitors the <code>systech_ott_platform.claims</code> collection every 30
+                  seconds. When new paid claims are detected, automation runs immediately without waiting for the
+                  scheduled interval.
+                </AlertDescription>
+              </Alert>
+
               {/* Auto-Automation Control Panel */}
               <Card className="shadow-2xl border-0 bg-gradient-to-br from-white to-gray-50">
                 <CardHeader className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-t-lg border-b">
@@ -695,16 +763,16 @@ export default function AutomationPage() {
                         <div className="p-2 bg-purple-100 rounded-lg mr-3">
                           <Settings className="w-6 h-6 text-purple-600" />
                         </div>
-                        Client-Side Auto-Automation
+                        Smart Claims Automation
                         {settings.isEnabled && (
                           <Badge className="ml-3 bg-green-100 text-green-800">
                             <Power className="w-3 h-3 mr-1" />
-                            ENABLED - RUNS EVERY MINUTE
+                            ENABLED - SMART MONITORING
                           </Badge>
                         )}
                       </CardTitle>
                       <CardDescription className="text-lg text-gray-600">
-                        Automatic processing every minute via client-side timer - no server cron required
+                        Automatic processing triggered by new claims + scheduled intervals
                       </CardDescription>
                     </div>
                     <Button
@@ -729,7 +797,7 @@ export default function AutomationPage() {
                           <div className="space-y-2">
                             <div className="flex items-center space-x-3">
                               <Label htmlFor="auto-toggle" className="text-xl font-bold text-gray-800">
-                                Client-Side Automation
+                                Smart Automation
                               </Label>
                               <Badge
                                 variant={tempSettings.isEnabled ? "default" : "secondary"}
@@ -744,12 +812,12 @@ export default function AutomationPage() {
                               {tempSettings.isEnabled ? (
                                 <span className="flex items-center">
                                   <Power className="w-4 h-4 mr-2 text-green-600" />
-                                  Runs automatically every minute via client timer
+                                  Monitors claims collection + scheduled automation
                                 </span>
                               ) : (
                                 <span className="flex items-center">
                                   <PowerOff className="w-4 h-4 mr-2 text-gray-600" />
-                                  Client-side automation is disabled
+                                  Smart automation is disabled
                                 </span>
                               )}
                             </p>
@@ -770,7 +838,7 @@ export default function AutomationPage() {
                           <div className="space-y-4">
                             <div className="flex items-center space-x-3">
                               <Timer className="w-5 h-5 text-blue-600" />
-                              <Label className="text-xl font-bold text-gray-800">Processing Interval</Label>
+                              <Label className="text-xl font-bold text-gray-800">Scheduled Interval</Label>
                             </div>
                             <Select
                               value={tempSettings.intervalMinutes.toString()}
@@ -830,7 +898,7 @@ export default function AutomationPage() {
                       <div className="space-y-6 bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-xl border border-green-200">
                         <h3 className="font-bold text-xl text-green-900 flex items-center">
                           <Timer className="w-6 h-6 mr-2" />
-                          Live Automation Status (IST) - Client Timer Active
+                          Live Smart Automation Status (IST)
                         </h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                           <div className="text-center bg-white/50 p-4 rounded-lg">
@@ -842,15 +910,15 @@ export default function AutomationPage() {
                             </Badge>
                           </div>
                           <div className="text-center bg-white/50 p-4 rounded-lg">
-                            <p className="text-sm text-green-700 font-semibold">Check Interval</p>
-                            <p className="text-2xl font-bold text-green-800">Every Minute</p>
+                            <p className="text-sm text-green-700 font-semibold">Claims Monitor</p>
+                            <p className="text-2xl font-bold text-green-800">Every 30s</p>
                             <Badge className="mt-2 bg-blue-600 text-white">
-                              <Clock className="w-3 h-3 mr-1" />
-                              Client Timer
+                              <Eye className="w-3 h-3 mr-1" />
+                              Smart Detection
                             </Badge>
                           </div>
                           <div className="text-center bg-white/50 p-4 rounded-lg">
-                            <p className="text-sm text-green-700 font-semibold">Process Interval</p>
+                            <p className="text-sm text-green-700 font-semibold">Scheduled Interval</p>
                             <p className="text-2xl font-bold text-green-800">
                               {formatInterval(settings.intervalMinutes)}
                             </p>
@@ -884,7 +952,7 @@ export default function AutomationPage() {
                         {settings.nextRun && (
                           <div className="space-y-2">
                             <div className="flex justify-between text-sm text-green-700">
-                              <span>Progress to next run</span>
+                              <span>Progress to next scheduled run</span>
                               <span>{Math.round(nextRunProgress)}%</span>
                             </div>
                             <div className="w-full bg-green-200 rounded-full h-3">
@@ -896,13 +964,14 @@ export default function AutomationPage() {
                           </div>
                         )}
 
-                        {/* Client Timer Info */}
+                        {/* Smart Detection Info */}
                         <Alert className="border-blue-200 bg-blue-50">
                           <Info className="h-5 w-5 text-blue-600" />
-                          <AlertTitle className="text-blue-800">Client-Side Timer Active</AlertTitle>
+                          <AlertTitle className="text-blue-800">Smart Claims Detection Active</AlertTitle>
                           <AlertDescription className="text-blue-700">
-                            Automation runs via client-side timer every minute. Keep this browser tab open for
-                            continuous operation. Database counter updates automatically with each run.
+                            System monitors claims collection every 30 seconds. New paid claims trigger immediate
+                            automation, plus scheduled automation runs at configured intervals. Keep browser tab open
+                            for continuous operation.
                           </AlertDescription>
                         </Alert>
                       </div>
@@ -911,10 +980,10 @@ export default function AutomationPage() {
                     {!settings.isEnabled && (
                       <Alert className="border-orange-200 bg-orange-50">
                         <PowerOff className="h-5 w-5 text-orange-600" />
-                        <AlertTitle className="text-orange-800">Client-Side Automation Disabled</AlertTitle>
+                        <AlertTitle className="text-orange-800">Smart Automation Disabled</AlertTitle>
                         <AlertDescription className="text-orange-700">
-                          Client-side automation is currently disabled. Enable it above to start automatic claim
-                          processing every minute via browser timer.
+                          Smart automation is currently disabled. Enable it above to start automatic claim processing
+                          triggered by new database records and scheduled intervals.
                         </AlertDescription>
                       </Alert>
                     )}
@@ -1106,14 +1175,14 @@ export default function AutomationPage() {
                                 {step.id === "check-expired"
                                   ? "Updates Claims table - sets paymentStatus='failed' for expired records"
                                   : step.id === "fetch-claims"
-                                    ? "Queries Claims table for paymentStatus='paid' and ottCodeStatus='pending'"
+                                    ? "Queries Claims table for paymentStatus='paid' and ottStatus='pending'"
                                     : step.id === "verify-codes"
                                       ? "Cross-references Claims.activationCode with SalesRecord table"
                                       : step.id === "duplicate-check"
                                         ? "Scans Claims table for duplicate activationCode assignments"
                                         : step.id === "assign-keys"
                                           ? "Updates OTTKey table status='assigned' and Claims table with ottCode"
-                                          : "Updates Claims table ottCodeStatus='delivered' and sends email notifications"}
+                                          : "Updates Claims table ottStatus='delivered' and sends email notifications"}
                               </p>
                             </div>
                           </div>
@@ -1340,7 +1409,7 @@ export default function AutomationPage() {
                         {logs.length === 0 ? (
                           <div className="text-center py-8">
                             <p className="text-gray-500 text-lg">
-                              💻 Client-side automation ready. Timer runs every minute when enabled...
+                              💻 Smart automation ready. Monitoring claims collection + scheduled automation...
                             </p>
                           </div>
                         ) : (
@@ -1363,10 +1432,10 @@ export default function AutomationPage() {
                 <CardHeader className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-t-lg border-b">
                   <CardTitle className="text-2xl font-bold text-gray-800 flex items-center">
                     <Info className="w-6 h-6 mr-3 text-indigo-600" />
-                    Client-Side Automation Overview
+                    Smart Claims Automation Overview
                   </CardTitle>
                   <CardDescription className="text-lg text-gray-600">
-                    Complete guide to the client-side OTT key assignment automation with database counter updates
+                    Complete guide to the smart claims automation with database monitoring and scheduled processing
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="p-8">
@@ -1375,11 +1444,10 @@ export default function AutomationPage() {
                     <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200">
                       <h3 className="font-bold text-xl text-blue-900 mb-4 flex items-center">
                         <Target className="w-6 h-6 mr-2" />
-                        Client-Side Automation Process
+                        Smart Automation Process
                       </h3>
                       <p className="text-blue-800 mb-4 text-lg">
-                        The client-side automation runs every minute via browser timer and automatically updates the
-                        database counter:
+                        The smart automation system monitors the claims collection and runs automation in two ways:
                       </p>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-4">
@@ -1388,9 +1456,9 @@ export default function AutomationPage() {
                               1
                             </div>
                             <div>
-                              <h4 className="font-semibold text-blue-900">Client Timer Check</h4>
+                              <h4 className="font-semibold text-blue-900">Claims Detection</h4>
                               <p className="text-blue-700 text-sm">
-                                Browser timer runs every 60 seconds to check if automation should run
+                                Monitors claims collection every 30 seconds for new paid claims
                               </p>
                             </div>
                           </div>
@@ -1399,9 +1467,9 @@ export default function AutomationPage() {
                               2
                             </div>
                             <div>
-                              <h4 className="font-semibold text-blue-900">Interval Validation</h4>
+                              <h4 className="font-semibold text-blue-900">Immediate Processing</h4>
                               <p className="text-blue-700 text-sm">
-                                Checks if enough time has passed based on configured interval
+                                Triggers automation immediately when new claims are detected
                               </p>
                             </div>
                           </div>
@@ -1423,9 +1491,9 @@ export default function AutomationPage() {
                               4
                             </div>
                             <div>
-                              <h4 className="font-semibold text-blue-900">Counter Update</h4>
+                              <h4 className="font-semibold text-blue-900">Scheduled Backup</h4>
                               <p className="text-blue-700 text-sm">
-                                Automatically increments totalRuns counter in database
+                                Also runs on scheduled intervals as backup processing
                               </p>
                             </div>
                           </div>
@@ -1434,9 +1502,9 @@ export default function AutomationPage() {
                               5
                             </div>
                             <div>
-                              <h4 className="font-semibold text-blue-900">Next Run Scheduling</h4>
+                              <h4 className="font-semibold text-blue-900">Counter Update</h4>
                               <p className="text-blue-700 text-sm">
-                                Updates nextRun timestamp for next automation cycle
+                                Automatically increments totalRuns counter in database
                               </p>
                             </div>
                           </div>
@@ -1447,7 +1515,7 @@ export default function AutomationPage() {
                             <div>
                               <h4 className="font-semibold text-blue-900">Continuous Operation</h4>
                               <p className="text-blue-700 text-sm">
-                                Repeats every minute as long as browser tab remains open
+                                Continues monitoring as long as browser tab remains open
                               </p>
                             </div>
                           </div>
@@ -1457,35 +1525,35 @@ export default function AutomationPage() {
 
                     <Separator className="bg-gray-300" />
 
-                    {/* Timer Information */}
+                    {/* Smart Detection Information */}
                     <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-xl border border-green-200">
                       <h3 className="font-bold text-xl text-green-900 mb-4 flex items-center">
-                        <Clock className="w-6 h-6 mr-2" />
-                        Client-Side Timer Details
+                        <Eye className="w-6 h-6 mr-2" />
+                        Smart Claims Detection
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                          <h4 className="font-semibold text-green-900 mb-2">Timer Operation</h4>
+                          <h4 className="font-semibold text-green-900 mb-2">Detection Method</h4>
                           <p className="text-green-800 text-sm mb-3">
-                            The automation uses JavaScript setInterval to run every 60 seconds (1 minute).
+                            The system monitors the systech_ott_platform.claims collection every 30 seconds.
                           </p>
                           <ul className="text-green-700 text-sm space-y-1">
-                            <li>• Runs every 60,000 milliseconds (1 minute)</li>
-                            <li>• Checks automation settings and conditions</li>
-                            <li>• Processes claims when interval requirements are met</li>
-                            <li>• Updates database counter automatically</li>
+                            <li>• Checks for paymentStatus: "paid"</li>
+                            <li>• Looks for ottStatus: "pending"</li>
+                            <li>• Triggers automation immediately when found</li>
+                            <li>• No waiting for scheduled intervals</li>
                           </ul>
                         </div>
                         <div>
-                          <h4 className="font-semibold text-green-900 mb-2">Database Updates</h4>
+                          <h4 className="font-semibold text-green-900 mb-2">Dual Processing</h4>
                           <p className="text-green-800 text-sm mb-3">
-                            Each successful run updates multiple database fields automatically.
+                            Smart detection works alongside scheduled automation for complete coverage.
                           </p>
                           <ul className="text-green-700 text-sm space-y-1">
-                            <li>• totalRuns: Incremented by 1</li>
-                            <li>• lastRun: Updated to current timestamp</li>
-                            <li>• nextRun: Calculated for next cycle</li>
-                            <li>• isRunning: Status tracking</li>
+                            <li>• Immediate: Triggered by new claims</li>
+                            <li>• Scheduled: Runs at configured intervals</li>
+                            <li>• Backup: Catches any missed claims</li>
+                            <li>• Efficient: No duplicate processing</li>
                           </ul>
                         </div>
                       </div>
