@@ -961,7 +961,12 @@ export default function AdminPage() {
                             <TableHead className="font-bold text-gray-800">Activation Code</TableHead>
                             <TableHead className="font-bold text-gray-800">Payment Status</TableHead>
                             <TableHead className="font-bold text-gray-800">OTT Status</TableHead>
-                            <TableHead className="font-bold text-gray-800">OTT Code</TableHead>
+                            <TableHead className="font-bold text-gray-800">OTT Code</TableHead>                                                        
+                            {/* NEW COLUMNS */}
+                            <TableHead className="font-bold text-gray-800">Payment ID</TableHead>
+                            <TableHead className="font-bold text-gray-800">Razorpay Order ID</TableHead>
+                            <TableHead className="font-bold text-gray-800">Razorpay Signature</TableHead>
+
                             <TableHead className="font-bold text-gray-800">Created</TableHead>
                             <TableHead className="font-bold text-gray-800">Actions</TableHead>
                           </TableRow>
@@ -986,18 +991,32 @@ export default function AdminPage() {
                               </TableCell>
                               <TableCell className="font-medium">{claim.email || "N/A"}</TableCell>
                               <TableCell>{claim.phoneNumber || claim.phone || "N/A"}</TableCell>
-                              <TableCell className="max-w-xs truncate" title={claim.address || "N/A"}>
-                                {claim.address || "N/A"}
+
+                              {/* Address fix */}
+                              <TableCell
+                                className="max-w-xs truncate"
+                                title={`${claim.streetAddress || ""} ${claim.addressLine2 || ""}`.trim() || "N/A"}
+                              >
+                                {`${claim.streetAddress || ""} ${claim.addressLine2 || ""}`.trim() || "N/A"}
                               </TableCell>
+
                               <TableCell>{claim.state || "N/A"}</TableCell>
                               <TableCell>{claim.city || "N/A"}</TableCell>
-                              <TableCell>{claim.pincode || "N/A"}</TableCell>
+                              <TableCell>{claim.pincode || claim.postalCode || "N/A"}</TableCell>
                               <TableCell className="font-mono text-sm">{claim.activationCode || "N/A"}</TableCell>
                               <TableCell>{getStatusBadge(claim.paymentStatus)}</TableCell>
                               <TableCell>{getStatusBadge(claim.ottCodeStatus || claim.ottStatus)}</TableCell>
                               <TableCell className="font-mono text-sm">
                                 {claim.ottCode || <span className="text-gray-400">-</span>}
                               </TableCell>
+
+                              {/* New payment fields */}
+                              <TableCell className="font-mono text-xs">{claim.paymentId || "N/A"}</TableCell>
+                              <TableCell className="font-mono text-xs">{claim.razorpayOrderId || "N/A"}</TableCell>
+                              <TableCell className="font-mono text-xs break-all">
+                                {claim.razorpaySignature || "N/A"}
+                              </TableCell>
+
                               <TableCell className="text-sm text-gray-600">{formatDateTime(claim.createdAt)}</TableCell>
                               <TableCell className="flex gap-2">
                                 <Button
@@ -1020,8 +1039,8 @@ export default function AdminPage() {
                                     claim.ottCodeStatus === "delivered"
                                       ? "Key already assigned"
                                       : claim.paymentStatus !== "paid"
-                                        ? "Claim not paid"
-                                        : "Manually assign OTT Key"
+                                      ? "Claim not paid"
+                                      : "Manually assign OTT Key"
                                   }
                                 >
                                   <Send className="w-4 h-4" />
@@ -1030,12 +1049,13 @@ export default function AdminPage() {
                             </TableRow>
                           )) || (
                             <TableRow>
-                              <TableCell colSpan={15} className="text-center py-8 text-gray-500">
+                              <TableCell colSpan={18} className="text-center py-8 text-gray-500">
                                 No claims data available
                               </TableCell>
                             </TableRow>
                           )}
                         </TableBody>
+
                       </Table>
                     </div>
                     <PaginationControls data={claimResponses || []} tabName="claims" />
