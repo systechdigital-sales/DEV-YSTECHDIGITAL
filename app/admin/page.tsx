@@ -708,6 +708,9 @@ export default function AdminPage() {
                       <p className="text-sm font-medium text-gray-600">Redemption Records</p>
                       <p className="text-3xl font-bold text-gray-900">{stats.totalSales}</p>
                       <p className="text-sm text-gray-500">{stats.claimedSales} claimed</p>
+                       <p className="text-sm text-gray-500">
+                        {Number(stats.totalSales) - Number(stats.claimedSales)} available • {stats.claimedSales} claimed
+                      </p>
                     </div>
                     <div className="p-3 bg-green-100 rounded-full">
                       <DollarSign className="w-8 h-8 text-green-600" />
