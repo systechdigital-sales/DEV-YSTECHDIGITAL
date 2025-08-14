@@ -11,53 +11,42 @@ export async function GET(request: NextRequest) {
       .find({
         paymentStatus: "paid",
         ottStatus: "pending",
-        processed: { $ne: true },
+        automationProcessed: { $ne: true },
       })
       .toArray()
 
-    if (newClaims.length > 0) {
-      console.log(`Found ${newClaims.length} new claims to process`)
-
-      // Trigger automation for these claims
-      const automationResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/admin/process-automation`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          trigger: "claims-monitor",
-          claimIds: newClaims.map((claim) => claim._id),
-        }),
+    if (newClaims.length === 0) {
+      return NextResponse.json({
+        success: true,
+        message: "No new claims to process",
+        newClaims: 0,
+        claimIds: [],
       })
-
-      if (automationResponse.ok) {
-        // Mark claims as being processed
-        await db
-          .collection("claims")
-          .updateMany(
-            { _id: { $in: newClaims.map((claim) => claim._id) } },
-            { $set: { processed: true, processedAt: new Date() } },
-          )
-
-        return NextResponse.json({
-          success: true,
-          message: `Triggered automation for ${newClaims.length} new claims`,
-          claimsProcessed: newClaims.length,
-          claimIds: newClaims.map((claim) => claim._id),
-        })
-      } else {
-        return NextResponse.json({
-          success: false,
-          message: "Failed to trigger automation",
-          claimsFound: newClaims.length,
-        })
-      }
     }
+
+    // Mark claims as being processed to prevent duplicate processing
+    const claimIds = newClaims.map((claim) => claim._id)
+    await db
+      .collection("claims")
+      .updateMany({ _id: { $in: claimIds } }, { $set: { automationProcessed: true, processedAt: new Date() } })
+
+    // Trigger the automation process
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
+    const automationResponse = await fetch(`${baseUrl}/api/admin/process-automation`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
+
+    const automationResult = await automationResponse.json()
 
     return NextResponse.json({
       success: true,
-      message: "No new claims found",
-      claimsFound: 0,
+      message: `Found and processed ${newClaims.length} new claims`,
+      newClaims: newClaims.length,
+      claimIds: claimIds.map((id) => id.toString()),
+      automationResult,
     })
   } catch (error) {
     console.error("Claims monitor error:", error)
