@@ -795,7 +795,7 @@ export default function AdminPage() {
                       <p className="text-sm font-medium text-gray-600">Total Claims</p>
                       <p className="text-3xl font-bold text-gray-900">{stats.totalClaims}</p>
                       <p className="text-sm text-gray-500">
-                        {stats.paidClaims} paid • {stats.pendingClaims} pending • {stats.deliveredClaims} delivered
+                        {stats.paidClaims} paid • {stats.pendingClaims} pending 
                       </p>
                     </div>
                     <div className="p-3 bg-blue-100 rounded-full">
