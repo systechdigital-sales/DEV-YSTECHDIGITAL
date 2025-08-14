@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Checkbox } from "@/components/ui/checkbox"
 import {
   Upload,
   Download,
@@ -23,7 +22,6 @@ import {
   RefreshCw,
   Trash2,
   Lock,
-  X,
   Send,
   ChevronLeft,
   ChevronRight,
@@ -45,373 +43,219 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/s
 import Image from "next/image"
 import { toast } from "@/hooks/use-toast"
 
+// Reduced page size for better performance
+const ITEMS_PER_PAGE = 10
+
+interface PaginatedResponse<T> {
+  data: T[]
+  total: number
+  page: number
+  totalPages: number
+}
+
+interface Stats {
+  totalClaims: number
+  paidClaims: number
+  pendingClaims: number
+  failedClaims: number
+  totalSales: number
+  claimedSales: number
+  availableKeys: number
+  assignedKeys: number
+  usedKeys: number
+  totalKeys: number
+}
+
 export default function AdminPage() {
-  const [claimResponses, setClaimResponses] = useState<ClaimResponse[]>([])
-  const [salesRecords, setSalesRecords] = useState<SalesRecord[]>([])
-  const [ottKeys, setOTTKeys] = useState<OTTKey[]>([])
+  // Basic state
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState("")
   const [error, setError] = useState("")
   const [activeTab, setActiveTab] = useState("claims")
+  const router = useRouter()
+
+  // Data state - only store current page data
+  const [currentData, setCurrentData] = useState<{
+    claims: ClaimResponse[]
+    sales: SalesRecord[]
+    keys: OTTKey[]
+  }>({
+    claims: [],
+    sales: [],
+    keys: [],
+  })
+
+  // Pagination state
+  const [pagination, setPagination] = useState({
+    claims: { page: 1, total: 0, totalPages: 0 },
+    sales: { page: 1, total: 0, totalPages: 0 },
+    keys: { page: 1, total: 0, totalPages: 0 },
+  })
+
+  // Search state
+  const [searchTerm, setSearchTerm] = useState("")
+  const [searchLoading, setSearchLoading] = useState(false)
+
+  // Stats state
+  const [stats, setStats] = useState<Stats>({
+    totalClaims: 0,
+    paidClaims: 0,
+    pendingClaims: 0,
+    failedClaims: 0,
+    totalSales: 0,
+    claimedSales: 0,
+    availableKeys: 0,
+    assignedKeys: 0,
+    usedKeys: 0,
+    totalKeys: 0,
+  })
+
+  // Selection state
+  const [selectedRecords, setSelectedRecords] = useState<Set<string>>(new Set())
+
+  // Dialog states
   const [deletePassword, setDeletePassword] = useState("")
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [recordToDelete, setRecordToDelete] = useState<{ type: string; id: string; name: string } | null>(null)
-  const [bulkDeleteIds, setBulkDeleteIds] = useState<string[]>([])
-  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const [selectedRecords, setSelectedRecords] = useState<Set<string>>(new Set())
-  const router = useRouter()
 
-  // Search and Filter States
-  const [searchTerms, setSearchTerms] = useState({
-    claims: "",
-    sales: "",
-    keys: "",
-  })
-
-  const [filters, setFilters] = useState({
-    claims: {
-      paymentStatus: "all",
-      ottStatus: "all",
-      state: "all",
-      city: "all",
-    },
-    sales: {
-      status: "all",
-      product: "all",
-      productSubCategory: "all",
-    },
-    keys: {
-      status: "all",
-      product: "all",
-      productSubCategory: "all",
-    },
-  })
-
-  const [currentPage, setCurrentPage] = useState({
-    claims: 1,
-    sales: 1,
-    keys: 1,
-  })
-  const ITEMS_PER_PAGE = 20
-
-  // State for Manual Assignment
+  // Manual assignment states
   const [manualAssignDialogOpen, setManualAssignDialogOpen] = useState(false)
   const [selectedClaimForManualAssign, setSelectedClaimForManualAssign] = useState<ClaimResponse | null>(null)
   const [selectedKeyForManualAssign, setSelectedKeyForManualAssign] = useState<string>("")
   const [manualAssignPassword, setManualAssignPassword] = useState("")
   const [assigning, setAssigning] = useState(false)
+  const [availableKeys, setAvailableKeys] = useState<OTTKey[]>([])
 
-  // Filter and Search Logic
-  const filteredData = useMemo(() => {
-    const filterClaims = (claims: ClaimResponse[]) => {
-      if (!claims || !Array.isArray(claims)) return []
-
-      return claims.filter((claim) => {
-        if (!claim) return false
-
-        const searchMatch =
-          !searchTerms.claims ||
-          `${claim.firstName || ""} ${claim.lastName || ""}`.toLowerCase().includes(searchTerms.claims.toLowerCase()) ||
-          (claim.email || "").toLowerCase().includes(searchTerms.claims.toLowerCase()) ||
-          (claim.phoneNumber || claim.phone || "").toLowerCase().includes(searchTerms.claims.toLowerCase()) ||
-          (claim.activationCode || "").toLowerCase().includes(searchTerms.claims.toLowerCase()) ||
-          (claim.claimId || "").toLowerCase().includes(searchTerms.claims.toLowerCase())
-
-        const paymentStatusMatch =
-          filters.claims.paymentStatus === "all" ||
-          (claim.paymentStatus || "").toLowerCase() === filters.claims.paymentStatus.toLowerCase()
-
-        const ottStatusMatch =
-          filters.claims.ottStatus === "all" ||
-          (claim.ottCodeStatus || claim.ottStatus || "").toLowerCase() === filters.claims.ottStatus.toLowerCase()
-
-        const stateMatch =
-          filters.claims.state === "all" || (claim.state || "").toLowerCase() === filters.claims.state.toLowerCase()
-
-        const cityMatch =
-          filters.claims.city === "all" || (claim.city || "").toLowerCase() === filters.claims.city.toLowerCase()
-
-        return searchMatch && paymentStatusMatch && ottStatusMatch && stateMatch && cityMatch
-      })
-    }
-
-    const filterSales = (sales: SalesRecord[]) => {
-      if (!sales || !Array.isArray(sales)) return []
-
-      return sales.filter((sale) => {
-        if (!sale) return false
-
-        const searchMatch =
-          !searchTerms.sales ||
-          (sale.activationCode || "").toLowerCase().includes(searchTerms.sales.toLowerCase()) ||
-          (sale.product || "").toLowerCase().includes(searchTerms.sales.toLowerCase()) ||
-          (sale.productSubCategory || "").toLowerCase().includes(searchTerms.sales.toLowerCase()) ||
-          (sale.claimedBy || "").toLowerCase().includes(searchTerms.sales.toLowerCase())
-
-        const statusMatch =
-          filters.sales.status === "all" || (sale.status || "").toLowerCase() === filters.sales.status.toLowerCase()
-
-        const productMatch =
-          filters.sales.product === "all" || (sale.product || "").toLowerCase() === filters.sales.product.toLowerCase()
-
-        const categoryMatch =
-          filters.sales.productSubCategory === "all" ||
-          (sale.productSubCategory || "").toLowerCase() === filters.sales.productSubCategory.toLowerCase()
-
-        return searchMatch && statusMatch && productMatch && categoryMatch
-      })
-    }
-
-    const filterKeys = (keys: OTTKey[]) => {
-      if (!keys || !Array.isArray(keys)) return []
-
-      return keys.filter((key) => {
-        if (!key) return false
-
-        const searchMatch =
-          !searchTerms.keys ||
-          (key.activationCode || "").toLowerCase().includes(searchTerms.keys.toLowerCase()) ||
-          (key.product || "").toLowerCase().includes(searchTerms.keys.toLowerCase()) ||
-          (key.productSubCategory || "").toLowerCase().includes(searchTerms.keys.toLowerCase()) ||
-          (key.assignedEmail || "").toLowerCase().includes(searchTerms.keys.toLowerCase())
-
-        const statusMatch =
-          filters.keys.status === "all" || (key.status || "").toLowerCase() === filters.keys.status.toLowerCase()
-
-        const productMatch =
-          filters.keys.product === "all" || (key.product || "").toLowerCase() === filters.keys.product.toLowerCase()
-
-        const categoryMatch =
-          filters.keys.productSubCategory === "all" ||
-          (key.productSubCategory || "").toLowerCase() === filters.keys.productSubCategory.toLowerCase()
-
-        return searchMatch && statusMatch && productMatch && categoryMatch
-      })
-    }
-
-    return {
-      claims: filterClaims(claimResponses),
-      sales: filterSales(salesRecords),
-      keys: filterKeys(ottKeys),
-    }
-  }, [claimResponses, salesRecords, ottKeys, searchTerms, filters])
-
-  // Get unique values for filter options
-  const filterOptions = useMemo(() => {
-    const getUniqueValues = (array: any[], key: string) => {
-      if (!array || !Array.isArray(array)) return []
-      return [...new Set(array.map((item) => item?.[key]).filter(Boolean))].sort()
-    }
-
-    return {
-      claims: {
-        paymentStatuses: getUniqueValues(claimResponses, "paymentStatus"),
-        ottStatuses: getUniqueValues(claimResponses, "ottCodeStatus").concat(
-          getUniqueValues(claimResponses, "ottStatus"),
-        ),
-        states: getUniqueValues(claimResponses, "state"),
-        cities: getUniqueValues(claimResponses, "city"),
-      },
-      sales: {
-        statuses: getUniqueValues(salesRecords, "status"),
-        products: getUniqueValues(salesRecords, "product"),
-        categories: getUniqueValues(salesRecords, "productSubCategory"),
-      },
-      keys: {
-        statuses: getUniqueValues(ottKeys, "status"),
-        products: getUniqueValues(ottKeys, "product"),
-        categories: getUniqueValues(ottKeys, "productSubCategory"),
-      },
-    }
-  }, [claimResponses, salesRecords, ottKeys])
-
-  const getPaginatedData = (data: any[], tabName: "claims" | "sales" | "keys") => {
-    if (!data || !Array.isArray(data)) return []
-    const startIndex = (currentPage[tabName] - 1) * ITEMS_PER_PAGE
-    const endIndex = startIndex + ITEMS_PER_PAGE
-    return data.slice(startIndex, endIndex)
-  }
-
-  const getTotalPages = (data: any[]) => {
-    if (!data || !Array.isArray(data)) return 0
-    return Math.ceil(data.length / ITEMS_PER_PAGE)
-  }
-
-  const handlePageChange = (tabName: "claims" | "sales" | "keys", page: number) => {
-    setCurrentPage((prev) => ({
-      ...prev,
-      [tabName]: page,
-    }))
-    // Clear selections when changing pages
-    setSelectedRecords(new Set())
-  }
-
-  const handleTabChange = (value: string) => {
-    setActiveTab(value)
-    setSelectedRecords(new Set())
-  }
-
-  const handleSearchChange = (tabName: "claims" | "sales" | "keys", value: string) => {
-    setSearchTerms((prev) => ({
-      ...prev,
-      [tabName]: value,
-    }))
-    // Reset to first page when searching
-    setCurrentPage((prev) => ({
-      ...prev,
-      [tabName]: 1,
-    }))
-    setSelectedRecords(new Set())
-  }
-
-  const handleFilterChange = (tabName: "claims" | "sales" | "keys", filterType: string, value: string) => {
-    setFilters((prev) => ({
-      ...prev,
-      [tabName]: {
-        ...prev[tabName],
-        [filterType]: value,
-      },
-    }))
-    // Reset to first page when filtering
-    setCurrentPage((prev) => ({
-      ...prev,
-      [tabName]: 1,
-    }))
-    setSelectedRecords(new Set())
-  }
-
-  const clearFilters = (tabName: "claims" | "sales" | "keys") => {
-    setSearchTerms((prev) => ({
-      ...prev,
-      [tabName]: "",
-    }))
-
-    if (tabName === "claims") {
-      setFilters((prev) => ({
-        ...prev,
-        claims: {
-          paymentStatus: "all",
-          ottStatus: "all",
-          state: "all",
-          city: "all",
-        },
-      }))
-    } else if (tabName === "sales") {
-      setFilters((prev) => ({
-        ...prev,
-        sales: {
-          status: "all",
-          product: "all",
-          productSubCategory: "all",
-        },
-      }))
-    } else if (tabName === "keys") {
-      setFilters((prev) => ({
-        ...prev,
-        keys: {
-          status: "all",
-          product: "all",
-          productSubCategory: "all",
-        },
-      }))
-    }
-
-    setCurrentPage((prev) => ({
-      ...prev,
-      [tabName]: 1,
-    }))
-    setSelectedRecords(new Set())
-  }
-
+  // Check authentication on mount
   useEffect(() => {
-    // Check authentication
     const isAuthenticated = sessionStorage.getItem("adminAuthenticated")
     if (!isAuthenticated) {
       router.push("/login")
       return
     }
 
-    fetchData()
+    // Load initial data
+    loadStats()
+    loadCurrentTabData()
   }, [router])
 
+  // Load data when tab changes
   useEffect(() => {
-    setCurrentPage({
-      claims: 1,
-      sales: 1,
-      keys: 1,
-    })
+    loadCurrentTabData()
     setSelectedRecords(new Set())
-  }, [claimResponses.length, salesRecords.length, ottKeys.length])
+  }, [activeTab])
 
-  const fetchData = async () => {
-    setLoading(true)
-    setError("")
-
+  // Load stats (lightweight operation)
+  const loadStats = async () => {
     try {
-      const timestamp = new Date().getTime()
-
-      // Fetch all data with error handling for each endpoint
-      const fetchWithFallback = async (url: string, fallback: any[] = []) => {
-        try {
-          const response = await fetch(`${url}?_=${timestamp}`, {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-            },
-          })
-          if (response.ok) {
-            const data = await response.json()
-            // Handle different response formats
-            if (Array.isArray(data)) {
-              return data
-            } else if (data.claims && Array.isArray(data.claims)) {
-              return data.claims
-            } else if (data.success && Array.isArray(data.data)) {
-              return data.data
-            } else {
-              console.warn(`Unexpected response format from ${url}:`, data)
-              return fallback
-            }
-          } else {
-            console.warn(`Failed to fetch from ${url}:`, response.status)
-            return fallback
-          }
-        } catch (error) {
-          console.warn(`Error fetching from ${url}:`, error)
-          return fallback
-        }
-      }
-
-      const [claimsData, salesData, keysData] = await Promise.all([
-        fetchWithFallback("/api/admin/claims", []),
-        fetchWithFallback("/api/admin/sales", []),
-        fetchWithFallback("/api/admin/keys", []),
-      ])
-
-      setClaimResponses(claimsData)
-      setSalesRecords(salesData)
-      setOTTKeys(keysData)
-
-      console.log("Data fetched successfully:", {
-        claims: claimsData.length,
-        sales: salesData.length,
-        keys: keysData.length,
+      const response = await fetch("/api/admin/stats", {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
       })
+
+      if (response.ok) {
+        const data = await response.json()
+        setStats(data)
+      }
     } catch (error) {
-      console.error("Error fetching data:", error)
-      setError("Failed to fetch data from systech_ott_platform database")
-    } finally {
-      setLoading(false)
+      console.warn("Failed to load stats:", error)
     }
   }
 
+  // Load current tab data with pagination
+  const loadCurrentTabData = useCallback(
+    async (page = 1, search = "") => {
+      setSearchLoading(true)
+
+      try {
+        const params = new URLSearchParams({
+          page: page.toString(),
+          limit: ITEMS_PER_PAGE.toString(),
+          search: search,
+        })
+
+        const response = await fetch(`/api/admin/${activeTab}?${params}`, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        })
+
+        if (response.ok) {
+          const result: PaginatedResponse<any> = await response.json()
+
+          setCurrentData((prev) => ({
+            ...prev,
+            [activeTab]: result.data || [],
+          }))
+
+          setPagination((prev) => ({
+            ...prev,
+            [activeTab]: {
+              page: result.page || 1,
+              total: result.total || 0,
+              totalPages: result.totalPages || 0,
+            },
+          }))
+        } else {
+          throw new Error(`Failed to load ${activeTab} data`)
+        }
+      } catch (error) {
+        console.error(`Error loading ${activeTab} data:`, error)
+        setError(`Failed to load ${activeTab} data`)
+
+        // Set empty data on error
+        setCurrentData((prev) => ({
+          ...prev,
+          [activeTab]: [],
+        }))
+      } finally {
+        setSearchLoading(false)
+        setLoading(false)
+      }
+    },
+    [activeTab],
+  )
+
+  // Handle search with debouncing
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchTerm !== undefined) {
+        loadCurrentTabData(1, searchTerm)
+      }
+    }, 500)
+
+    return () => clearTimeout(timeoutId)
+  }, [searchTerm, loadCurrentTabData])
+
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    setPagination((prev) => ({
+      ...prev,
+      [activeTab]: { ...prev[activeTab as keyof typeof prev], page },
+    }))
+    loadCurrentTabData(page, searchTerm)
+    setSelectedRecords(new Set())
+  }
+
+  // Handle tab change
+  const handleTabChange = (value: string) => {
+    setActiveTab(value)
+    setSearchTerm("")
+    setSelectedRecords(new Set())
+  }
+
+  // Handle search change
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value)
+    setSelectedRecords(new Set())
+  }
+
+  // File upload handler
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, type: "sales" | "keys") => {
     const file = event.target.files?.[0]
     if (!file) return
 
-    // Validate file type
     const allowedTypes = [".xlsx", ".xls", ".csv"]
     const fileExtension = "." + file.name.split(".").pop()?.toLowerCase()
     if (!allowedTypes.includes(fileExtension)) {
@@ -439,17 +283,18 @@ export default function AdminPage() {
       })
 
       const result = await response.json()
-      console.log(`Upload ${type} response:`, result)
 
       if (response.ok && result.success) {
         setMessage(result.message || `${type} data uploaded successfully`)
         toast({
           title: "Upload Successful",
-          description: result.message || `${type} data uploaded successfully. ${result.count || 0} records processed.`,
+          description: result.message || `${type} data uploaded successfully.`,
         })
-        fetchData() // Refresh data
+        // Refresh current data and stats
+        loadStats()
+        loadCurrentTabData()
       } else {
-        const errorMessage = result.error || result.details?.join(", ") || "Upload failed"
+        const errorMessage = result.error || "Upload failed"
         setError(errorMessage)
         toast({
           title: "Upload Failed",
@@ -468,11 +313,11 @@ export default function AdminPage() {
       })
     } finally {
       setUploading(false)
-      // Reset file input
       event.target.value = ""
     }
   }
 
+  // Export data handler
   const exportData = async (type?: "claims" | "sales" | "keys") => {
     try {
       setMessage("")
@@ -484,7 +329,6 @@ export default function AdminPage() {
       }
 
       const response = await fetch(url)
-      console.log("Export response status:", response.status)
 
       if (response.ok) {
         const blob = await response.blob()
@@ -531,30 +375,14 @@ export default function AdminPage() {
     }
   }
 
+  // Delete handlers
   const handleDeleteClick = (type: string, id: string, name: string) => {
-    console.log("Delete clicked:", { type, id, name })
     setRecordToDelete({ type, id, name })
     setDeletePassword("")
     setDeleteDialogOpen(true)
   }
 
-  const handleBulkDeleteClick = (type: string) => {
-    if (selectedRecords.size === 0) {
-      setError("Please select records to delete")
-      toast({
-        title: "No Records Selected",
-        description: "Please select at least one record to perform bulk delete.",
-        variant: "destructive",
-      })
-      return
-    }
-    setBulkDeleteIds(Array.from(selectedRecords))
-    setRecordToDelete({ type, id: "", name: `${selectedRecords.size} records` })
-    setDeletePassword("")
-    setBulkDeleteDialogOpen(true)
-  }
-
-  const handleDeleteConfirm = async (isBulk = false) => {
+  const handleDeleteConfirm = async () => {
     if (!recordToDelete || deletePassword !== "Tr!ckyH@ck3r#2025") {
       setError("Invalid password. Please enter the correct admin password.")
       toast({
@@ -569,44 +397,31 @@ export default function AdminPage() {
     setError("")
 
     try {
-      let url = `/api/admin/delete?type=${recordToDelete.type}&password=${encodeURIComponent(deletePassword)}`
-
-      if (isBulk) {
-        url += `&ids=${bulkDeleteIds.join(",")}`
-        console.log("Bulk delete URL:", url)
-      } else {
-        url += `&id=${encodeURIComponent(recordToDelete.id)}`
-        console.log("Single delete URL:", url)
-      }
+      const url = `/api/admin/delete?type=${recordToDelete.type}&id=${encodeURIComponent(recordToDelete.id)}&password=${encodeURIComponent(deletePassword)}`
 
       const response = await fetch(url, {
         method: "DELETE",
       })
 
       const result = await response.json()
-      console.log("Delete response:", result)
 
       if (response.ok) {
-        setMessage(result.message || "Record(s) deleted successfully")
+        setMessage(result.message || "Record deleted successfully")
         toast({
           title: "Deletion Successful",
-          description: result.message || "Record(s) deleted successfully.",
+          description: result.message || "Record deleted successfully.",
         })
-        if (isBulk) {
-          setBulkDeleteDialogOpen(false)
-          setSelectedRecords(new Set())
-          setBulkDeleteIds([])
-        } else {
-          setDeleteDialogOpen(false)
-        }
+        setDeleteDialogOpen(false)
         setRecordToDelete(null)
         setDeletePassword("")
-        fetchData() // Refresh data
+        // Refresh data
+        loadStats()
+        loadCurrentTabData()
       } else {
         setError(result.error || "Delete failed")
         toast({
           title: "Deletion Failed",
-          description: result.error || "Failed to delete record(s).",
+          description: result.error || "Failed to delete record.",
           variant: "destructive",
         })
       }
@@ -623,95 +438,24 @@ export default function AdminPage() {
     }
   }
 
-  const handleSelectRecord = (id: string, checked: boolean) => {
-    const newSelected = new Set(selectedRecords)
-    if (checked) {
-      newSelected.add(id)
-    } else {
-      newSelected.delete(id)
-    }
-    setSelectedRecords(newSelected)
-  }
-
-  const handleSelectAll = (records: any[], checked: boolean) => {
-    const newSelected = new Set(selectedRecords)
-    if (checked) {
-      records.forEach((record) => newSelected.add(record._id || record.id))
-    } else {
-      records.forEach((record) => newSelected.delete(record._id || record.id))
-    }
-    setSelectedRecords(newSelected)
-  }
-
-  const getStatusBadge = (status: string) => {
-    if (!status) return <Badge variant="outline">UNKNOWN</Badge>
-
-    switch (status.toLowerCase()) {
-      case "paid":
-      case "delivered":
-      case "available":
-      case "claimed":
-      case "completed":
-        return <Badge className="bg-green-100 text-green-800 border-green-300">{status.toUpperCase()}</Badge>
-      case "pending":
-      case "assigned":
-      case "sold":
-      case "processing":
-        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300">{status.toUpperCase()}</Badge>
-      case "failed":
-      case "used":
-      case "expired":
-      case "already_claimed":
-      case "activation_code_not_found":
-        return <Badge className="bg-red-100 text-red-800 border-red-300">{status.toUpperCase()}</Badge>
-      default:
-        return <Badge variant="outline">{status.toUpperCase()}</Badge>
-    }
-  }
-
-  const formatDateTime = (dateString: string) => {
-    if (!dateString) return "N/A"
-    try {
-      const date = new Date(dateString)
-      return date.toLocaleString("en-IN", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: true,
-      })
-    } catch (error) {
-      return "Invalid Date"
-    }
-  }
-
-  // Safe statistics calculation using filtered data
-  const stats = useMemo(() => {
-    const claims = filteredData.claims || []
-    const sales = filteredData.sales || []
-    const keys = filteredData.keys || []
-
-    return {
-      totalClaims: claims.length,
-      paidClaims: claims.filter((c) => c.paymentStatus === "paid").length,
-      pendingClaims: claims.filter((c) => c.paymentStatus === "pending").length,
-      failedClaims: claims.filter((c) => c.paymentStatus === "failed").length,
-      totalSales: sales.length,
-      claimedSales: sales.filter((s) => s.status === "claimed").length,
-      availableKeys: keys.filter((k) => k.status === "available").length,
-      assignedKeys: keys.filter((k) => k.status === "assigned").length,
-      usedKeys: keys.filter((k) => k.status === "used").length,
-      totalKeys: keys.length,
-    }
-  }, [filteredData])
-
-  // Manual Assignment Handlers
-  const handleManualAssignClick = (claim: ClaimResponse) => {
+  // Manual assignment handlers
+  const handleManualAssignClick = async (claim: ClaimResponse) => {
     setSelectedClaimForManualAssign(claim)
     setSelectedKeyForManualAssign("")
     setManualAssignPassword("")
+
+    // Load available keys
+    try {
+      const response = await fetch("/api/admin/keys?status=available&limit=100")
+      if (response.ok) {
+        const result = await response.json()
+        setAvailableKeys(result.data || [])
+      }
+    } catch (error) {
+      console.error("Failed to load available keys:", error)
+      setAvailableKeys([])
+    }
+
     setManualAssignDialogOpen(true)
   }
 
@@ -755,7 +499,9 @@ export default function AdminPage() {
         setSelectedClaimForManualAssign(null)
         setSelectedKeyForManualAssign("")
         setManualAssignPassword("")
-        fetchData() // Refresh data
+        // Refresh data
+        loadStats()
+        loadCurrentTabData()
       } else {
         setError(result.error || "Manual assignment failed.")
         toast({
@@ -777,26 +523,71 @@ export default function AdminPage() {
     }
   }
 
-  const PaginationControls = ({ data, tabName }: { data: any[]; tabName: "claims" | "sales" | "keys" }) => {
-    const totalPages = getTotalPages(data)
-    const currentPageNum = currentPage[tabName]
+  // Utility functions
+  const getStatusBadge = (status: string) => {
+    if (!status) return <Badge variant="outline">UNKNOWN</Badge>
+
+    switch (status.toLowerCase()) {
+      case "paid":
+      case "delivered":
+      case "available":
+      case "claimed":
+      case "completed":
+        return <Badge className="bg-green-100 text-green-800 border-green-300">{status.toUpperCase()}</Badge>
+      case "pending":
+      case "assigned":
+      case "sold":
+      case "processing":
+        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300">{status.toUpperCase()}</Badge>
+      case "failed":
+      case "used":
+      case "expired":
+      case "already_claimed":
+      case "activation_code_not_found":
+        return <Badge className="bg-red-100 text-red-800 border-red-300">{status.toUpperCase()}</Badge>
+      default:
+        return <Badge variant="outline">{status.toUpperCase()}</Badge>
+    }
+  }
+
+  const formatDateTime = (dateString: string) => {
+    if (!dateString) return "N/A"
+    try {
+      const date = new Date(dateString)
+      return date.toLocaleString("en-IN", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      })
+    } catch (error) {
+      return "Invalid Date"
+    }
+  }
+
+  // Pagination component
+  const PaginationControls = () => {
+    const currentPagination = pagination[activeTab as keyof typeof pagination]
+    const { page, totalPages, total } = currentPagination
 
     if (totalPages <= 1) return null
 
-    const startItem = (currentPageNum - 1) * ITEMS_PER_PAGE + 1
-    const endItem = Math.min(currentPageNum * ITEMS_PER_PAGE, data.length)
+    const startItem = (page - 1) * ITEMS_PER_PAGE + 1
+    const endItem = Math.min(page * ITEMS_PER_PAGE, total)
 
     return (
       <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
         <div className="text-sm text-gray-700">
-          Showing {startItem} to {endItem} of {data.length} entries
+          Showing {startItem} to {endItem} of {total} entries
         </div>
         <div className="flex items-center space-x-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handlePageChange(tabName, currentPageNum - 1)}
-            disabled={currentPageNum === 1}
+            onClick={() => handlePageChange(page - 1)}
+            disabled={page === 1}
             className="flex items-center"
           >
             <ChevronLeft className="w-4 h-4 mr-1" />
@@ -808,20 +599,20 @@ export default function AdminPage() {
               let pageNum
               if (totalPages <= 5) {
                 pageNum = i + 1
-              } else if (currentPageNum <= 3) {
+              } else if (page <= 3) {
                 pageNum = i + 1
-              } else if (currentPageNum >= totalPages - 2) {
+              } else if (page >= totalPages - 2) {
                 pageNum = totalPages - 4 + i
               } else {
-                pageNum = currentPageNum - 2 + i
+                pageNum = page - 2 + i
               }
 
               return (
                 <Button
                   key={pageNum}
-                  variant={currentPageNum === pageNum ? "default" : "outline"}
+                  variant={page === pageNum ? "default" : "outline"}
                   size="sm"
-                  onClick={() => handlePageChange(tabName, pageNum)}
+                  onClick={() => handlePageChange(pageNum)}
                   className="w-8 h-8 p-0"
                 >
                   {pageNum}
@@ -833,8 +624,8 @@ export default function AdminPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handlePageChange(tabName, currentPageNum + 1)}
-            disabled={currentPageNum === totalPages}
+            onClick={() => handlePageChange(page + 1)}
+            disabled={page === totalPages}
             className="flex items-center"
           >
             Next
@@ -890,20 +681,13 @@ export default function AdminPage() {
                   </div>
                 </div>
                 <div className="flex items-center space-x-4">
-                  {selectedRecords.size > 0 && (
-                    <div className="bg-white/20 px-4 py-2 rounded-lg">
-                      <span className="text-white font-medium">{selectedRecords.size} selected</span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setSelectedRecords(new Set())}
-                        className="ml-2 bg-white/20 text-white border-white/30 hover:bg-white/30"
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  )}
-                  <Button onClick={fetchData} className="bg-white/20 hover:bg-white/30 text-white border-white/30">
+                  <Button
+                    onClick={() => {
+                      loadStats()
+                      loadCurrentTabData()
+                    }}
+                    className="bg-white/20 hover:bg-white/30 text-white border-white/30"
+                  >
                     <RefreshCw className="w-4 h-4 mr-2" />
                     Refresh Data
                   </Button>
@@ -939,7 +723,7 @@ export default function AdminPage() {
                       <p className="text-sm font-medium text-gray-600">Redemption Records</p>
                       <p className="text-3xl font-bold text-gray-900">{stats.totalSales}</p>
                       <p className="text-sm text-gray-500">
-                        {Number(stats.totalSales) - Number(stats.claimedSales)} available • {stats.claimedSales} claimed
+                        {stats.totalSales - stats.claimedSales} available • {stats.claimedSales} claimed
                       </p>
                     </div>
                     <div className="p-3 bg-green-100 rounded-full">
@@ -956,7 +740,7 @@ export default function AdminPage() {
                       <p className="text-sm font-medium text-gray-600">OTT Keys</p>
                       <p className="text-3xl font-bold">{stats.totalKeys}</p>
                       <p className="text-sm text-gray-500">
-                        {Number(stats.totalKeys) - Number(stats.assignedKeys)} available • {stats.assignedKeys} assigned
+                        {stats.availableKeys} available • {stats.assignedKeys} assigned
                       </p>
                     </div>
                     <div className="p-3 bg-purple-100 rounded-full">
@@ -1018,8 +802,7 @@ export default function AdminPage() {
                   <div className="space-y-4">
                     <div className="bg-blue-50 p-6 rounded-xl border border-blue-200">
                       <h3 className="text-xl font-semibold text-blue-900 mb-4 flex items-center">
-                        <FileSpreadsheet className="w-5 h-5 mr-2" /> Activation Code/Product Serial Number/IMEI Number
-                        Upload
+                        <FileSpreadsheet className="w-5 h-5 mr-2" /> Activation Code Upload
                       </h3>
                       <p className="text-blue-800 mb-4">Upload Excel/CSV file to collection</p>
                       <div className="space-y-3">
@@ -1039,8 +822,7 @@ export default function AdminPage() {
                           <ul className="list-disc list-inside space-y-1">
                             <li>Product Sub Category</li>
                             <li>Product</li>
-                            <li>Activation Code/ Serial No / IMEI Number</li>
-                            <li>Status (optional, defaults to 'available')</li>
+                            <li>Activation Code</li>
                           </ul>
                         </div>
                       </div>
@@ -1053,7 +835,7 @@ export default function AdminPage() {
                       <h3 className="text-xl font-semibold text-green-900 mb-4 flex items-center">
                         <Key className="w-5 h-5 mr-2" /> OTT Keys Upload
                       </h3>
-                      <p className="text-green-800 mb-4 mt-12">Upload Excel/CSV file to ottkeys collection</p>
+                      <p className="text-green-800 mb-4">Upload Excel/CSV file to ottkeys collection</p>
                       <div className="space-y-3">
                         <Label htmlFor="keys-file" className="text-green-900 font-medium">
                           Select Keys File (.xlsx, .xls, .csv)
@@ -1072,7 +854,6 @@ export default function AdminPage() {
                             <li>Product Sub Category</li>
                             <li>Product</li>
                             <li>Activation Code</li>
-                            <li>Status (optional, defaults to 'available')</li>
                           </ul>
                         </div>
                       </div>
@@ -1153,116 +934,23 @@ export default function AdminPage() {
                           Customer claims from systech_ott_platform.claims collection
                         </CardDescription>
                       </div>
-                      {selectedRecords.size > 0 && (
-                        <Button
-                          variant="destructive"
-                          onClick={() => handleBulkDeleteClick("claims")}
-                          className="bg-red-600 hover:bg-red-700"
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Delete Selected ({selectedRecords.size})
-                        </Button>
-                      )}
                     </div>
 
-                    {/* Claims Search and Filters */}
-                    <div className="mt-6 space-y-4">
+                    {/* Search */}
+                    <div className="mt-6">
                       <div className="flex items-center space-x-4">
                         <div className="flex-1 relative">
                           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                           <Input
-                            placeholder="Search by name, email, phone, activation code, or claim ID..."
-                            value={searchTerms.claims}
-                            onChange={(e) => handleSearchChange("claims", e.target.value)}
+                            placeholder="Search by name, email, phone, activation code..."
+                            value={searchTerm}
+                            onChange={(e) => handleSearchChange(e.target.value)}
                             className="pl-10"
                           />
                         </div>
-                        <Button variant="outline" onClick={() => clearFilters("claims")} className="flex items-center">
-                          <X className="w-4 h-4 mr-2" />
-                          Clear
-                        </Button>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div>
-                          <Label className="text-sm font-medium text-gray-700">Payment Status</Label>
-                          <Select
-                            value={filters.claims.paymentStatus}
-                            onValueChange={(value) => handleFilterChange("claims", "paymentStatus", value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="All Payment Status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">All Payment Status</SelectItem>
-                              {filterOptions.claims.paymentStatuses.map((status) => (
-                                <SelectItem key={status} value={status.toLowerCase()}>
-                                  {status.toUpperCase()}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div>
-                          <Label className="text-sm font-medium text-gray-700">OTT Status</Label>
-                          <Select
-                            value={filters.claims.ottStatus}
-                            onValueChange={(value) => handleFilterChange("claims", "ottStatus", value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="All OTT Status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">All OTT Status</SelectItem>
-                              {filterOptions.claims.ottStatuses.map((status) => (
-                                <SelectItem key={status} value={status.toLowerCase()}>
-                                  {status.toUpperCase()}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div>
-                          <Label className="text-sm font-medium text-gray-700">State</Label>
-                          <Select
-                            value={filters.claims.state}
-                            onValueChange={(value) => handleFilterChange("claims", "state", value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="All States" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">All States</SelectItem>
-                              {filterOptions.claims.states.map((state) => (
-                                <SelectItem key={state} value={state.toLowerCase()}>
-                                  {state}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div>
-                          <Label className="text-sm font-medium text-gray-700">City</Label>
-                          <Select
-                            value={filters.claims.city}
-                            onValueChange={(value) => handleFilterChange("claims", "city", value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="All Cities" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">All Cities</SelectItem>
-                              {filterOptions.claims.cities.map((city) => (
-                                <SelectItem key={city} value={city.toLowerCase()}>
-                                  {city}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                        {searchLoading && (
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
+                        )}
                       </div>
                     </div>
                   </CardHeader>
@@ -1271,118 +959,68 @@ export default function AdminPage() {
                       <Table>
                         <TableHeader className="bg-gray-50">
                           <TableRow>
-                            <TableHead className="w-12">
-                              <Checkbox
-                                checked={
-                                  getPaginatedData(filteredData.claims || [], "claims")?.length > 0 &&
-                                  getPaginatedData(filteredData.claims || [], "claims").every((claim) =>
-                                    selectedRecords.has(claim._id || claim.id),
-                                  )
-                                }
-                                onCheckedChange={(checked) =>
-                                  handleSelectAll(
-                                    getPaginatedData(filteredData.claims || [], "claims"),
-                                    checked as boolean,
-                                  )
-                                }
-                              />
-                            </TableHead>
-                            <TableHead className="font-bold text-gray-800">Claim ID</TableHead>
                             <TableHead className="font-bold text-gray-800">Name</TableHead>
                             <TableHead className="font-bold text-gray-800">Email</TableHead>
                             <TableHead className="font-bold text-gray-800">Phone</TableHead>
-                            <TableHead className="font-bold text-gray-800">Address</TableHead>
-                            <TableHead className="font-bold text-gray-800">State</TableHead>
-                            <TableHead className="font-bold text-gray-800">City</TableHead>
-                            <TableHead className="font-bold text-gray-800">Pincode</TableHead>
                             <TableHead className="font-bold text-gray-800">Activation Code</TableHead>
                             <TableHead className="font-bold text-gray-800">Payment Status</TableHead>
                             <TableHead className="font-bold text-gray-800">OTT Status</TableHead>
-                            <TableHead className="font-bold text-gray-800">OTT Code</TableHead>
-                            <TableHead className="font-bold text-gray-800">Payment ID</TableHead>
-                            <TableHead className="font-bold text-gray-800">Razorpay Order ID</TableHead>
                             <TableHead className="font-bold text-gray-800">Created</TableHead>
                             <TableHead className="font-bold text-gray-800">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {getPaginatedData(filteredData.claims || [], "claims")?.map((claim, index) => (
-                            <TableRow
-                              key={claim._id || claim.id}
-                              className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
-                            >
-                              <TableCell>
-                                <Checkbox
-                                  checked={selectedRecords.has(claim._id || claim.id)}
-                                  onCheckedChange={(checked) =>
-                                    handleSelectRecord(claim._id || claim.id, checked as boolean)
-                                  }
-                                />
-                              </TableCell>
-                              <TableCell className="font-mono text-sm">{claim.claimId || "N/A"}</TableCell>
-                              <TableCell className="font-medium">
-                                {`${claim.firstName || ""} ${claim.lastName || ""}`.trim() || "N/A"}
-                              </TableCell>
-                              <TableCell className="font-medium">{claim.email || "N/A"}</TableCell>
-                              <TableCell>{claim.phoneNumber || claim.phone || "N/A"}</TableCell>
-                              <TableCell
-                                className="max-w-xs truncate"
-                                title={`${claim.streetAddress || ""} ${claim.addressLine2 || ""}`.trim() || "N/A"}
+                          {currentData.claims.length > 0 ? (
+                            currentData.claims.map((claim, index) => (
+                              <TableRow
+                                key={claim._id || claim.id}
+                                className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
                               >
-                                {`${claim.streetAddress || ""} ${claim.addressLine2 || ""}`.trim() || "N/A"}
-                              </TableCell>
-                              <TableCell>{claim.state || "N/A"}</TableCell>
-                              <TableCell>{claim.city || "N/A"}</TableCell>
-                              <TableCell>{claim.pincode || claim.postalCode || "N/A"}</TableCell>
-                              <TableCell className="font-mono text-sm">{claim.activationCode || "N/A"}</TableCell>
-                              <TableCell>{getStatusBadge(claim.paymentStatus)}</TableCell>
-                              <TableCell>{getStatusBadge(claim.ottCodeStatus || claim.ottStatus)}</TableCell>
-                              <TableCell className="font-mono text-sm">
-                                {claim.ottCode || <span className="text-gray-400">-</span>}
-                              </TableCell>
-                              <TableCell className="font-mono text-xs">{claim.paymentId || "N/A"}</TableCell>
-                              <TableCell className="font-mono text-xs">{claim.razorpayOrderId || "N/A"}</TableCell>
-                              <TableCell className="text-sm text-gray-600">{formatDateTime(claim.createdAt)}</TableCell>
-                              <TableCell className="flex gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    handleDeleteClick("claims", claim._id || claim.id, claim.email || "Unknown")
-                                  }
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleManualAssignClick(claim)}
-                                  disabled={claim.ottCodeStatus === "delivered" || claim.paymentStatus !== "paid"}
-                                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200"
-                                  title={
-                                    claim.ottCodeStatus === "delivered"
-                                      ? "Key already assigned"
-                                      : claim.paymentStatus !== "paid"
-                                        ? "Claim not paid"
-                                        : "Manually assign OTT Key"
-                                  }
-                                >
-                                  <Send className="w-4 h-4" />
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          )) || (
+                                <TableCell className="font-medium">
+                                  {`${claim.firstName || ""} ${claim.lastName || ""}`.trim() || "N/A"}
+                                </TableCell>
+                                <TableCell>{claim.email || "N/A"}</TableCell>
+                                <TableCell>{claim.phoneNumber || claim.phone || "N/A"}</TableCell>
+                                <TableCell className="font-mono text-sm">{claim.activationCode || "N/A"}</TableCell>
+                                <TableCell>{getStatusBadge(claim.paymentStatus)}</TableCell>
+                                <TableCell>{getStatusBadge(claim.ottCodeStatus || claim.ottStatus)}</TableCell>
+                                <TableCell className="text-sm text-gray-600">
+                                  {formatDateTime(claim.createdAt)}
+                                </TableCell>
+                                <TableCell className="flex gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                      handleDeleteClick("claims", claim._id || claim.id, claim.email || "Unknown")
+                                    }
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleManualAssignClick(claim)}
+                                    disabled={claim.ottCodeStatus === "delivered" || claim.paymentStatus !== "paid"}
+                                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200"
+                                  >
+                                    <Send className="w-4 h-4" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          ) : (
                             <TableRow>
-                              <TableCell colSpan={17} className="text-center py-8 text-gray-500">
-                                No claims data available
+                              <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                                {searchLoading ? "Searching..." : "No claims data available"}
                               </TableCell>
                             </TableRow>
                           )}
                         </TableBody>
                       </Table>
                     </div>
-                    <PaginationControls data={filteredData.claims || []} tabName="claims" />
+                    <PaginationControls />
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -1397,96 +1035,23 @@ export default function AdminPage() {
                           Sales data from systech_ott_platform.salesrecords collection
                         </CardDescription>
                       </div>
-                      {selectedRecords.size > 0 && (
-                        <Button
-                          variant="destructive"
-                          onClick={() => handleBulkDeleteClick("sales")}
-                          className="bg-red-600 hover:bg-red-700"
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Delete Selected ({selectedRecords.size})
-                        </Button>
-                      )}
                     </div>
 
-                    {/* Sales Search and Filters */}
-                    <div className="mt-6 space-y-4">
+                    {/* Search */}
+                    <div className="mt-6">
                       <div className="flex items-center space-x-4">
                         <div className="flex-1 relative">
                           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                           <Input
-                            placeholder="Search by activation code, product, category, or claimed by..."
-                            value={searchTerms.sales}
-                            onChange={(e) => handleSearchChange("sales", e.target.value)}
+                            placeholder="Search by activation code, product, category..."
+                            value={searchTerm}
+                            onChange={(e) => handleSearchChange(e.target.value)}
                             className="pl-10"
                           />
                         </div>
-                        <Button variant="outline" onClick={() => clearFilters("sales")} className="flex items-center">
-                          <X className="w-4 h-4 mr-2" />
-                          Clear
-                        </Button>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <Label className="text-sm font-medium text-gray-700">Status</Label>
-                          <Select
-                            value={filters.sales.status}
-                            onValueChange={(value) => handleFilterChange("sales", "status", value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="All Status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">All Status</SelectItem>
-                              {filterOptions.sales.statuses.map((status) => (
-                                <SelectItem key={status} value={status.toLowerCase()}>
-                                  {status.toUpperCase()}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div>
-                          <Label className="text-sm font-medium text-gray-700">Product</Label>
-                          <Select
-                            value={filters.sales.product}
-                            onValueChange={(value) => handleFilterChange("sales", "product", value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="All Products" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">All Products</SelectItem>
-                              {filterOptions.sales.products.map((product) => (
-                                <SelectItem key={product} value={product.toLowerCase()}>
-                                  {product}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div>
-                          <Label className="text-sm font-medium text-gray-700">Category</Label>
-                          <Select
-                            value={filters.sales.productSubCategory}
-                            onValueChange={(value) => handleFilterChange("sales", "productSubCategory", value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="All Categories" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">All Categories</SelectItem>
-                              {filterOptions.sales.categories.map((category) => (
-                                <SelectItem key={category} value={category.toLowerCase()}>
-                                  {category}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                        {searchLoading && (
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
+                        )}
                       </div>
                     </div>
                   </CardHeader>
@@ -1495,22 +1060,6 @@ export default function AdminPage() {
                       <Table>
                         <TableHeader className="bg-gray-50">
                           <TableRow>
-                            <TableHead className="w-12">
-                              <Checkbox
-                                checked={
-                                  getPaginatedData(filteredData.sales || [], "sales")?.length > 0 &&
-                                  getPaginatedData(filteredData.sales || [], "sales").every((sale) =>
-                                    selectedRecords.has(sale._id || sale.id),
-                                  )
-                                }
-                                onCheckedChange={(checked) =>
-                                  handleSelectAll(
-                                    getPaginatedData(filteredData.sales || [], "sales"),
-                                    checked as boolean,
-                                  )
-                                }
-                              />
-                            </TableHead>
                             <TableHead className="font-bold text-gray-800">Activation Code</TableHead>
                             <TableHead className="font-bold text-gray-800">Product</TableHead>
                             <TableHead className="font-bold text-gray-800">Category</TableHead>
@@ -1521,46 +1070,45 @@ export default function AdminPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {getPaginatedData(filteredData.sales || [], "sales")?.map((sale, index) => (
-                            <TableRow key={sale._id || sale.id} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                              <TableCell>
-                                <Checkbox
-                                  checked={selectedRecords.has(sale._id || sale.id)}
-                                  onCheckedChange={(checked) =>
-                                    handleSelectRecord(sale._id || sale.id, checked as boolean)
-                                  }
-                                />
-                              </TableCell>
-                              <TableCell className="font-mono text-sm">{sale.activationCode || "N/A"}</TableCell>
-                              <TableCell>{sale.product || "N/A"}</TableCell>
-                              <TableCell>{sale.productSubCategory || "N/A"}</TableCell>
-                              <TableCell>{getStatusBadge(sale.status)}</TableCell>
-                              <TableCell>{sale.claimedBy || <span className="text-gray-400">-</span>}</TableCell>
-                              <TableCell className="text-sm text-gray-600">{formatDateTime(sale.createdAt)}</TableCell>
-                              <TableCell>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    handleDeleteClick("sales", sale._id || sale.id, sale.activationCode || "Unknown")
-                                  }
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          )) || (
+                          {currentData.sales.length > 0 ? (
+                            currentData.sales.map((sale, index) => (
+                              <TableRow
+                                key={sale._id || sale.id}
+                                className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                              >
+                                <TableCell className="font-mono text-sm">{sale.activationCode || "N/A"}</TableCell>
+                                <TableCell>{sale.product || "N/A"}</TableCell>
+                                <TableCell>{sale.productSubCategory || "N/A"}</TableCell>
+                                <TableCell>{getStatusBadge(sale.status)}</TableCell>
+                                <TableCell>{sale.claimedBy || <span className="text-gray-400">-</span>}</TableCell>
+                                <TableCell className="text-sm text-gray-600">
+                                  {formatDateTime(sale.createdAt)}
+                                </TableCell>
+                                <TableCell>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                      handleDeleteClick("sales", sale._id || sale.id, sale.activationCode || "Unknown")
+                                    }
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          ) : (
                             <TableRow>
-                              <TableCell colSpan={8} className="text-center py-8 text-gray-500">
-                                No sales data available
+                              <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                                {searchLoading ? "Searching..." : "No sales data available"}
                               </TableCell>
                             </TableRow>
                           )}
                         </TableBody>
                       </Table>
                     </div>
-                    <PaginationControls data={filteredData.sales || []} tabName="sales" />
+                    <PaginationControls />
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -1575,96 +1123,23 @@ export default function AdminPage() {
                           OTT keys from systech_ott_platform.ottkeys collection
                         </CardDescription>
                       </div>
-                      {selectedRecords.size > 0 && (
-                        <Button
-                          variant="destructive"
-                          onClick={() => handleBulkDeleteClick("keys")}
-                          className="bg-red-600 hover:bg-red-700"
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Delete Selected ({selectedRecords.size})
-                        </Button>
-                      )}
                     </div>
 
-                    {/* Keys Search and Filters */}
-                    <div className="mt-6 space-y-4">
+                    {/* Search */}
+                    <div className="mt-6">
                       <div className="flex items-center space-x-4">
                         <div className="flex-1 relative">
                           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                           <Input
-                            placeholder="Search by activation code, product, category, or assigned email..."
-                            value={searchTerms.keys}
-                            onChange={(e) => handleSearchChange("keys", e.target.value)}
+                            placeholder="Search by activation code, product, category..."
+                            value={searchTerm}
+                            onChange={(e) => handleSearchChange(e.target.value)}
                             className="pl-10"
                           />
                         </div>
-                        <Button variant="outline" onClick={() => clearFilters("keys")} className="flex items-center">
-                          <X className="w-4 h-4 mr-2" />
-                          Clear
-                        </Button>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <Label className="text-sm font-medium text-gray-700">Status</Label>
-                          <Select
-                            value={filters.keys.status}
-                            onValueChange={(value) => handleFilterChange("keys", "status", value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="All Status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">All Status</SelectItem>
-                              {filterOptions.keys.statuses.map((status) => (
-                                <SelectItem key={status} value={status.toLowerCase()}>
-                                  {status.toUpperCase()}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div>
-                          <Label className="text-sm font-medium text-gray-700">Product</Label>
-                          <Select
-                            value={filters.keys.product}
-                            onValueChange={(value) => handleFilterChange("keys", "product", value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="All Products" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">All Products</SelectItem>
-                              {filterOptions.keys.products.map((product) => (
-                                <SelectItem key={product} value={product.toLowerCase()}>
-                                  {product}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div>
-                          <Label className="text-sm font-medium text-gray-700">Category</Label>
-                          <Select
-                            value={filters.keys.productSubCategory}
-                            onValueChange={(value) => handleFilterChange("keys", "productSubCategory", value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="All Categories" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">All Categories</SelectItem>
-                              {filterOptions.keys.categories.map((category) => (
-                                <SelectItem key={category} value={category.toLowerCase()}>
-                                  {category}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                        {searchLoading && (
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
+                        )}
                       </div>
                     </div>
                   </CardHeader>
@@ -1673,19 +1148,6 @@ export default function AdminPage() {
                       <Table>
                         <TableHeader className="bg-gray-50">
                           <TableRow>
-                            <TableHead className="w-12">
-                              <Checkbox
-                                checked={
-                                  getPaginatedData(filteredData.keys || [], "keys")?.length > 0 &&
-                                  getPaginatedData(filteredData.keys || [], "keys").every((key) =>
-                                    selectedRecords.has(key._id || key.id),
-                                  )
-                                }
-                                onCheckedChange={(checked) =>
-                                  handleSelectAll(getPaginatedData(filteredData.keys || [], "keys"), checked as boolean)
-                                }
-                              />
-                            </TableHead>
                             <TableHead className="font-bold text-gray-800">Activation Code</TableHead>
                             <TableHead className="font-bold text-gray-800">Product</TableHead>
                             <TableHead className="font-bold text-gray-800">Category</TableHead>
@@ -1696,53 +1158,47 @@ export default function AdminPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {getPaginatedData(filteredData.keys || [], "keys")?.map((key, index) => (
-                            <TableRow key={key._id || key.id} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                              <TableCell>
-                                <Checkbox
-                                  checked={selectedRecords.has(key._id || key.id)}
-                                  onCheckedChange={(checked) =>
-                                    handleSelectRecord(key._id || key.id, checked as boolean)
-                                  }
-                                />
-                              </TableCell>
-                              <TableCell className="font-mono text-sm">{key.activationCode || "N/A"}</TableCell>
-                              <TableCell>{key.product || "N/A"}</TableCell>
-                              <TableCell>{key.productSubCategory || "N/A"}</TableCell>
-                              <TableCell>{getStatusBadge(key.status)}</TableCell>
-                              <TableCell>{key.assignedEmail || <span className="text-gray-400">-</span>}</TableCell>
-                              <TableCell className="text-sm text-gray-600">{formatDateTime(key.createdAt)}</TableCell>
-                              <TableCell>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    handleDeleteClick("keys", key._id || key.id, key.activationCode || "Unknown")
-                                  }
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          )) || (
+                          {currentData.keys.length > 0 ? (
+                            currentData.keys.map((key, index) => (
+                              <TableRow key={key._id || key.id} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                                <TableCell className="font-mono text-sm">{key.activationCode || "N/A"}</TableCell>
+                                <TableCell>{key.product || "N/A"}</TableCell>
+                                <TableCell>{key.productSubCategory || "N/A"}</TableCell>
+                                <TableCell>{getStatusBadge(key.status)}</TableCell>
+                                <TableCell>{key.assignedEmail || <span className="text-gray-400">-</span>}</TableCell>
+                                <TableCell className="text-sm text-gray-600">{formatDateTime(key.createdAt)}</TableCell>
+                                <TableCell>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                      handleDeleteClick("keys", key._id || key.id, key.activationCode || "Unknown")
+                                    }
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          ) : (
                             <TableRow>
-                              <TableCell colSpan={8} className="text-center py-8 text-gray-500">
-                                No keys data available
+                              <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                                {searchLoading ? "Searching..." : "No keys data available"}
                               </TableCell>
                             </TableRow>
                           )}
                         </TableBody>
                       </Table>
                     </div>
-                    <PaginationControls data={filteredData.keys || []} tabName="keys" />
+                    <PaginationControls />
                   </CardContent>
                 </Card>
               </TabsContent>
             </Tabs>
           </div>
 
-          {/* Single Delete Confirmation Dialog */}
+          {/* Delete Confirmation Dialog */}
           <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
@@ -1787,7 +1243,7 @@ export default function AdminPage() {
                 </Button>
                 <Button
                   variant="destructive"
-                  onClick={() => handleDeleteConfirm(false)}
+                  onClick={handleDeleteConfirm}
                   disabled={deleting || deletePassword !== "Tr!ckyH@ck3r#2025"}
                 >
                   {deleting ? (
@@ -1806,71 +1262,6 @@ export default function AdminPage() {
             </DialogContent>
           </Dialog>
 
-          {/* Bulk Delete Confirmation Dialog */}
-          <Dialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle className="flex items-center text-red-600">
-                  <Lock className="w-5 h-5 mr-2" />
-                  Confirm Bulk Deletion
-                </DialogTitle>
-                <DialogDescription className="text-gray-600">
-                  You are about to delete <strong>{bulkDeleteIds.length}</strong> {recordToDelete?.type} records.
-                  <br />
-                  <br />
-                  This action cannot be undone and will permanently remove all selected records from
-                  systech_ott_platform database.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="bulk-delete-password" className="text-sm font-medium">
-                    Admin Password
-                  </Label>
-                  <Input
-                    id="bulk-delete-password"
-                    type="password"
-                    placeholder="Enter admin password"
-                    value={deletePassword}
-                    onChange={(e) => setDeletePassword(e.target.value)}
-                    className="border-red-200 focus:border-red-500"
-                  />
-                  <p className="text-xs text-gray-500">Required password: Tr!ckyH@ck3r#2025</p>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setBulkDeleteDialogOpen(false)
-                    setDeletePassword("")
-                    setRecordToDelete(null)
-                    setBulkDeleteIds([])
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => handleDeleteConfirm(true)}
-                  disabled={deleting || deletePassword !== "Tr!ckyH@ck3r#2025"}
-                >
-                  {deleting ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Deleting...
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete {bulkDeleteIds.length} Records
-                    </>
-                  )}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
           {/* Manual Assign Key Dialog */}
           <Dialog open={manualAssignDialogOpen} onOpenChange={setManualAssignDialogOpen}>
             <DialogContent className="sm:max-w-[475px]">
@@ -1880,8 +1271,7 @@ export default function AdminPage() {
                   Manually Assign OTT Key
                 </DialogTitle>
                 <DialogDescription className="text-gray-600">
-                  Assign an OTT key to claim for <strong>{selectedClaimForManualAssign?.email || "N/A"}</strong>{" "}
-                  (Activation Code: <strong>{selectedClaimForManualAssign?.activationCode || "N/A"}</strong>).
+                  Assign an OTT key to claim for <strong>{selectedClaimForManualAssign?.email || "N/A"}</strong>
                   <br />
                   This will update the claim, sales record, and OTT key status, and send an email.
                 </DialogDescription>
@@ -1896,16 +1286,14 @@ export default function AdminPage() {
                       <SelectValue placeholder="Choose an available OTT key" />
                     </SelectTrigger>
                     <SelectContent>
-                      {ottKeys
-                        .filter((key) => key.status === "available")
-                        .map((key) => (
-                          <SelectItem key={key._id || key.id} value={key._id || key.id}>
-                            {key.activationCode} ({key.product} - {key.productSubCategory})
-                          </SelectItem>
-                        ))}
+                      {availableKeys.map((key) => (
+                        <SelectItem key={key._id || key.id} value={key._id || key.id}>
+                          {key.activationCode} ({key.product} - {key.productSubCategory})
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
-                  {ottKeys.filter((key) => key.status === "available").length === 0 && (
+                  {availableKeys.length === 0 && (
                     <p className="text-sm text-red-500">No available OTT keys found. Please upload more keys.</p>
                   )}
                 </div>

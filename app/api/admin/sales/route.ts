@@ -1,13 +1,42 @@
 export const dynamic = "force-dynamic"
 
-import { NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
 import type { ISalesRecord, SalesRecord } from "@/lib/models"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url)
+    const page = Number.parseInt(searchParams.get("page") || "1")
+    const limit = Number.parseInt(searchParams.get("limit") || "10")
+    const search = searchParams.get("search") || ""
+    const status = searchParams.get("status")
+
     const db = await getDatabase()
-    const sales = await db.collection<ISalesRecord>("salesrecords").find({}).toArray()
+    const salesCollection = db.collection<ISalesRecord>("salesrecords")
+
+    // Build search query
+    const query: any = {}
+    if (search) {
+      query.$or = [
+        { activationCode: { $regex: search, $options: "i" } },
+        { product: { $regex: search, $options: "i" } },
+        { productSubCategory: { $regex: search, $options: "i" } },
+        { claimedBy: { $regex: search, $options: "i" } },
+      ]
+    }
+
+    if (status && status !== "all") {
+      query.status = status
+    }
+
+    // Get total count for pagination
+    const total = await salesCollection.countDocuments(query)
+    const totalPages = Math.ceil(total / limit)
+    const skip = (page - 1) * limit
+
+    // Fetch paginated data
+    const sales = await salesCollection.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).toArray()
 
     const formattedSales: SalesRecord[] = sales.map((sale) => ({
       ...sale,
@@ -18,11 +47,25 @@ export async function GET() {
       claimedDate: sale.claimedDate ? sale.claimedDate.toISOString() : undefined,
     }))
 
-    console.log(`Fetched ${formattedSales.length} sales records from systech_ott_platform`)
-
-    return NextResponse.json(formattedSales)
+    return NextResponse.json({
+      data: formattedSales,
+      total,
+      page,
+      totalPages,
+      limit,
+    })
   } catch (error: any) {
     console.error("Error fetching sales records:", error)
-    return NextResponse.json({ error: error.message || "Failed to fetch sales records" }, { status: 500 })
+    return NextResponse.json(
+      {
+        data: [],
+        total: 0,
+        page: 1,
+        totalPages: 0,
+        limit: 10,
+        error: error.message || "Failed to fetch sales records",
+      },
+      { status: 500 },
+    )
   }
 }
