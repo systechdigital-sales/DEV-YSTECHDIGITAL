@@ -965,8 +965,7 @@ export default function AdminPage() {
                             {/* NEW COLUMNS */}
                             <TableHead className="font-bold text-gray-800">Payment ID</TableHead>
                             <TableHead className="font-bold text-gray-800">Razorpay Order ID</TableHead>
-                            <TableHead className="font-bold text-gray-800">Razorpay Signature</TableHead>
-
+                            
                             <TableHead className="font-bold text-gray-800">Created</TableHead>
                             <TableHead className="font-bold text-gray-800">Actions</TableHead>
                           </TableRow>
@@ -1013,9 +1012,6 @@ export default function AdminPage() {
                               {/* New payment fields */}
                               <TableCell className="font-mono text-xs">{claim.paymentId || "N/A"}</TableCell>
                               <TableCell className="font-mono text-xs">{claim.razorpayOrderId || "N/A"}</TableCell>
-                              <TableCell className="font-mono text-xs break-all">
-                                {claim.razorpaySignature || "N/A"}
-                              </TableCell>
 
                               <TableCell className="text-sm text-gray-600">{formatDateTime(claim.createdAt)}</TableCell>
                               <TableCell className="flex gap-2">
