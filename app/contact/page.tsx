@@ -1,380 +1,322 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
-import Image from "next/image"
-import { useRouter } from "next/navigation"
-import { useForm } from "react-hook-form"
-import { z } from "zod"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { Mail, MapPin, Phone, Home, Send, Clock, ShieldCheck, Building2, ExternalLink } from "lucide-react"
-
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { cn } from "@/lib/utils"
-import Footer from "@/components/footer"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Mail, Phone, MapPin, Send, CheckCircle, AlertCircle } from "lucide-react"
 
-const ContactSchema = z.object({
-  name: z.string().min(2, "Please enter your full name."),
-  email: z.string().email("Please enter a valid email."),
-  phone: z
-    .string()
-    .optional()
-    .transform((v) => (v ? v.trim() : ""))
-    .refine((v) => v === "" || /^[0-9+\-\s()]{7,}$/.test(v), "Please enter a valid phone number."),
-  subject: z.string().min(2, "Please add a subject."),
-  message: z.string().min(10, "Message should be at least 10 characters."),
-  // Honeypot anti-spam field (should remain empty)
-  company: z.string().max(0).optional(),
-})
+interface ContactForm {
+  name: string
+  email: string
+  phone: string
+  subject: string
+  message: string
+}
 
-type ContactFormValues = z.infer<typeof ContactSchema>
+interface FormErrors {
+  name?: string
+  email?: string
+  phone?: string
+  subject?: string
+  message?: string
+}
 
 export default function ContactPage() {
-  const router = useRouter()
-  const [isSubmitting, setSubmitting] = useState(false)
-  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null)
-
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<ContactFormValues>({
-    resolver: zodResolver(ContactSchema),
-    defaultValues: {
-      name: "",
-      email: "",
-      phone: "",
-      subject: "",
-      message: "",
-      company: "",
-    },
+  const [formData, setFormData] = useState<ContactForm>({
+    name: "",
+    email: "",
+    phone: "",
+    subject: "",
+    message: "",
   })
+  const [errors, setErrors] = useState<FormErrors>({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitStatus, setSubmitStatus] = useState<"idle" | "success" | "error">("idle")
+  const [submitMessage, setSubmitMessage] = useState("")
 
-  async function onSubmit(values: ContactFormValues) {
-    setSubmitting(true)
-    setResult(null)
-    try {
-      const res = await fetch("/api/contact", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
-      })
-      const data = (await res.json()) as { success: boolean; message: string }
-      if (res.ok && data.success) {
-        setResult({ ok: true, message: "Thanks! Your message has been sent. We’ll get back within 24 hours." })
-        reset()
-      } else {
-        setResult({
-          ok: false,
-          message: data?.message || "Something went wrong. Please try again or email us directly.",
-        })
-      }
-    } catch (err) {
-      setResult({
-        ok: false,
-        message: "Network error. Please try again or reach us at sales.systechdigital@gmail.com",
-      })
-    } finally {
-      setSubmitting(false)
+  const validateForm = (): boolean => {
+    const newErrors: FormErrors = {}
+
+    if (!formData.name.trim()) {
+      newErrors.name = "Name is required"
+    }
+
+    if (!formData.email.trim()) {
+      newErrors.email = "Email is required"
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = "Please enter a valid email address"
+    }
+
+    if (!formData.phone.trim()) {
+      newErrors.phone = "Phone number is required"
+    } else if (!/^[\d\s\-+$$$$]{10,}$/.test(formData.phone.replace(/\s/g, ""))) {
+      newErrors.phone = "Please enter a valid phone number"
+    }
+
+    if (!formData.subject.trim()) {
+      newErrors.subject = "Subject is required"
+    }
+
+    if (!formData.message.trim()) {
+      newErrors.message = "Message is required"
+    } else if (formData.message.trim().length < 10) {
+      newErrors.message = "Message must be at least 10 characters long"
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleInputChange = (field: keyof ContactForm, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }))
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: undefined }))
     }
   }
 
-  const mapUrl = "https://www.google.com/maps/search/?api=1&query=Systech+IT+Solution+Pvt.+Ltd+JC+Road+Bengaluru+560027"
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!validateForm()) {
+      return
+    }
+
+    setIsSubmitting(true)
+    setSubmitStatus("idle")
+
+    try {
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      })
+
+      const result = await response.json()
+
+      if (response.ok && result.success) {
+        setSubmitStatus("success")
+        setSubmitMessage("Thank you for your message! We'll get back to you soon.")
+        setFormData({
+          name: "",
+          email: "",
+          phone: "",
+          subject: "",
+          message: "",
+        })
+      } else {
+        setSubmitStatus("error")
+        setSubmitMessage(result.message || "Failed to send message. Please try again.")
+      }
+    } catch (error) {
+      setSubmitStatus("error")
+      setSubmitMessage("An error occurred. Please try again later.")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
-    <div className="min-h-screen bg-white text-gray-900">
-      {/* Header */}
-      <header className="sticky top-0 left-0 right-0 z-40 bg-gradient-to-r from-black via-red-900 to-black text-white">
-        <div className="mx-auto max-w-7xl px-4 py-3 sm:py-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center">
-              <Image
-                src="/logo.png"
-                alt="SYSTECH IT SOLUTIONS Logo"
-                width={48}
-                height={48}
-                className="rounded-full mr-3"
-              />
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold leading-tight">Systech Digital</h1>
-                <p className="text-xs sm:text-sm text-red-200">Simplifying the Digital Experience</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge className="bg-white/10 text-white hover:bg-white/20">Support</Badge>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => router.push("/")}
-                className="text-gray-100 hover:text-gray-800 border border-white/30 px-2 py-1 text-sm"
-              >
-                <Home className="w-4 h-4 mr-1" />
-                Back to Home
-              </Button>
-            </div>
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="container mx-auto px-4 py-12">
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">Contact Us</h1>
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            Get in touch with our team for support, inquiries, or partnership opportunities
+          </p>
         </div>
-      </header>
 
-      {/* Hero */}
-      <section className="bg-gradient-to-b from-white to-red-50">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:py-12 md:py-14">
-          <div className="grid gap-8 md:grid-cols-2 md:items-center">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700">
-                <ShieldCheck className="h-3.5 w-3.5" />
-                Trusted Support
-              </div>
-              <h2 className="mt-4 text-3xl sm:text-4xl font-extrabold tracking-tight">Contact SYSTECH IT SOLUTIONS</h2>
-              <p className="mt-3 text-gray-600">
-                We&apos;re here to help with OTTplay Power Play Pack redemption and other support queries. Expect a
-                response within 24 hours on business days.
-              </p>
-              <div className="mt-6 flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-2 text-gray-700">
-                  <Clock className="h-4 w-4 text-red-600" />
-                  <span className="text-sm">Mon–Sat: 10:00 AM – 6:00 PM IST</span>
-                </div>
-                <div className="flex items-center gap-2 text-gray-700">
-                  <Phone className="h-4 w-4 text-red-600" />
-                  <a className="text-sm underline decoration-red-500 underline-offset-4" href="tel:+918062012555">
-                    +91 80-62012555
-                  </a>
-                </div>
-              </div>
-            </div>
-
-            {/* Quick info cards */}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Card className="shadow-sm border">
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Mail className="h-4 w-4 text-red-600" />
-                    OTTplay Pack Redemption
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="text-sm text-gray-600">
-                  <a className="text-red-700 font-medium" href="mailto:sales.systechdigital@gmail.com">
-                    sales.systechdigital@gmail.com
-                  </a>
-                  <p className="mt-1 text-xs text-gray-500">Replies within 24 hours</p>
-                </CardContent>
-              </Card>
-
-              <Card className="shadow-sm border">
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Mail className="h-4 w-4 text-red-600" />
-                    OTTplay Support
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="text-sm text-gray-600">
-                  <div className="flex flex-col">
-                    <a className="text-red-700 font-medium" href="mailto:support@ottplay.com">
-                      support@ottplay.com
-                    </a>
-                    <a className="mt-1 text-gray-700 hover:underline" href="tel:+918062012555">
-                      +91 80-62012555
-                    </a>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Main content */}
-      <main className="mx-auto max-w-7xl px-4 pb-16">
-        <div className="grid gap-8 md:grid-cols-5">
-          {/* Contact Form */}
-          <section className="md:col-span-3">
-            <Card className="border shadow-sm">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 max-w-6xl mx-auto">
+          {/* Contact Information */}
+          <div className="space-y-8">
+            <Card>
               <CardHeader>
-                <CardTitle>Send us a message</CardTitle>
+                <CardTitle className="text-2xl font-bold text-gray-900">Get in Touch</CardTitle>
+                <CardDescription>
+                  We're here to help you with all your OTT platform needs. Reach out to us through any of the following
+                  channels.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center space-x-4">
+                  <div className="bg-blue-100 p-3 rounded-full">
+                    <Mail className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Email</h3>
+                    <p className="text-gray-600">support@systechdigital.com</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-4">
+                  <div className="bg-green-100 p-3 rounded-full">
+                    <Phone className="h-6 w-6 text-green-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Phone</h3>
+                    <p className="text-gray-600">+91 9876543210</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-4">
+                  <div className="bg-purple-100 p-3 rounded-full">
+                    <MapPin className="h-6 w-6 text-purple-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Address</h3>
+                    <p className="text-gray-600">
+                      123 Tech Street
+                      <br />
+                      Digital City, DC 12345
+                      <br />
+                      India
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Business Hours</CardTitle>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4">
-                  {/* Honeypot */}
-                  <input type="text" aria-hidden="true" tabIndex={-1} className="hidden" {...register("company")} />
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div>
-                      <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                        Full Name
-                      </label>
-                      <Input id="name" autoComplete="name" placeholder="Your name" {...register("name")} />
-                      {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name.message}</p>}
-                    </div>
-                    <div>
-                      <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                        Email
-                      </label>
-                      <Input
-                        id="email"
-                        type="email"
-                        autoComplete="email"
-                        placeholder="you@example.com"
-                        {...register("email")}
-                      />
-                      {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>}
-                    </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Monday - Friday</span>
+                    <span className="font-medium">9:00 AM - 6:00 PM</span>
                   </div>
-
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div>
-                      <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-                        Phone (optional)
-                      </label>
-                      <Input id="phone" placeholder="+91 9XXXXXXXXX" {...register("phone")} />
-                      {errors.phone && <p className="mt-1 text-xs text-red-600">{errors.phone.message as string}</p>}
-                    </div>
-                    <div>
-                      <label htmlFor="subject" className="block text-sm font-medium text-gray-700">
-                        Subject
-                      </label>
-                      <Input id="subject" placeholder="How can we help you?" {...register("subject")} />
-                      {errors.subject && <p className="mt-1 text-xs text-red-600">{errors.subject.message}</p>}
-                    </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Saturday</span>
+                    <span className="font-medium">10:00 AM - 4:00 PM</span>
                   </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Sunday</span>
+                    <span className="font-medium">Closed</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-                  <div>
-                    <label htmlFor="message" className="block text-sm font-medium text-gray-700">
-                      Message
-                    </label>
-                    <Textarea
-                      id="message"
-                      rows={5}
-                      placeholder="Please include details like order ID, activation code, and issue summary."
-                      {...register("message")}
+          {/* Contact Form */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-2xl font-bold text-gray-900">Send us a Message</CardTitle>
+              <CardDescription>Fill out the form below and we'll get back to you as soon as possible.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Full Name *</Label>
+                    <Input
+                      id="name"
+                      type="text"
+                      placeholder="Enter your full name"
+                      value={formData.name}
+                      onChange={(e) => handleInputChange("name", e.target.value)}
+                      className={errors.name ? "border-red-500" : ""}
                     />
-                    {errors.message && <p className="mt-1 text-xs text-red-600">{errors.message.message}</p>}
+                    {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    <Button type="submit" disabled={isSubmitting} className={cn(isSubmitting && "opacity-80")}>
-                      {isSubmitting ? (
-                        <>
-                          <Send className="mr-2 h-4 w-4 animate-pulse" />
-                          Sending...
-                        </>
-                      ) : (
-                        <>
-                          <Send className="mr-2 h-4 w-4" />
-                          Send Message
-                        </>
-                      )}
-                    </Button>
-                    {result && (
-                      <span role="status" className={cn("text-sm", result.ok ? "text-green-700" : "text-red-700")}>
-                        {result.message}
-                      </span>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email Address *</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="Enter your email"
+                      value={formData.email}
+                      onChange={(e) => handleInputChange("email", e.target.value)}
+                      className={errors.email ? "border-red-500" : ""}
+                    />
+                    {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone Number *</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="Enter your phone number"
+                      value={formData.phone}
+                      onChange={(e) => handleInputChange("phone", e.target.value)}
+                      className={errors.phone ? "border-red-500" : ""}
+                    />
+                    {errors.phone && <p className="text-sm text-red-500">{errors.phone}</p>}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="subject">Subject *</Label>
+                    <Input
+                      id="subject"
+                      type="text"
+                      placeholder="Enter message subject"
+                      value={formData.subject}
+                      onChange={(e) => handleInputChange("subject", e.target.value)}
+                      className={errors.subject ? "border-red-500" : ""}
+                    />
+                    {errors.subject && <p className="text-sm text-red-500">{errors.subject}</p>}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="message">Message *</Label>
+                  <Textarea
+                    id="message"
+                    placeholder="Enter your message here..."
+                    rows={5}
+                    value={formData.message}
+                    onChange={(e) => handleInputChange("message", e.target.value)}
+                    className={errors.message ? "border-red-500" : ""}
+                  />
+                  {errors.message && <p className="text-sm text-red-500">{errors.message}</p>}
+                </div>
+
+                {submitStatus !== "idle" && (
+                  <Alert
+                    className={submitStatus === "success" ? "border-green-500 bg-green-50" : "border-red-500 bg-red-50"}
+                  >
+                    {submitStatus === "success" ? (
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <AlertCircle className="h-4 w-4 text-red-600" />
                     )}
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
-          </section>
+                    <AlertDescription className={submitStatus === "success" ? "text-green-800" : "text-red-800"}>
+                      {submitMessage}
+                    </AlertDescription>
+                  </Alert>
+                )}
 
-          {/* Address and map */}
-          <aside className="md:col-span-2">
-            <Card className="border shadow-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5 text-red-600" />
-                  Registered Office
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 text-gray-700">
-                <div className="flex items-start gap-2">
-                  <MapPin className="mt-0.5 h-5 w-5 text-red-600" />
-                  <div className="text-sm">
-                    <p>SYSTECH IT SOLUTIONS </p>
-                    <p>#23/1, 1st Floor, J.C. 1st Cross</p>
-                    <p>JC Road, Near Poornima Theatre, Bengaluru</p>
-                    <p>Karnataka, India - 560027</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2">
-                  <Phone className="mt-0.5 h-5 w-5 text-red-600" />
-                  <div className="text-sm">
-                    <a className="hover:underline" href="tel:+918062012555">
-                      +91 80-62012555
-                    </a>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2">
-                  <Mail className="mt-0.5 h-5 w-5 text-red-600" />
-                  <div className="text-sm">
-                    <a className="hover:underline" href="mailto:sales.systechdigital@gmail.com">
-                      sales.systechdigital@gmail.com
-                    </a>
-                  </div>
-                </div>
-
-                <a
-                  href={mapUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-sm text-red-700 hover:underline"
-                >
-                  Get Directions
-                  <ExternalLink className="h-4 w-4" />
-                </a>
-
-                <Separator className="my-4" />
-
-                <div className="rounded-md bg-red-50 p-3 text-xs text-red-800">
-                  For OTTplay Power Play Pack support related to subscription/app access, contact OTTplay Support:
-                  <div className="mt-1 flex flex-col sm:flex-row sm:items-center sm:gap-3">
-                    <a className="underline" href="mailto:support@ottplay.com">
-                      support@ottplay.com
-                    </a>
-                    <span className="hidden sm:inline text-red-400">|</span>
-                    <a className="underline" href="tel:+918062012555">
-                      +91 80-62012555
-                    </a>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </aside>
+                <Button type="submit" disabled={isSubmitting} className="w-full" size="lg">
+                  {isSubmitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                      Sending Message...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4 mr-2" />
+                      Send Message
+                    </>
+                  )}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
         </div>
-
-      
-      </main>
-
-      {/* JSON-LD Organization schema */}
-      <script
-        type="application/ld+json"
-        // eslint-disable-next-line react/no-danger
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "Organization",
-            name: "SYSTECH IT SOLUTIONS",
-            url: typeof window !== "undefined" ? window.location.origin : "https://example.com",
-            logo: "/logo.png",
-            email: "sales.systechdigital@gmail.com",
-            telephone: "+91 80-62012555",
-            address: {
-              "@type": "PostalAddress",
-              streetAddress: "#23/1, 1st Floor, J.C. 1st Cross, JC Road, Near Poornima Theatre",
-              addressLocality: "Bengaluru",
-              addressRegion: "Karnataka",
-              postalCode: "560027",
-              addressCountry: "IN",
-            },
-            sameAs: [],
-          }),
-        }}
-      />
-
-      <Footer/>
+      </div>
     </div>
   )
 }

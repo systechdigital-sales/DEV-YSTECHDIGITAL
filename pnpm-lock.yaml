@@ -11,9 +11,6 @@ importers:
       '@aws-sdk/credential-providers':
         specifier: latest
         version: 3.864.0
-      '@hookform/resolvers':
-        specifier: latest
-        version: 5.2.1(react-hook-form@7.62.0(react@19.0.0))
       '@mongodb-js/zstd':
         specifier: latest
         version: 2.0.1
@@ -197,9 +194,6 @@ importers:
       xlsx:
         specifier: latest
         version: 0.18.5
-      zod:
-        specifier: 3.22.4
-        version: 3.22.4
     devDependencies:
       '@types/node':
         specifier: ^22
@@ -369,11 +363,6 @@ packages:
 
   '@floating-ui/utils@0.2.10':
     resolution: {integrity: sha512-aGTxbpbg8/b5JfU1HXSrbH3wXZuLPJcNEcZQFMxLs3oSzgtVu6nFPkbbGGUvBcUjKV2YyB9Wxxabo+HEH9tcRQ==}
-
-  '@hookform/resolvers@5.2.1':
-    resolution: {integrity: sha512-u0+6X58gkjMcxur1wRWokA7XsiiBJ6aK17aPZxhkoYiK5J+HcTx0Vhu9ovXe6H+dVpO6cjrn2FkJTryXEMlryQ==}
-    peerDependencies:
-      react-hook-form: ^7.55.0
 
   '@img/sharp-darwin-arm64@0.33.5':
     resolution: {integrity: sha512-UT4p+iz/2H4twwAoLCqfA9UH5pI6DggwKEGuaPy7nCVQ8ZsiY5PIcrRvD1DzuY3qYL07NtIQcWnBSY/heikIFQ==}
@@ -2754,9 +2743,6 @@ packages:
     engines: {node: '>= 14.6'}
     hasBin: true
 
-  zod@3.22.4:
-    resolution: {integrity: sha512-iC+8Io04lddc+mVqQ9AZ7OQ2MrUKGN+oIQyq1vemgt46jwCwLfhq7/pwnBnNXXXZb8VTVLKwp9EDkx+ryxIWmg==}
-
 snapshots:
 
   '@alloc/quick-lru@5.2.0': {}
@@ -3180,11 +3166,6 @@ snapshots:
       react-dom: 19.0.0(react@19.0.0)
 
   '@floating-ui/utils@0.2.10': {}
-
-  '@hookform/resolvers@5.2.1(react-hook-form@7.62.0(react@19.0.0))':
-    dependencies:
-      '@standard-schema/utils': 0.3.0
-      react-hook-form: 7.62.0(react@19.0.0)
 
   '@img/sharp-darwin-arm64@0.33.5':
     optionalDependencies:
@@ -5614,5 +5595,3 @@ snapshots:
       word: 0.3.0
 
   yaml@2.8.1: {}
-
-  zod@3.22.4: {}

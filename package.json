@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@aws-sdk/credential-providers": "latest",
-    "@hookform/resolvers": "latest",
     "@mongodb-js/zstd": "latest",
     "@radix-ui/react-accordion": "latest",
     "@radix-ui/react-alert-dialog": "latest",
@@ -71,8 +70,7 @@
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "latest",
-    "xlsx": "latest",
-    "zod": "3.22.4"
+    "xlsx": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",
