@@ -473,7 +473,6 @@ export default function AdminPage() {
     availableKeys: ottKeys?.filter((k) => k.status === "available")?.length || 0,
     assignedKeys: ottKeys?.filter((k) => k.status === "assigned")?.length || 0,
     usedKeys: ottKeys?.filter((k) => k.status === "used")?.length || 0,
-    totalKeys: ottKeys?.length || 0,
   }
 
   // Manual Assignment Handlers
@@ -721,10 +720,8 @@ export default function AdminPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-600">OTT Keys</p>
-                      <p className="text-3xl font-bold">{stats.totalKeys}</p>
-                      <p className="text-sm text-gray-500">
-                        {stats.availableKeys} available • {stats.assignedKeys} assigned
-                      </p>
+                      <p className="text-3xl font-bold">{ottKeys?.length || 0}</p>
+                      <p className="text-sm text-gray-500">{stats.availableKeys} available</p>
                     </div>
                     <div className="p-3 bg-purple-100 rounded-full">
                       <Key className="w-8 h-8 text-purple-600" />
