@@ -106,7 +106,11 @@ export default function AdminPage() {
   // Filter and Search Logic
   const filteredData = useMemo(() => {
     const filterClaims = (claims: ClaimResponse[]) => {
+      if (!claims || !Array.isArray(claims)) return []
+
       return claims.filter((claim) => {
+        if (!claim) return false
+
         const searchMatch =
           !searchTerms.claims ||
           `${claim.firstName || ""} ${claim.lastName || ""}`.toLowerCase().includes(searchTerms.claims.toLowerCase()) ||
@@ -134,7 +138,11 @@ export default function AdminPage() {
     }
 
     const filterSales = (sales: SalesRecord[]) => {
+      if (!sales || !Array.isArray(sales)) return []
+
       return sales.filter((sale) => {
+        if (!sale) return false
+
         const searchMatch =
           !searchTerms.sales ||
           (sale.activationCode || "").toLowerCase().includes(searchTerms.sales.toLowerCase()) ||
@@ -157,7 +165,11 @@ export default function AdminPage() {
     }
 
     const filterKeys = (keys: OTTKey[]) => {
+      if (!keys || !Array.isArray(keys)) return []
+
       return keys.filter((key) => {
+        if (!key) return false
+
         const searchMatch =
           !searchTerms.keys ||
           (key.activationCode || "").toLowerCase().includes(searchTerms.keys.toLowerCase()) ||
@@ -188,33 +200,42 @@ export default function AdminPage() {
 
   // Get unique values for filter options
   const filterOptions = useMemo(() => {
+    const getUniqueValues = (array: any[], key: string) => {
+      if (!array || !Array.isArray(array)) return []
+      return [...new Set(array.map((item) => item?.[key]).filter(Boolean))].sort()
+    }
+
     return {
       claims: {
-        paymentStatuses: [...new Set(claimResponses.map((c) => c.paymentStatus).filter(Boolean))],
-        ottStatuses: [...new Set(claimResponses.map((c) => c.ottCodeStatus || c.ottStatus).filter(Boolean))],
-        states: [...new Set(claimResponses.map((c) => c.state).filter(Boolean))].sort(),
-        cities: [...new Set(claimResponses.map((c) => c.city).filter(Boolean))].sort(),
+        paymentStatuses: getUniqueValues(claimResponses, "paymentStatus"),
+        ottStatuses: getUniqueValues(claimResponses, "ottCodeStatus").concat(
+          getUniqueValues(claimResponses, "ottStatus"),
+        ),
+        states: getUniqueValues(claimResponses, "state"),
+        cities: getUniqueValues(claimResponses, "city"),
       },
       sales: {
-        statuses: [...new Set(salesRecords.map((s) => s.status).filter(Boolean))],
-        products: [...new Set(salesRecords.map((s) => s.product).filter(Boolean))].sort(),
-        categories: [...new Set(salesRecords.map((s) => s.productSubCategory).filter(Boolean))].sort(),
+        statuses: getUniqueValues(salesRecords, "status"),
+        products: getUniqueValues(salesRecords, "product"),
+        categories: getUniqueValues(salesRecords, "productSubCategory"),
       },
       keys: {
-        statuses: [...new Set(ottKeys.map((k) => k.status).filter(Boolean))],
-        products: [...new Set(ottKeys.map((k) => k.product).filter(Boolean))].sort(),
-        categories: [...new Set(ottKeys.map((k) => k.productSubCategory).filter(Boolean))].sort(),
+        statuses: getUniqueValues(ottKeys, "status"),
+        products: getUniqueValues(ottKeys, "product"),
+        categories: getUniqueValues(ottKeys, "productSubCategory"),
       },
     }
   }, [claimResponses, salesRecords, ottKeys])
 
   const getPaginatedData = (data: any[], tabName: "claims" | "sales" | "keys") => {
+    if (!data || !Array.isArray(data)) return []
     const startIndex = (currentPage[tabName] - 1) * ITEMS_PER_PAGE
     const endIndex = startIndex + ITEMS_PER_PAGE
     return data.slice(startIndex, endIndex)
   }
 
   const getTotalPages = (data: any[]) => {
+    if (!data || !Array.isArray(data)) return 0
     return Math.ceil(data.length / ITEMS_PER_PAGE)
   }
 
@@ -667,18 +688,24 @@ export default function AdminPage() {
   }
 
   // Safe statistics calculation using filtered data
-  const stats = {
-    totalClaims: filteredData.claims?.length || 0,
-    paidClaims: filteredData.claims?.filter((c) => c.paymentStatus === "paid")?.length || 0,
-    pendingClaims: filteredData.claims?.filter((c) => c.paymentStatus === "pending")?.length || 0,
-    failedClaims: filteredData.claims?.filter((c) => c.paymentStatus === "failed")?.length || 0,
-    totalSales: filteredData.sales?.length || 0,
-    claimedSales: filteredData.sales?.filter((s) => s.status === "claimed")?.length || 0,
-    availableKeys: filteredData.keys?.filter((k) => k.status === "available")?.length || 0,
-    assignedKeys: filteredData.keys?.filter((k) => k.status === "assigned")?.length || 0,
-    usedKeys: filteredData.keys?.filter((k) => k.status === "used")?.length || 0,
-    totalKeys: filteredData.keys?.length || 0,
-  }
+  const stats = useMemo(() => {
+    const claims = filteredData.claims || []
+    const sales = filteredData.sales || []
+    const keys = filteredData.keys || []
+
+    return {
+      totalClaims: claims.length,
+      paidClaims: claims.filter((c) => c.paymentStatus === "paid").length,
+      pendingClaims: claims.filter((c) => c.paymentStatus === "pending").length,
+      failedClaims: claims.filter((c) => c.paymentStatus === "failed").length,
+      totalSales: sales.length,
+      claimedSales: sales.filter((s) => s.status === "claimed").length,
+      availableKeys: keys.filter((k) => k.status === "available").length,
+      assignedKeys: keys.filter((k) => k.status === "assigned").length,
+      usedKeys: keys.filter((k) => k.status === "used").length,
+      totalKeys: keys.length,
+    }
+  }, [filteredData])
 
   // Manual Assignment Handlers
   const handleManualAssignClick = (claim: ClaimResponse) => {
