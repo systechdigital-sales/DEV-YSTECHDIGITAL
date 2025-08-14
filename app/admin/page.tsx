@@ -723,7 +723,7 @@ export default function AdminPage() {
                       <p className="text-sm font-medium text-gray-600">OTT Keys</p>
                       <p className="text-3xl font-bold">{stats.totalKeys}</p>
                       <p className="text-sm text-gray-500">
-                        {stats.availableKeys} available • {stats.assignedKeys} assigned
+                        {stats.totalKeys - stats.assignedKey} available • {stats.assignedKeys} assigned
                       </p>
                     </div>
                     <div className="p-3 bg-purple-100 rounded-full">
