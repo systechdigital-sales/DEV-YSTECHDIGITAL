@@ -410,15 +410,22 @@ export default function DashboardPage() {
 
               <Card className="bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-lg border-0 min-w-0">
                 <CardContent className="p-4 sm:p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-blue-100 text-sm font-medium">Processing</p>
-                      <p className="text-2xl sm:text-3xl font-bold">{stats.processing}</p>
-                      <p className="text-blue-200 text-xs sm:text-sm mt-1">Currently processing</p>
+                  <div className="flex items-center space-x-3 mb-3">
+                    <Loader className="w-5 h-5 text-blue-600 animate-spin flex-shrink-0" />
+                    <h3 className="font-semibold text-blue-800 truncate">Processing</h3>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-2xl font-bold text-blue-900">{stats.processing}</span>
+                      <span className="text-sm text-blue-600">
+                        {stats.totalClaims > 0 ? Math.round((stats.processing / stats.totalClaims) * 100) : 0}%
+                      </span>
                     </div>
-                    <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
-                      <Loader className="w-6 h-6 sm:w-8 sm:h-8 animate-spin" />
-                    </div>
+                    <Progress
+                      value={stats.totalClaims > 0 ? (stats.processing / stats.totalClaims) * 100 : 0}
+                      className="h-2"
+                    />
+                    <p className="text-xs text-blue-600">Currently processing</p>
                   </div>
                 </CardContent>
               </Card>
