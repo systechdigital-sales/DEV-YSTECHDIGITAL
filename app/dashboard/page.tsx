@@ -345,9 +345,9 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between">
                     <div className="min-w-0 flex-1">
                       <p className="text-teal-100 text-sm font-medium">Total Sales</p>
-                      <p className="text-2xl sm:text-3xl font-bold">{stats.totalSales}</p>
-                      <p className="text-teal-200 text-xs sm:text-sm mt-1">
-                        {stats.totalSales - (stats.totalClaims || 0)} available
+                      <p className="text-3xl font-bold text-gray-900">{stats.totalSales}</p>
+                      <p className="text-sm text-gray-500">
+                        {stats.availableSales} available • {stats.claimedSales} claimed
                       </p>
                     </div>
                     <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
