@@ -47,6 +47,7 @@ interface DashboardStats {
   currentlyProcessing: number
   monthlyData: Array<{ month: string; claims: number; revenue: number }>
   dailyData: Array<{ date: string; claims: number; activity: number }>
+  todaysSuccessfulClaims: number
 }
 
 export default function DashboardPage() {
@@ -69,6 +70,7 @@ export default function DashboardPage() {
     currentlyProcessing: 0,
     monthlyData: [],
     dailyData: [],
+    todaysSuccessfulClaims: 0,
   })
   const [lastUpdated, setLastUpdated] = useState<string>("")
   const router = useRouter()
@@ -83,14 +85,14 @@ export default function DashboardPage() {
     loadDashboardData()
   }, [router])
 
-  // Auto-refresh every 5 minutes
+  // Auto-refresh every 2 minutes
   useEffect(() => {
     const interval = setInterval(
       () => {
         loadDashboardData()
       },
-      5 * 60 * 1000,
-    ) // 5 minutes
+      2 * 60 * 1000,
+    ) // 2 minutes
 
     return () => clearInterval(interval)
   }, [])
@@ -100,15 +102,18 @@ export default function DashboardPage() {
       setLoading(true)
       setError("")
 
-      console.log("🔄 Loading dashboard data...")
+      console.log("[v0] Loading dashboard data...")
 
-      const statsResponse = await fetch("/api/admin/stats").then((res) => res.json())
+      const timestamp = Date.now()
+      const statsResponse = await fetch(`/api/admin/stats?t=${timestamp}`).then((res) => res.json())
 
-      console.log("📊 Stats API Response:", statsResponse)
+      console.log("[v0] Stats API Response:", statsResponse)
 
-      // Calculate today's claims from the claims API for accuracy
-      const claimsResponse = await fetch("/api/admin/claims?limit=1000").then((res) => res.json())
+      const claimsResponse = await fetch(`/api/admin/claims?limit=1000&t=${timestamp}`).then((res) => res.json())
       const claims = claimsResponse.data || []
+
+      console.log("[v0] Claims API Response:", claimsResponse)
+      console.log("[v0] Total claims fetched:", claims.length)
 
       // Calculate today's date in IST
       const today = new Date()
@@ -116,12 +121,23 @@ export default function DashboardPage() {
       const istToday = new Date(today.getTime() + istOffset)
       const todayStr = istToday.toISOString().split("T")[0]
 
+      console.log("[v0] Today's date (IST):", todayStr)
+
       // Calculate additional statistics from claims data
       const todaysClaims = claims.filter((claim: any) => {
         if (!claim.createdAt) return false
         const claimDate = new Date(claim.createdAt).toISOString().split("T")[0]
         return claimDate === todayStr
       }).length
+
+      const todaysSuccessfulClaims = claims.filter((claim: any) => {
+        if (!claim.createdAt) return false
+        const claimDate = new Date(claim.createdAt).toISOString().split("T")[0]
+        return claimDate === todayStr && claim.status === "delivered"
+      }).length
+
+      console.log("[v0] Today's claims:", todaysClaims)
+      console.log("[v0] Today's successful claims:", todaysSuccessfulClaims)
 
       const totalRevenue = (statsResponse.paidClaims || 0) * 99
 
@@ -132,6 +148,26 @@ export default function DashboardPage() {
 
       const monthlyData = generateMonthlyData(claims)
       const dailyData = generateDailyData(claims)
+
+      console.log(
+        "[v0] API Stats - Total:",
+        statsResponse.totalClaims,
+        "Delivered:",
+        statsResponse.deliveredClaims,
+        "Pending:",
+        statsResponse.pendingClaims,
+        "Failed:",
+        statsResponse.failedClaims,
+      )
+      console.log(
+        "[v0] API Sales - Total:",
+        statsResponse.totalSales,
+        "Available:",
+        statsResponse.availableSales,
+        "Claimed:",
+        statsResponse.claimedSales,
+      )
+      console.log("[v0] API Keys - Total:", statsResponse.totalKeys, "Available:", statsResponse.availableKeys)
 
       const newStats: DashboardStats = {
         totalClaims: statsResponse.totalClaims || 0,
@@ -150,16 +186,17 @@ export default function DashboardPage() {
         currentlyProcessing: statsResponse.pendingClaims || 0,
         monthlyData,
         dailyData,
+        todaysSuccessfulClaims,
       }
 
-      console.log("📊 Final calculated stats:", newStats)
+      console.log("[v0] Final calculated stats:", newStats)
 
       setStats(newStats)
       setLastUpdated(new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }))
 
       toast({
-        title: "Dashboard Updated",
-        description: `Loaded ${newStats.totalClaims} claims, ${newStats.totalSales} sales, ${newStats.totalKeys} keys`,
+        title: "Dashboard Updated Successfully",
+        description: `📊 ${newStats.totalClaims} claims • 💰 ${formatCurrency(newStats.totalRevenue)} revenue • 🔑 ${newStats.availableKeys}/${newStats.totalKeys} keys available`,
       })
     } catch (error: any) {
       console.error("❌ Error loading dashboard data:", error)
@@ -329,20 +366,7 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-lg border-0 min-w-0">
-                <CardContent className="p-4 sm:p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-purple-100 text-sm font-medium">Success Rate</p>
-                      <p className="text-2xl sm:text-3xl font-bold">{stats.successRate}%</p>
-                      <p className="text-purple-200 text-xs sm:text-sm mt-1">✅ {stats.successful} delivered</p>
-                    </div>
-                    <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
-                      <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              
 
               <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg border-0 min-w-0">
                 <CardContent className="p-4 sm:p-6">
@@ -381,20 +405,7 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-lg border-0 min-w-0">
-                <CardContent className="p-4 sm:p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-indigo-100 text-sm font-medium">OTT Keys</p>
-                      <p className="text-2xl sm:text-3xl font-bold">{stats.totalKeys}</p>
-                      <p className="text-indigo-200 text-xs sm:text-sm mt-1">{stats.availableKeys} available</p>
-                    </div>
-                    <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
-                      <Key className="w-6 h-6 sm:w-8 sm:h-8" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              
 
               <Card className="bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-lg border-0 min-w-0">
                 <CardContent className="p-4 sm:p-6">
@@ -421,27 +432,7 @@ export default function DashboardPage() {
 
             {/* Status Cards with Progress */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8 w-full">
-              <Card className="bg-green-50 border-green-200 shadow-lg min-w-0">
-                <CardContent className="p-4 sm:p-6">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
-                    <h3 className="font-semibold text-green-800 truncate">Successful</h3>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-2xl font-bold text-green-900">{stats.successful}</span>
-                      <span className="text-sm text-green-600">
-                        {stats.totalClaims > 0 ? Math.round((stats.successful / stats.totalClaims) * 100) : 0}%
-                      </span>
-                    </div>
-                    <Progress
-                      value={stats.totalClaims > 0 ? (stats.successful / stats.totalClaims) * 100 : 0}
-                      className="h-2"
-                    />
-                    <p className="text-xs text-green-600">OTT codes delivered</p>
-                  </div>
-                </CardContent>
-              </Card>
+              
 
               <Card className="bg-yellow-50 border-yellow-200 shadow-lg min-w-0">
                 <CardContent className="p-4 sm:p-6">
