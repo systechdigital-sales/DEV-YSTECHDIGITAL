@@ -102,23 +102,13 @@ export default function DashboardPage() {
 
       console.log("🔄 Loading dashboard data...")
 
-      const [statsResponse, claimsResponse] = await Promise.all([
-        fetch("/api/admin/stats").then((res) => res.json()),
-        fetch("/api/admin/claims?limit=1000").then((res) => res.json()),
-      ])
+      const statsResponse = await fetch("/api/admin/stats").then((res) => res.json())
 
-      console.log("📊 API Responses:", {
-        stats: statsResponse,
-        claims: claimsResponse,
-      })
+      console.log("📊 Stats API Response:", statsResponse)
 
-      // Extract claims data for additional calculations
+      // Calculate today's claims from the claims API for accuracy
+      const claimsResponse = await fetch("/api/admin/claims?limit=1000").then((res) => res.json())
       const claims = claimsResponse.data || []
-
-      console.log("📈 Data counts:", {
-        claims: claims.length,
-        statsFromAPI: statsResponse,
-      })
 
       // Calculate today's date in IST
       const today = new Date()
@@ -133,9 +123,7 @@ export default function DashboardPage() {
         return claimDate === todayStr
       }).length
 
-      const totalRevenue = claims
-        .filter((claim: any) => claim.paymentStatus === "paid")
-        .reduce((sum: number, claim: any) => sum + (claim.amount || 99), 0)
+      const totalRevenue = (statsResponse.paidClaims || 0) * 99
 
       const successRate =
         statsResponse.totalClaims > 0
@@ -164,14 +152,14 @@ export default function DashboardPage() {
         dailyData,
       }
 
-      console.log("📊 Calculated stats:", newStats)
+      console.log("📊 Final calculated stats:", newStats)
 
       setStats(newStats)
       setLastUpdated(new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }))
 
       toast({
         title: "Dashboard Updated",
-        description: "Latest data loaded successfully",
+        description: `Loaded ${newStats.totalClaims} claims, ${newStats.totalSales} sales, ${newStats.totalKeys} keys`,
       })
     } catch (error: any) {
       console.error("❌ Error loading dashboard data:", error)
