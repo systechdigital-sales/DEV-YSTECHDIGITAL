@@ -679,9 +679,12 @@ export default function DashboardPage() {
                             <span className="font-medium text-blue-800">Processing</span>
                           </div>
                           <div className="text-right">
-                            <span className="text-2xl font-bold text-blue-900">{stats.processing}</span>
+                            <span className="text-2xl font-bold text-blue-900">{stats.currentlyProcessing}</span>
                             <p className="text-sm text-blue-600">
-                              {stats.totalClaims > 0 ? Math.round((stats.processing / stats.totalClaims) * 100) : 0}%
+                              {stats.totalClaims > 0
+                                ? Math.round((stats.currentlyProcessing / stats.totalClaims) * 100)
+                                : 0}
+                              %
                             </p>
                           </div>
                         </div>
