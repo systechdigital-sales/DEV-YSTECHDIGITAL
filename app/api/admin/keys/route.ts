@@ -2,7 +2,6 @@ export const dynamic = "force-dynamic"
 
 import { type NextRequest, NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
-import type { IOTTKey, OTTKey } from "@/lib/models"
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,66 +9,67 @@ export async function GET(request: NextRequest) {
     const page = Number.parseInt(searchParams.get("page") || "1")
     const limit = Number.parseInt(searchParams.get("limit") || "10")
     const search = searchParams.get("search") || ""
-    const status = searchParams.get("status")
+    const statusFilter = searchParams.get("status") || ""
     const sortBy = searchParams.get("sortBy") || "createdAt"
     const sortOrder = searchParams.get("sortOrder") || "desc"
 
     const db = await getDatabase()
-    const keysCollection = db.collection<IOTTKey>("ottkeys")
+    const collection = db.collection("ottkeys")
 
-    // Build search query
-    const query: any = {}
+    // Build filter query
+    const filter: any = {}
+
     if (search) {
-      query.$or = [
+      filter.$or = [
         { activationCode: { $regex: search, $options: "i" } },
         { product: { $regex: search, $options: "i" } },
         { productSubCategory: { $regex: search, $options: "i" } },
-        { assignedEmail: { $regex: search, $options: "i" } },
+        { assignedTo: { $regex: search, $options: "i" } },
       ]
     }
 
-    if (status && status !== "all") {
-      query.status = status
+    if (statusFilter && statusFilter !== "all") {
+      filter.status = statusFilter
     }
 
-    // Build sort object
-    const sortObj: any = {}
-    sortObj[sortBy] = sortOrder === "asc" ? 1 : -1
+    // Build sort query
+    const sort: any = {}
+    sort[sortBy] = sortOrder === "asc" ? 1 : -1
 
-    // Get total count for pagination
-    const total = await keysCollection.countDocuments(query)
-    const totalPages = Math.ceil(total / limit)
-    const skip = (page - 1) * limit
+    // Get total count
+    const total = await collection.countDocuments(filter)
 
-    // Fetch paginated data
-    const keys = await keysCollection.find(query).sort(sortObj).skip(skip).limit(limit).toArray()
+    // Get paginated results
+    const keys = await collection
+      .find(filter)
+      .sort(sort)
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .toArray()
 
-    const formattedKeys: OTTKey[] = keys.map((key) => ({
+    // Convert ObjectId to string for JSON serialization
+    const serializedKeys = keys.map((key) => ({
       ...key,
-      id: key._id?.toString() || "",
-      _id: key._id?.toString() || "",
-      createdAt: key.createdAt ? key.createdAt.toISOString() : undefined,
-      updatedAt: key.updatedAt ? key.updatedAt.toISOString() : undefined,
-      assignedDate: key.assignedDate ? key.assignedDate.toISOString() : undefined,
+      _id: key._id.toString(),
     }))
 
     return NextResponse.json({
-      data: formattedKeys,
-      total,
-      page,
-      totalPages,
-      limit,
+      success: true,
+      keys: serializedKeys,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
     })
   } catch (error: any) {
-    console.error("Error fetching OTT keys:", error)
+    console.error("Error fetching keys:", error)
     return NextResponse.json(
       {
-        data: [],
-        total: 0,
-        page: 1,
-        totalPages: 0,
-        limit: 10,
-        error: error.message || "Failed to fetch OTT keys",
+        success: false,
+        error: "Failed to fetch keys",
+        message: error.message,
       },
       { status: 500 },
     )

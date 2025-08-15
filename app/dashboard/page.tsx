@@ -76,6 +76,17 @@ interface SalesRecord {
   createdAt: string
 }
 
+interface OTTKey {
+  _id: string
+  activationCode: string
+  product: string
+  productSubCategory: string
+  status: "available" | "assigned" | "used"
+  assignedTo?: string
+  assignedDate?: string
+  createdAt: string
+}
+
 interface DashboardStats {
   totalClaims: number
   totalRevenue: number
@@ -87,6 +98,10 @@ interface DashboardStats {
   totalSalesRecords: number
   availableSalesRecords: number
   claimedSalesRecords: number
+  totalKeys: number
+  availableKeys: number
+  assignedKeys: number
+  usedKeys: number
   conversionRate: number
   averageClaimValue: number
   monthlyData: Array<{
@@ -158,6 +173,10 @@ export default function DashboardPage() {
     totalSalesRecords: 0,
     availableSalesRecords: 0,
     claimedSalesRecords: 0,
+    totalKeys: 0,
+    availableKeys: 0,
+    assignedKeys: 0,
+    usedKeys: 0,
     conversionRate: 0,
     averageClaimValue: 0,
     monthlyData: [],
@@ -191,39 +210,52 @@ export default function DashboardPage() {
 
       console.log("🔄 Fetching dashboard data...")
 
-      // Fetch claims data
-      const claimsResponse = await fetch("/api/admin/claims", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
+      // Fetch all data in parallel
+      const [claimsResponse, salesResponse, keysResponse] = await Promise.all([
+        fetch("/api/admin/claims?limit=1000", {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        }),
+        fetch("/api/admin/sales?limit=1000", {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        }),
+        fetch("/api/admin/keys?limit=1000", {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        }),
+      ])
 
+      // Check if all responses are ok
       if (!claimsResponse.ok) {
         throw new Error(`Claims API error: ${claimsResponse.status}`)
       }
-
-      const claimsData = await claimsResponse.json()
-      console.log("📊 Claims response:", claimsData)
-
-      const claims: Claim[] = claimsData.success ? claimsData.claims || [] : []
-
-      // Fetch sales data
-      const salesResponse = await fetch("/api/admin/sales", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
-
       if (!salesResponse.ok) {
         throw new Error(`Sales API error: ${salesResponse.status}`)
       }
+      if (!keysResponse.ok) {
+        throw new Error(`Keys API error: ${keysResponse.status}`)
+      }
 
-      const salesData = await salesResponse.json()
-      console.log("🛒 Sales response:", salesData)
+      // Parse responses
+      const [claimsData, salesData, keysData] = await Promise.all([
+        claimsResponse.json(),
+        salesResponse.json(),
+        keysResponse.json(),
+      ])
 
+      console.log("📊 API responses:", { claimsData, salesData, keysData })
+
+      // Extract data arrays
+      const claims: Claim[] = claimsData.success ? claimsData.claims || [] : []
       const sales: SalesRecord[] = salesData.success ? salesData.sales || [] : []
+      const keys: OTTKey[] = keysData.success ? keysData.keys || [] : []
+
+      console.log("📈 Data arrays:", {
+        claimsCount: claims.length,
+        salesCount: sales.length,
+        keysCount: keys.length,
+      })
 
       // Calculate comprehensive statistics
       const totalClaims = claims.length
@@ -257,6 +289,13 @@ export default function DashboardPage() {
       const totalSalesRecords = sales.length
       const claimedSalesRecords = sales.filter((sale) => sale.status === "claimed").length
       const availableSalesRecords = sales.filter((sale) => sale.status === "available").length
+
+      // Keys statistics
+      const totalKeys = keys.length
+      const availableKeys = keys.filter((key) => key.status === "available").length
+      const assignedKeys = keys.filter((key) => key.status === "assigned").length
+      const usedKeys = keys.filter((key) => key.status === "used").length
+
       const conversionRate = totalSalesRecords > 0 ? (claimedSalesRecords / totalSalesRecords) * 100 : 0
 
       // Monthly data for the last 6 months
@@ -332,7 +371,7 @@ export default function DashboardPage() {
         { name: "Processing", value: processingClaims, color: COLORS.processing },
       ].filter((item) => item.value > 0)
 
-      setStats({
+      const newStats = {
         totalClaims,
         totalRevenue,
         successfulClaims,
@@ -343,12 +382,19 @@ export default function DashboardPage() {
         totalSalesRecords,
         availableSalesRecords,
         claimedSalesRecords,
+        totalKeys,
+        availableKeys,
+        assignedKeys,
+        usedKeys,
         conversionRate,
         averageClaimValue,
         monthlyData,
         dailyData,
         statusDistribution,
-      })
+      }
+
+      console.log("📊 Calculated stats:", newStats)
+      setStats(newStats)
 
       setLastUpdated(
         new Date().toLocaleTimeString("en-IN", {
@@ -397,7 +443,7 @@ export default function DashboardPage() {
     <SidebarProvider>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex">
         <DashboardSidebar />
-          <SidebarInset className="flex-1 w-full overflow-hidden">
+        <SidebarInset className="flex-1 w-full overflow-hidden">
           {/* Header */}
           <header className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 shadow-2xl border-b border-slate-200 sticky top-0 z-10">
             <div className="px-6 py-6">
@@ -541,6 +587,31 @@ export default function DashboardPage() {
 
               {/* Secondary Metrics */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card className="shadow-lg border-0 bg-gradient-to-br from-cyan-500 to-cyan-600 text-white">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-cyan-100 text-sm font-medium">Total Sales</p>
+                        <p className="text-2xl font-bold">{stats.totalSalesRecords}</p>
+                        <p className="text-cyan-200 text-xs mt-1">{stats.availableSalesRecords} available</p>
+                      </div>
+                      <ShoppingCart className="w-8 h-8 text-cyan-200" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="shadow-lg border-0 bg-gradient-to-br from-purple-500 to-purple-600 text-white">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-purple-100 text-sm font-medium">OTT Keys</p>
+                        <p className="text-2xl font-bold">{stats.totalKeys}</p>
+                        <p className="text-purple-200 text-xs mt-1">{stats.availableKeys} available</p>
+                      </div>
+                      <Target className="w-8 h-8 text-purple-200" />
+                    </div>
+                  </CardContent>
+                </Card>
 
                 <Card className="shadow-lg border-0 bg-gradient-to-br from-indigo-500 to-indigo-600 text-white">
                   <CardContent className="p-6">
@@ -850,7 +921,7 @@ export default function DashboardPage() {
                       </Badge>
                       <p className="text-sm text-emerald-700">systech_ott_platform</p>
                       <p className="text-xs text-emerald-600 mt-1">
-                        {stats.totalClaims + stats.totalSalesRecords} total records
+                        {(stats.totalClaims + stats.totalSalesRecords + stats.totalKeys).toLocaleString()} total records
                       </p>
                     </div>
 
