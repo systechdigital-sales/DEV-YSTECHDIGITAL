@@ -2,436 +2,209 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell,
-  Area,
-  AreaChart,
-} from "recharts"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   Users,
   DollarSign,
   TrendingUp,
-  Activity,
-  CheckCircle,
-  XCircle,
-  Clock,
-  Mail,
-  Database,
-  Target,
-  ShoppingCart,
-  RefreshCw,
-  AlertCircle,
   Calendar,
+  ShoppingCart,
+  Key,
+  RefreshCw,
+  CheckCircle,
+  Clock,
+  XCircle,
+  Loader,
+  AlertCircle,
+  BarChart3,
+  PieChart,
+  Activity,
+  Target,
 } from "lucide-react"
-import Image from "next/image"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Progress } from "@/components/ui/progress"
 import { DashboardSidebar } from "@/components/dashboard-sidebar"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
-import { Button } from "@/components/ui/button"
-
-interface Claim {
-  _id: string
-  claimId: string
-  firstName: string
-  lastName: string
-  email: string
-  phoneNumber: string
-  address: string
-  state: string
-  city: string
-  pincode: string
-  activationCode: string
-  paymentStatus: "pending" | "paid" | "failed"
-  ottStatus: "pending" | "delivered" | "failed" | "processing"
-  ottCode: string
-  paymentId: string
-  razorpayOrderId: string
-  createdAt: string
-  updatedAt: string
-  amount: number
-}
-
-interface SalesRecord {
-  _id: string
-  productSubCategory: string
-  product: string
-  activationCode: string
-  status: "available" | "claimed"
-  claimedBy?: string
-  claimedDate?: string
-  createdAt: string
-}
-
-interface OTTKey {
-  _id: string
-  activationCode: string
-  product: string
-  productSubCategory: string
-  status: "available" | "assigned" | "used"
-  assignedTo?: string
-  assignedDate?: string
-  createdAt: string
-}
+import Image from "next/image"
+import { toast } from "@/hooks/use-toast"
 
 interface DashboardStats {
   totalClaims: number
   totalRevenue: number
-  successfulClaims: number
-  pendingClaims: number
-  failedClaims: number
-  processingClaims: number
-  todayClaims: number
-  totalSalesRecords: number
-  availableSalesRecords: number
-  claimedSalesRecords: number
+  successRate: number
+  todaysClaims: number
+  totalSales: number
   totalKeys: number
-  availableKeys: number
-  assignedKeys: number
-  usedKeys: number
-  conversionRate: number
-  averageClaimValue: number
-  monthlyData: Array<{
-    month: string
-    claims: number
-    revenue: number
-    success: number
-    failed: number
-  }>
-  dailyData: Array<{
-    date: string
-    claims: number
-    revenue: number
-  }>
-  statusDistribution: Array<{
-    name: string
-    value: number
-    color: string
-  }>
-}
-
-const COLORS = {
-  success: "#10B981",
-  pending: "#F59E0B",
-  failed: "#EF4444",
-  processing: "#8B5CF6",
-}
-
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount)
-}
-
-const formatDateIST = (dateString: string) => {
-  const date = new Date(dateString)
-  return date.toLocaleString("en-IN", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  })
-}
-
-const getDateIST = () => {
-  return new Date().toLocaleDateString("en-IN", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  })
+  processing: number
+  successful: number
+  pending: number
+  failed: number
+  currentlyProcessing: number
 }
 
 export default function DashboardPage() {
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
   const [stats, setStats] = useState<DashboardStats>({
     totalClaims: 0,
     totalRevenue: 0,
-    successfulClaims: 0,
-    pendingClaims: 0,
-    failedClaims: 0,
-    processingClaims: 0,
-    todayClaims: 0,
-    totalSalesRecords: 0,
-    availableSalesRecords: 0,
-    claimedSalesRecords: 0,
+    successRate: 0,
+    todaysClaims: 0,
+    totalSales: 0,
     totalKeys: 0,
-    availableKeys: 0,
-    assignedKeys: 0,
-    usedKeys: 0,
-    conversionRate: 0,
-    averageClaimValue: 0,
-    monthlyData: [],
-    dailyData: [],
-    statusDistribution: [],
+    processing: 0,
+    successful: 0,
+    pending: 0,
+    failed: 0,
+    currentlyProcessing: 0,
   })
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<string>("")
   const router = useRouter()
 
+  // Check authentication
   useEffect(() => {
-    // Check authentication
     const isAuthenticated = sessionStorage.getItem("adminAuthenticated")
     if (!isAuthenticated) {
       router.push("/login")
       return
     }
-
-    fetchDashboardData()
-
-    // Auto-refresh every 5 minutes
-    const interval = setInterval(fetchDashboardData, 5 * 60 * 1000)
-    return () => clearInterval(interval)
+    loadDashboardData()
   }, [router])
 
-  const fetchDashboardData = async () => {
+  // Auto-refresh every 5 minutes
+  useEffect(() => {
+    const interval = setInterval(
+      () => {
+        loadDashboardData()
+      },
+      5 * 60 * 1000,
+    ) // 5 minutes
+
+    return () => clearInterval(interval)
+  }, [])
+
+  const loadDashboardData = async () => {
     try {
       setLoading(true)
-      setError(null)
+      setError("")
 
-      console.log("🔄 Fetching dashboard data...")
+      console.log("🔄 Loading dashboard data...")
 
-      // Fetch all data in parallel
+      // Fetch data from all endpoints
       const [claimsResponse, salesResponse, keysResponse] = await Promise.all([
-        fetch("/api/admin/claims?limit=1000", {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-        }),
-        fetch("/api/admin/sales?limit=1000", {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-        }),
-        fetch("/api/admin/keys?limit=1000", {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-        }),
+        fetch("/api/admin/claims?limit=1000").then((res) => res.json()),
+        fetch("/api/admin/sales?limit=1000").then((res) => res.json()),
+        fetch("/api/admin/keys?limit=1000").then((res) => res.json()),
       ])
 
-      // Check if all responses are ok
-      if (!claimsResponse.ok) {
-        throw new Error(`Claims API error: ${claimsResponse.status}`)
-      }
-      if (!salesResponse.ok) {
-        throw new Error(`Sales API error: ${salesResponse.status}`)
-      }
-      if (!keysResponse.ok) {
-        throw new Error(`Keys API error: ${keysResponse.status}`)
-      }
-
-      // Parse responses
-      const [claimsData, salesData, keysData] = await Promise.all([
-        claimsResponse.json(),
-        salesResponse.json(),
-        keysResponse.json(),
-      ])
-
-      console.log("📊 API responses:", { claimsData, salesData, keysData })
-
-      // Extract data arrays
-      const claims: Claim[] = claimsData.success ? claimsData.claims || [] : []
-      const sales: SalesRecord[] = salesData.success ? salesData.sales || [] : []
-      const keys: OTTKey[] = keysData.success ? keysData.keys || [] : []
-
-      console.log("📈 Data arrays:", {
-        claimsCount: claims.length,
-        salesCount: sales.length,
-        keysCount: keys.length,
+      console.log("📊 API Responses:", {
+        claims: claimsResponse,
+        sales: salesResponse,
+        keys: keysResponse,
       })
 
-      // Calculate comprehensive statistics
+      // Extract data arrays
+      const claims = claimsResponse.data || []
+      const sales = salesResponse.data || []
+      const keys = keysResponse.data || []
+
+      console.log("📈 Data counts:", {
+        claims: claims.length,
+        sales: sales.length,
+        keys: keys.length,
+      })
+
+      // Calculate today's date in IST
+      const today = new Date()
+      const istOffset = 5.5 * 60 * 60 * 1000 // IST is UTC+5:30
+      const istToday = new Date(today.getTime() + istOffset)
+      const todayStr = istToday.toISOString().split("T")[0]
+
+      // Calculate statistics
       const totalClaims = claims.length
-      const successfulClaims = claims.filter(
-        (claim) => claim.ottStatus === "delivered" || claim.ottStatus === "success",
-      ).length
-      const pendingClaims = claims.filter((claim) => claim.ottStatus === "pending").length
-      const failedClaims = claims.filter((claim) => claim.ottStatus === "failed").length
-      const processingClaims = claims.filter((claim) => claim.ottStatus === "processing").length
+      const paidClaims = claims.filter((claim: any) => claim.paymentStatus === "paid")
+      const deliveredClaims = claims.filter(
+        (claim: any) => claim.ottStatus === "delivered" || claim.ottCodeStatus === "delivered",
+      )
+      const pendingClaims = claims.filter(
+        (claim: any) => claim.ottStatus === "pending" || claim.ottCodeStatus === "pending",
+      )
+      const failedClaims = claims.filter(
+        (claim: any) => claim.ottStatus === "failed" || claim.ottCodeStatus === "failed",
+      )
+      const processingClaims = claims.filter(
+        (claim: any) => claim.ottStatus === "processing" || claim.ottCodeStatus === "processing",
+      )
 
-      // Revenue calculations
-      const paidClaims = claims.filter((claim) => claim.paymentStatus === "paid")
-      const totalRevenue = paidClaims.reduce((sum, claim) => sum + (claim.amount || 99), 0)
-      const averageClaimValue = paidClaims.length > 0 ? totalRevenue / paidClaims.length : 99
-
-      // Today's claims (IST timezone)
-      const todayIST = getDateIST()
-      const todayClaims = claims.filter((claim) => {
+      const todaysClaims = claims.filter((claim: any) => {
         if (!claim.createdAt) return false
-        const claimDate = new Date(claim.createdAt)
-        const claimDateIST = claimDate.toLocaleDateString("en-IN", {
-          timeZone: "Asia/Kolkata",
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-        })
-        return claimDateIST === todayIST
+        const claimDate = new Date(claim.createdAt).toISOString().split("T")[0]
+        return claimDate === todayStr
       }).length
 
-      // Sales statistics
-      const totalSalesRecords = sales.length
-      const claimedSalesRecords = sales.filter((sale) => sale.status === "claimed").length
-      const availableSalesRecords = sales.filter((sale) => sale.status === "available").length
+      const totalRevenue = paidClaims.reduce((sum: number, claim: any) => sum + (claim.amount || 99), 0)
+      const successRate = totalClaims > 0 ? Math.round((deliveredClaims.length / totalClaims) * 100) : 0
 
-      // Keys statistics
+      const totalSales = sales.length
       const totalKeys = keys.length
-      const availableKeys = keys.filter((key) => key.status === "available").length
-      const assignedKeys = keys.filter((key) => key.status === "assigned").length
-      const usedKeys = keys.filter((key) => key.status === "used").length
+      const availableKeys = keys.filter((key: any) => key.status === "available").length
 
-      const conversionRate = totalSalesRecords > 0 ? (claimedSalesRecords / totalSalesRecords) * 100 : 0
-
-      // Monthly data for the last 6 months
-      const monthlyData = []
-      const currentDate = new Date()
-
-      for (let i = 5; i >= 0; i--) {
-        const monthDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1)
-        const monthName = monthDate.toLocaleDateString("en-US", { month: "short" })
-        const year = monthDate.getFullYear()
-
-        const monthClaims = claims.filter((claim) => {
-          if (!claim.createdAt) return false
-          const claimDate = new Date(claim.createdAt)
-          return claimDate.getMonth() === monthDate.getMonth() && claimDate.getFullYear() === monthDate.getFullYear()
-        })
-
-        const monthSuccessful = monthClaims.filter(
-          (claim) => claim.ottStatus === "delivered" || claim.ottStatus === "success",
-        ).length
-        const monthFailed = monthClaims.filter((claim) => claim.ottStatus === "failed").length
-        const monthPaid = monthClaims.filter((claim) => claim.paymentStatus === "paid")
-        const monthRevenue = monthPaid.reduce((sum, claim) => sum + (claim.amount || 99), 0)
-
-        monthlyData.push({
-          month: `${monthName} ${year}`,
-          claims: monthClaims.length,
-          revenue: monthRevenue,
-          success: monthSuccessful,
-          failed: monthFailed,
-        })
-      }
-
-      // Daily data for the last 7 days
-      const dailyData = []
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date()
-        date.setDate(date.getDate() - i)
-        const dateStr = date.toLocaleDateString("en-IN", {
-          timeZone: "Asia/Kolkata",
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-        })
-
-        const dayClaims = claims.filter((claim) => {
-          if (!claim.createdAt) return false
-          const claimDate = new Date(claim.createdAt)
-          const claimDateStr = claimDate.toLocaleDateString("en-IN", {
-            timeZone: "Asia/Kolkata",
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-          })
-          return claimDateStr === dateStr
-        })
-
-        const dayPaid = dayClaims.filter((claim) => claim.paymentStatus === "paid")
-        const dayRevenue = dayPaid.reduce((sum, claim) => sum + (claim.amount || 99), 0)
-
-        dailyData.push({
-          date: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-          claims: dayClaims.length,
-          revenue: dayRevenue,
-        })
-      }
-
-      // Status distribution for pie chart
-      const statusDistribution = [
-        { name: "Successful", value: successfulClaims, color: COLORS.success },
-        { name: "Pending", value: pendingClaims, color: COLORS.pending },
-        { name: "Failed", value: failedClaims, color: COLORS.failed },
-        { name: "Processing", value: processingClaims, color: COLORS.processing },
-      ].filter((item) => item.value > 0)
-
-      const newStats = {
+      const newStats: DashboardStats = {
         totalClaims,
         totalRevenue,
-        successfulClaims,
-        pendingClaims,
-        failedClaims,
-        processingClaims,
-        todayClaims,
-        totalSalesRecords,
-        availableSalesRecords,
-        claimedSalesRecords,
+        successRate,
+        todaysClaims,
+        totalSales,
         totalKeys,
-        availableKeys,
-        assignedKeys,
-        usedKeys,
-        conversionRate,
-        averageClaimValue,
-        monthlyData,
-        dailyData,
-        statusDistribution,
+        processing: processingClaims.length,
+        successful: deliveredClaims.length,
+        pending: pendingClaims.length,
+        failed: failedClaims.length,
+        currentlyProcessing: processingClaims.length,
       }
 
       console.log("📊 Calculated stats:", newStats)
+
       setStats(newStats)
+      setLastUpdated(new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }))
 
-      setLastUpdated(
-        new Date().toLocaleTimeString("en-IN", {
-          timeZone: "Asia/Kolkata",
-          hour12: true,
-        }),
-      )
-
-      console.log("✅ Dashboard data updated successfully")
+      toast({
+        title: "Dashboard Updated",
+        description: "Latest data loaded successfully",
+      })
     } catch (error: any) {
-      console.error("❌ Error fetching dashboard data:", error)
-      setError(error.message || "Failed to fetch dashboard data")
+      console.error("❌ Error loading dashboard data:", error)
+      setError("Failed to load dashboard data. Please try again.")
+      toast({
+        title: "Error Loading Data",
+        description: error.message || "Failed to load dashboard data",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }
   }
 
-  const successRate = stats.totalClaims > 0 ? (stats.successfulClaims / stats.totalClaims) * 100 : 0
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      minimumFractionDigits: 0,
+    }).format(amount)
+  }
 
-  if (loading && stats.totalClaims === 0) {
+  if (loading) {
     return (
       <SidebarProvider>
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex w-full">
+        <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex w-full">
           <DashboardSidebar />
-          <SidebarInset className="flex-1 w-full">
-            <div className="flex items-center justify-center h-full w-full">
-              <div className="text-center space-y-4">
-                <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-600 border-t-transparent mx-auto"></div>
-                <div className="space-y-2">
-                  <h3 className="text-xl font-semibold text-gray-800">Loading Dashboard</h3>
-                  <p className="text-gray-600">Fetching real-time data from database...</p>
-                  <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
-                    <Database className="w-4 h-4" />
-                    <span>systech_ott_platform</span>
-                  </div>
-                </div>
-              </div>
+          <SidebarInset className="flex-1 flex items-center justify-center w-full min-w-0">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-600 mx-auto mb-4"></div>
+              <p className="text-purple-600 text-lg font-medium">Loading dashboard...</p>
+              <p className="text-gray-500 text-sm mt-2">Connecting to systech_ott_platform database</p>
             </div>
           </SidebarInset>
         </div>
@@ -441,17 +214,17 @@ export default function DashboardPage() {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex w-full">
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex w-full">
         <DashboardSidebar />
         <SidebarInset className="flex-1 w-full min-w-0">
           {/* Header */}
-          <header className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 shadow-2xl border-b border-slate-200 sticky top-0 z-10 w-full">
+          <header className="bg-gradient-to-r from-purple-600 to-indigo-600 shadow-xl border-b border-purple-200 sticky top-0 z-10 w-full">
             <div className="px-4 sm:px-6 py-4 sm:py-6 w-full">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 w-full">
                 <div className="flex items-center space-x-4 min-w-0 flex-1">
-                  <SidebarTrigger className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors flex-shrink-0" />
+                  <SidebarTrigger className="text-white hover:bg-white/20 p-2 rounded-lg flex-shrink-0" />
                   <div className="flex items-center space-x-3 min-w-0 flex-1">
-                    <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm flex-shrink-0">
+                    <div className="p-2 bg-white/20 rounded-lg flex-shrink-0">
                       <Image
                         src="/logo.png"
                         alt="SYSTECH DIGITAL Logo"
@@ -461,523 +234,370 @@ export default function DashboardPage() {
                       />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h1 className="text-xl sm:text-2xl font-bold text-white flex items-center">
-                        <BarChart className="w-5 h-5 sm:w-6 sm:h-6 mr-2 flex-shrink-0" />
-                        <span className="truncate">Dashboard Analytics</span>
+                      <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white truncate">
+                        Dashboard Analytics
                       </h1>
-                      <p className="text-xs sm:text-sm text-slate-300 mt-1 truncate">
-                        Real-time insights • {stats.totalClaims.toLocaleString()} total records
+                      <p className="text-purple-200 text-sm sm:text-base lg:text-lg truncate">
+                        Real-time insights • {stats.totalClaims + stats.totalSales + stats.totalKeys} total records
                       </p>
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center space-x-4 flex-shrink-0">
+                  <div className="text-right hidden sm:block">
+                    <p className="text-purple-200 text-sm">Last updated</p>
+                    <p className="text-white font-medium text-sm">{lastUpdated}</p>
+                  </div>
                   <Button
-                    onClick={fetchDashboardData}
+                    onClick={loadDashboardData}
                     disabled={loading}
-                    variant="outline"
-                    size="sm"
-                    className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                    className="bg-white/20 hover:bg-white/30 text-white border-white/30"
                   >
                     <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
                     <span className="hidden sm:inline">Refresh</span>
                   </Button>
-                  <div className="text-right">
-                    <p className="text-xs sm:text-sm text-slate-300">Last updated</p>
-                    <p className="text-white font-semibold text-xs sm:text-sm">{lastUpdated} IST</p>
-                  </div>
                 </div>
               </div>
             </div>
           </header>
 
-          <div className="p-4 sm:p-6 w-full">
+          <div className="p-4 sm:p-6 w-full max-w-7xl mx-auto">
+            {/* Error Alert */}
             {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-3">
-                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-red-800 font-medium">Error loading data</p>
-                  <p className="text-red-600 text-sm break-words">{error}</p>
-                </div>
-                <Button
-                  onClick={fetchDashboardData}
-                  size="sm"
-                  variant="outline"
-                  className="flex-shrink-0 bg-transparent"
-                >
-                  Retry
-                </Button>
-              </div>
+              <Alert variant="destructive" className="mb-6">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             )}
 
-            <div className="space-y-6 sm:space-y-8 w-full">
-              {/* Key Metrics Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 w-full">
-                <Card className="shadow-xl border-0 bg-gradient-to-br from-blue-600 to-blue-700 text-white overflow-hidden relative">
-                  <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -mr-10 -mt-10"></div>
-                  <CardContent className="p-4 sm:p-6 relative">
-                    <div className="flex items-center justify-between">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-blue-100 text-sm font-medium">Total Claims</p>
-                        <p className="text-2xl sm:text-3xl font-bold truncate">{stats.totalClaims.toLocaleString()}</p>
-                        <div className="flex items-center mt-2 text-blue-200 text-xs">
-                          <TrendingUp className="w-3 h-3 mr-1 flex-shrink-0" />
-                          <span>All time</span>
-                        </div>
-                      </div>
-                      <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
-                        <Users className="w-6 h-6 sm:w-8 sm:h-8 text-blue-100" />
-                      </div>
+            {/* Main Stats Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8 w-full">
+              <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg border-0 min-w-0">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-blue-100 text-sm font-medium">Total Claims</p>
+                      <p className="text-2xl sm:text-3xl font-bold">{stats.totalClaims}</p>
+                      <p className="text-blue-200 text-xs sm:text-sm mt-1">📈 All time</p>
                     </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="shadow-xl border-0 bg-gradient-to-br from-emerald-600 to-emerald-700 text-white overflow-hidden relative">
-                  <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -mr-10 -mt-10"></div>
-                  <CardContent className="p-4 sm:p-6 relative">
-                    <div className="flex items-center justify-between">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-emerald-100 text-sm font-medium">Total Revenue</p>
-                        <p className="text-2xl sm:text-3xl font-bold truncate">{formatCurrency(stats.totalRevenue)}</p>
-                        <div className="flex items-center mt-2 text-emerald-200 text-xs">
-                          <DollarSign className="w-3 h-3 mr-1 flex-shrink-0" />
-                          <span className="truncate">Avg: {formatCurrency(stats.averageClaimValue)}</span>
-                        </div>
-                      </div>
-                      <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
-                        <DollarSign className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-100" />
-                      </div>
+                    <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
+                      <Users className="w-6 h-6 sm:w-8 sm:h-8" />
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </CardContent>
+              </Card>
 
-                <Card className="shadow-xl border-0 bg-gradient-to-br from-violet-600 to-violet-700 text-white overflow-hidden relative">
-                  <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -mr-10 -mt-10"></div>
-                  <CardContent className="p-4 sm:p-6 relative">
-                    <div className="flex items-center justify-between">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-violet-100 text-sm font-medium">Success Rate</p>
-                        <p className="text-2xl sm:text-3xl font-bold">{successRate.toFixed(1)}%</p>
-                        <div className="flex items-center mt-2 text-violet-200 text-xs">
-                          <CheckCircle className="w-3 h-3 mr-1 flex-shrink-0" />
-                          <span>{stats.successfulClaims} delivered</span>
-                        </div>
-                      </div>
-                      <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
-                        <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8 text-violet-100" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="shadow-xl border-0 bg-gradient-to-br from-orange-600 to-orange-700 text-white overflow-hidden relative">
-                  <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -mr-10 -mt-10"></div>
-                  <CardContent className="p-4 sm:p-6 relative">
-                    <div className="flex items-center justify-between">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-orange-100 text-sm font-medium">Today's Claims</p>
-                        <p className="text-2xl sm:text-3xl font-bold">{stats.todayClaims}</p>
-                        <div className="flex items-center mt-2 text-orange-200 text-xs">
-                          <Calendar className="w-3 h-3 mr-1 flex-shrink-0" />
-                          <span className="truncate">{getDateIST()}</span>
-                        </div>
-                      </div>
-                      <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
-                        <Activity className="w-6 h-6 sm:w-8 sm:h-8 text-orange-100" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Secondary Metrics */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 w-full">
-                <Card className="shadow-lg border-0 bg-gradient-to-br from-cyan-500 to-cyan-600 text-white">
-                  <CardContent className="p-4 sm:p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-cyan-100 text-sm font-medium">Total Sales</p>
-                        <p className="text-xl sm:text-2xl font-bold">{stats.totalSalesRecords}</p>
-                        <p className="text-cyan-200 text-xs mt-1">{stats.availableSalesRecords} available</p>
-                      </div>
-                      <ShoppingCart className="w-6 h-6 sm:w-8 sm:h-8 text-cyan-200 flex-shrink-0" />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="shadow-lg border-0 bg-gradient-to-br from-purple-500 to-purple-600 text-white">
-                  <CardContent className="p-4 sm:p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-purple-100 text-sm font-medium">OTT Keys</p>
-                        <p className="text-xl sm:text-2xl font-bold">{stats.totalKeys}</p>
-                        <p className="text-purple-200 text-xs mt-1">{stats.availableKeys} available</p>
-                      </div>
-                      <Target className="w-6 h-6 sm:w-8 sm:h-8 text-purple-200 flex-shrink-0" />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="shadow-lg border-0 bg-gradient-to-br from-indigo-500 to-indigo-600 text-white">
-                  <CardContent className="p-4 sm:p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-indigo-100 text-sm font-medium">Processing</p>
-                        <p className="text-xl sm:text-2xl font-bold">{stats.processingClaims}</p>
-                        <p className="text-indigo-200 text-xs mt-1">Currently processing</p>
-                      </div>
-                      <RefreshCw className="w-6 h-6 sm:w-8 sm:h-8 text-indigo-200 flex-shrink-0" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Status Overview */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 w-full">
-                <Card className="shadow-xl border-0 bg-gradient-to-br from-emerald-50 to-emerald-100">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center text-emerald-800 text-base sm:text-lg">
-                      <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 mr-2 flex-shrink-0" />
-                      <span>Successful</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-center">
-                      <p className="text-3xl sm:text-4xl font-bold text-emerald-600 mb-2">{stats.successfulClaims}</p>
-                      <p className="text-emerald-700 text-sm mb-3">OTT codes delivered</p>
-                      <Progress
-                        value={stats.totalClaims > 0 ? (stats.successfulClaims / stats.totalClaims) * 100 : 0}
-                        className="h-2"
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="shadow-xl border-0 bg-gradient-to-br from-amber-50 to-amber-100">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center text-amber-800 text-base sm:text-lg">
-                      <Clock className="w-4 h-4 sm:w-5 sm:h-5 mr-2 flex-shrink-0" />
-                      <span>Pending</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-center">
-                      <p className="text-3xl sm:text-4xl font-bold text-amber-600 mb-2">{stats.pendingClaims}</p>
-                      <p className="text-amber-700 text-sm mb-3">Awaiting processing</p>
-                      <Progress
-                        value={stats.totalClaims > 0 ? (stats.pendingClaims / stats.totalClaims) * 100 : 0}
-                        className="h-2"
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="shadow-xl border-0 bg-gradient-to-br from-red-50 to-red-100">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center text-red-800 text-base sm:text-lg">
-                      <XCircle className="w-4 h-4 sm:w-5 sm:h-5 mr-2 flex-shrink-0" />
-                      <span>Failed</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-center">
-                      <p className="text-3xl sm:text-4xl font-bold text-red-600 mb-2">{stats.failedClaims}</p>
-                      <p className="text-red-700 text-sm mb-3">Processing failed</p>
-                      <Progress
-                        value={stats.totalClaims > 0 ? (stats.failedClaims / stats.totalClaims) * 100 : 0}
-                        className="h-2"
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="shadow-xl border-0 bg-gradient-to-br from-violet-50 to-violet-100">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center text-violet-800 text-base sm:text-lg">
-                      <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 mr-2 flex-shrink-0" />
-                      <span>Processing</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-center">
-                      <p className="text-3xl sm:text-4xl font-bold text-violet-600 mb-2">{stats.processingClaims}</p>
-                      <p className="text-violet-700 text-sm mb-3">Currently processing</p>
-                      <Progress
-                        value={stats.totalClaims > 0 ? (stats.processingClaims / stats.totalClaims) * 100 : 0}
-                        className="h-2"
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Charts */}
-              <Tabs defaultValue="trends" className="space-y-6 w-full">
-                <TabsList className="grid grid-cols-2 sm:grid-cols-4 mb-6 bg-white shadow-lg rounded-xl p-1 h-auto sm:h-14 w-full">
-                  <TabsTrigger
-                    value="trends"
-                    className="rounded-lg data-[state=active]:bg-slate-700 data-[state=active]:text-white text-sm sm:text-base font-medium p-2 sm:p-3"
-                  >
-                    <span className="hidden sm:inline">Monthly Trends</span>
-                    <span className="sm:hidden">Trends</span>
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="daily"
-                    className="rounded-lg data-[state=active]:bg-slate-700 data-[state=active]:text-white text-sm sm:text-base font-medium p-2 sm:p-3"
-                  >
-                    <span className="hidden sm:inline">Daily Activity</span>
-                    <span className="sm:hidden">Daily</span>
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="distribution"
-                    className="rounded-lg data-[state=active]:bg-slate-700 data-[state=active]:text-white text-sm sm:text-base font-medium p-2 sm:p-3"
-                  >
-                    <span className="hidden sm:inline">Status Distribution</span>
-                    <span className="sm:hidden">Status</span>
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="revenue"
-                    className="rounded-lg data-[state=active]:bg-slate-700 data-[state=active]:text-white text-sm sm:text-base font-medium p-2 sm:p-3"
-                  >
-                    <span className="hidden sm:inline">Revenue Analysis</span>
-                    <span className="sm:hidden">Revenue</span>
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="trends" className="w-full">
-                  <Card className="shadow-xl border-0 w-full">
-                    <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-t-lg border-b">
-                      <CardTitle className="text-xl sm:text-2xl font-bold text-slate-800">
-                        Monthly Performance Trends
-                      </CardTitle>
-                      <p className="text-slate-600 mt-2 text-sm sm:text-base">
-                        6-month performance overview with success/failure rates
-                      </p>
-                    </CardHeader>
-                    <CardContent className="p-4 sm:p-8 w-full">
-                      <div className="w-full overflow-x-auto">
-                        <ResponsiveContainer width="100%" height={300} minWidth={600}>
-                          <LineChart data={stats.monthlyData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                            <XAxis dataKey="month" stroke="#64748b" fontSize={12} />
-                            <YAxis stroke="#64748b" fontSize={12} />
-                            <Tooltip
-                              contentStyle={{
-                                backgroundColor: "#f8fafc",
-                                border: "1px solid #e2e8f0",
-                                borderRadius: "8px",
-                              }}
-                            />
-                            <Line
-                              type="monotone"
-                              dataKey="claims"
-                              stroke="#3b82f6"
-                              strokeWidth={3}
-                              name="Total Claims"
-                              dot={{ fill: "#3b82f6", strokeWidth: 2, r: 4 }}
-                            />
-                            <Line
-                              type="monotone"
-                              dataKey="success"
-                              stroke="#10b981"
-                              strokeWidth={3}
-                              name="Successful Claims"
-                              dot={{ fill: "#10b981", strokeWidth: 2, r: 4 }}
-                            />
-                            <Line
-                              type="monotone"
-                              dataKey="failed"
-                              stroke="#ef4444"
-                              strokeWidth={3}
-                              name="Failed Claims"
-                              dot={{ fill: "#ef4444", strokeWidth: 2, r: 4 }}
-                            />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                <TabsContent value="daily" className="w-full">
-                  <Card className="shadow-xl border-0 w-full">
-                    <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-lg border-b">
-                      <CardTitle className="text-xl sm:text-2xl font-bold text-slate-800">
-                        Daily Activity (Last 7 Days)
-                      </CardTitle>
-                      <p className="text-slate-600 mt-2 text-sm sm:text-base">Recent daily claims and revenue trends</p>
-                    </CardHeader>
-                    <CardContent className="p-4 sm:p-8 w-full">
-                      <div className="w-full overflow-x-auto">
-                        <ResponsiveContainer width="100%" height={300} minWidth={600}>
-                          <AreaChart data={stats.dailyData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                            <XAxis dataKey="date" stroke="#64748b" fontSize={12} />
-                            <YAxis stroke="#64748b" fontSize={12} />
-                            <Tooltip
-                              contentStyle={{
-                                backgroundColor: "#f8fafc",
-                                border: "1px solid #e2e8f0",
-                                borderRadius: "8px",
-                              }}
-                              formatter={(value, name) => [
-                                name === "revenue" ? formatCurrency(Number(value)) : value,
-                                name === "revenue" ? "Revenue" : "Claims",
-                              ]}
-                            />
-                            <Area
-                              type="monotone"
-                              dataKey="claims"
-                              stackId="1"
-                              stroke="#3b82f6"
-                              fill="#3b82f6"
-                              fillOpacity={0.6}
-                              name="claims"
-                            />
-                          </AreaChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                <TabsContent value="distribution" className="w-full">
-                  <Card className="shadow-xl border-0 w-full">
-                    <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-t-lg border-b">
-                      <CardTitle className="text-xl sm:text-2xl font-bold text-slate-800">
-                        Claim Status Distribution
-                      </CardTitle>
-                      <p className="text-slate-600 mt-2 text-sm sm:text-base">Current distribution of claim statuses</p>
-                    </CardHeader>
-                    <CardContent className="p-4 sm:p-8 w-full">
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 w-full">
-                        <div className="w-full overflow-hidden">
-                          <ResponsiveContainer width="100%" height={300}>
-                            <PieChart>
-                              <Pie
-                                data={stats.statusDistribution}
-                                cx="50%"
-                                cy="50%"
-                                labelLine={false}
-                                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                                outerRadius={100}
-                                fill="#8884d8"
-                                dataKey="value"
-                              >
-                                {stats.statusDistribution.map((entry, index) => (
-                                  <Cell key={`cell-${index}`} fill={entry.color} />
-                                ))}
-                              </Pie>
-                              <Tooltip />
-                            </PieChart>
-                          </ResponsiveContainer>
-                        </div>
-                        <div className="space-y-4 w-full">
-                          {stats.statusDistribution.map((item, index) => (
-                            <div
-                              key={index}
-                              className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border w-full"
-                            >
-                              <div className="flex items-center space-x-3 min-w-0 flex-1">
-                                <div
-                                  className="w-4 h-4 rounded-full flex-shrink-0"
-                                  style={{ backgroundColor: item.color }}
-                                />
-                                <span className="font-semibold text-slate-800 truncate">{item.name}</span>
-                              </div>
-                              <div className="text-right flex-shrink-0">
-                                <Badge variant="outline" className="text-lg px-3 py-1 font-bold">
-                                  {item.value.toLocaleString()}
-                                </Badge>
-                                <p className="text-xs text-slate-500 mt-1">
-                                  {stats.totalClaims > 0 ? ((item.value / stats.totalClaims) * 100).toFixed(1) : 0}%
-                                </p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                <TabsContent value="revenue" className="w-full">
-                  <Card className="shadow-xl border-0 w-full">
-                    <CardHeader className="bg-gradient-to-r from-emerald-50 to-green-50 rounded-t-lg border-b">
-                      <CardTitle className="text-xl sm:text-2xl font-bold text-slate-800">
-                        Monthly Revenue Analysis
-                      </CardTitle>
-                      <p className="text-slate-600 mt-2 text-sm sm:text-base">Revenue trends from paid claims</p>
-                    </CardHeader>
-                    <CardContent className="p-4 sm:p-8 w-full">
-                      <div className="w-full overflow-x-auto">
-                        <ResponsiveContainer width="100%" height={300} minWidth={600}>
-                          <BarChart data={stats.monthlyData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                            <XAxis dataKey="month" stroke="#64748b" fontSize={12} />
-                            <YAxis stroke="#64748b" fontSize={12} />
-                            <Tooltip
-                              formatter={(value) => [formatCurrency(Number(value)), "Revenue"]}
-                              contentStyle={{
-                                backgroundColor: "#f8fafc",
-                                border: "1px solid #e2e8f0",
-                                borderRadius: "8px",
-                              }}
-                            />
-                            <Bar dataKey="revenue" fill="#10b981" radius={[4, 4, 0, 0]} name="Revenue" />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-              </Tabs>
-
-              {/* System Health */}
-              <Card className="shadow-xl border-0 w-full">
-                <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-t-lg border-b">
-                  <CardTitle className="text-xl sm:text-2xl font-bold text-slate-800 flex items-center">
-                    <Database className="w-5 h-5 sm:w-6 sm:h-6 mr-3 text-slate-600 flex-shrink-0" />
-                    <span>System Health & Status</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 sm:p-8 w-full">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 w-full">
-                    <div className="text-center p-4 sm:p-6 bg-emerald-50 rounded-xl border border-emerald-200">
-                      <Database className="w-10 h-10 sm:w-12 sm:h-12 text-emerald-600 mx-auto mb-3" />
-                      <h3 className="font-bold text-emerald-800 mb-2 text-sm sm:text-base">Database Status</h3>
-                      <Badge variant="default" className="bg-emerald-100 text-emerald-800 mb-2 text-xs sm:text-sm">
-                        Connected
-                      </Badge>
-                      <p className="text-sm text-emerald-700">systech_ott_platform</p>
-                      <p className="text-xs text-emerald-600 mt-1">
-                        {(stats.totalClaims + stats.totalSalesRecords + stats.totalKeys).toLocaleString()} total records
+              <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg border-0 min-w-0">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-green-100 text-sm font-medium">Total Revenue</p>
+                      <p className="text-2xl sm:text-3xl font-bold">{formatCurrency(stats.totalRevenue)}</p>
+                      <p className="text-green-200 text-xs sm:text-sm mt-1">
+                        💰 Avg: {stats.totalClaims > 0 ? formatCurrency(stats.totalRevenue / stats.totalClaims) : "₹0"}
                       </p>
                     </div>
-
-                    <div className="text-center p-4 sm:p-6 bg-blue-50 rounded-xl border border-blue-200">
-                      <Mail className="w-10 h-10 sm:w-12 sm:h-12 text-blue-600 mx-auto mb-3" />
-                      <h3 className="font-bold text-blue-800 mb-2 text-sm sm:text-base">Email Service</h3>
-                      <Badge variant="default" className="bg-blue-100 text-blue-800 mb-2 text-xs sm:text-sm">
-                        Active
-                      </Badge>
-                      <p className="text-sm text-blue-700">Gmail SMTP</p>
-                      <p className="text-xs text-blue-600 mt-1">{stats.successfulClaims} emails sent</p>
+                    <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
+                      <DollarSign className="w-6 h-6 sm:w-8 sm:h-8" />
                     </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-                    <div className="text-center p-4 sm:p-6 bg-violet-50 rounded-xl border border-violet-200 sm:col-span-2 lg:col-span-1">
-                      <Target className="w-10 h-10 sm:w-12 sm:h-12 text-violet-600 mx-auto mb-3" />
-                      <h3 className="font-bold text-violet-800 mb-2 text-sm sm:text-base">Auto-Processing</h3>
-                      <Badge variant="default" className="bg-violet-100 text-violet-800 mb-2 text-xs sm:text-sm">
-                        Ready
-                      </Badge>
-                      <p className="text-sm text-violet-700">Every 60 seconds</p>
-                      <p className="text-xs text-violet-600 mt-1">{stats.pendingClaims} pending</p>
+              <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-lg border-0 min-w-0">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-purple-100 text-sm font-medium">Success Rate</p>
+                      <p className="text-2xl sm:text-3xl font-bold">{stats.successRate}%</p>
+                      <p className="text-purple-200 text-xs sm:text-sm mt-1">✅ {stats.successful} delivered</p>
+                    </div>
+                    <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
+                      <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg border-0 min-w-0">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-orange-100 text-sm font-medium">Today's Claims</p>
+                      <p className="text-2xl sm:text-3xl font-bold">{stats.todaysClaims}</p>
+                      <p className="text-orange-200 text-xs sm:text-sm mt-1">
+                        📅 {new Date().toLocaleDateString("en-IN")}
+                      </p>
+                    </div>
+                    <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
+                      <Calendar className="w-6 h-6 sm:w-8 sm:h-8" />
                     </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
+
+            {/* Secondary Stats Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8 w-full">
+              <Card className="bg-gradient-to-br from-teal-500 to-teal-600 text-white shadow-lg border-0 min-w-0">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-teal-100 text-sm font-medium">Total Sales</p>
+                      <p className="text-2xl sm:text-3xl font-bold">{stats.totalSales}</p>
+                      <p className="text-teal-200 text-xs sm:text-sm mt-1">
+                        {stats.totalSales - (stats.totalClaims || 0)} available
+                      </p>
+                    </div>
+                    <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
+                      <ShoppingCart className="w-6 h-6 sm:w-8 sm:h-8" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-lg border-0 min-w-0">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-indigo-100 text-sm font-medium">OTT Keys</p>
+                      <p className="text-2xl sm:text-3xl font-bold">{stats.totalKeys}</p>
+                      <p className="text-indigo-200 text-xs sm:text-sm mt-1">
+                        {Math.max(0, stats.totalKeys - stats.successful)} available
+                      </p>
+                    </div>
+                    <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
+                      <Key className="w-6 h-6 sm:w-8 sm:h-8" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-lg border-0 min-w-0">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-blue-100 text-sm font-medium">Processing</p>
+                      <p className="text-2xl sm:text-3xl font-bold">{stats.processing}</p>
+                      <p className="text-blue-200 text-xs sm:text-sm mt-1">Currently processing</p>
+                    </div>
+                    <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
+                      <Loader className="w-6 h-6 sm:w-8 sm:h-8 animate-spin" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Status Cards with Progress */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8 w-full">
+              <Card className="bg-green-50 border-green-200 shadow-lg min-w-0">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                    <h3 className="font-semibold text-green-800 truncate">Successful</h3>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-2xl font-bold text-green-900">{stats.successful}</span>
+                      <span className="text-sm text-green-600">
+                        {stats.totalClaims > 0 ? Math.round((stats.successful / stats.totalClaims) * 100) : 0}%
+                      </span>
+                    </div>
+                    <Progress
+                      value={stats.totalClaims > 0 ? (stats.successful / stats.totalClaims) * 100 : 0}
+                      className="h-2"
+                    />
+                    <p className="text-xs text-green-600">OTT codes delivered</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-yellow-50 border-yellow-200 shadow-lg min-w-0">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <Clock className="w-5 h-5 text-yellow-600 flex-shrink-0" />
+                    <h3 className="font-semibold text-yellow-800 truncate">Pending</h3>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-2xl font-bold text-yellow-900">{stats.pending}</span>
+                      <span className="text-sm text-yellow-600">
+                        {stats.totalClaims > 0 ? Math.round((stats.pending / stats.totalClaims) * 100) : 0}%
+                      </span>
+                    </div>
+                    <Progress
+                      value={stats.totalClaims > 0 ? (stats.pending / stats.totalClaims) * 100 : 0}
+                      className="h-2"
+                    />
+                    <p className="text-xs text-yellow-600">Awaiting processing</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-red-50 border-red-200 shadow-lg min-w-0">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <XCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                    <h3 className="font-semibold text-red-800 truncate">Failed</h3>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-2xl font-bold text-red-900">{stats.failed}</span>
+                      <span className="text-sm text-red-600">
+                        {stats.totalClaims > 0 ? Math.round((stats.failed / stats.totalClaims) * 100) : 0}%
+                      </span>
+                    </div>
+                    <Progress
+                      value={stats.totalClaims > 0 ? (stats.failed / stats.totalClaims) * 100 : 0}
+                      className="h-2"
+                    />
+                    <p className="text-xs text-red-600">Processing failed</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-blue-50 border-blue-200 shadow-lg min-w-0">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <Loader className="w-5 h-5 text-blue-600 animate-spin flex-shrink-0" />
+                    <h3 className="font-semibold text-blue-800 truncate">Processing</h3>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-2xl font-bold text-blue-900">{stats.currentlyProcessing}</span>
+                      <span className="text-sm text-blue-600">
+                        {stats.totalClaims > 0 ? Math.round((stats.currentlyProcessing / stats.totalClaims) * 100) : 0}%
+                      </span>
+                    </div>
+                    <Progress
+                      value={stats.totalClaims > 0 ? (stats.currentlyProcessing / stats.totalClaims) * 100 : 0}
+                      className="h-2"
+                    />
+                    <p className="text-xs text-blue-600">Currently processing</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Analytics Tabs */}
+            <Tabs defaultValue="trends" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 mb-6 bg-white shadow-lg rounded-xl p-1 h-auto">
+                <TabsTrigger
+                  value="trends"
+                  className="rounded-lg data-[state=active]:bg-purple-600 data-[state=active]:text-white text-sm sm:text-base font-semibold py-2 sm:py-3"
+                >
+                  <BarChart3 className="w-4 h-4 mr-2 hidden sm:inline" />
+                  <span className="sm:hidden">Trends</span>
+                  <span className="hidden sm:inline">Monthly Trends</span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="activity"
+                  className="rounded-lg data-[state=active]:bg-purple-600 data-[state=active]:text-white text-sm sm:text-base font-semibold py-2 sm:py-3"
+                >
+                  <Activity className="w-4 h-4 mr-2 hidden sm:inline" />
+                  <span className="sm:hidden">Activity</span>
+                  <span className="hidden sm:inline">Daily Activity</span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="distribution"
+                  className="rounded-lg data-[state=active]:bg-purple-600 data-[state=active]:text-white text-sm sm:text-base font-semibold py-2 sm:py-3"
+                >
+                  <PieChart className="w-4 h-4 mr-2 hidden sm:inline" />
+                  <span className="sm:hidden">Status</span>
+                  <span className="hidden sm:inline">Status Distribution</span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="revenue"
+                  className="rounded-lg data-[state=active]:bg-purple-600 data-[state=active]:text-white text-sm sm:text-base font-semibold py-2 sm:py-3"
+                >
+                  <Target className="w-4 h-4 mr-2 hidden sm:inline" />
+                  <span className="sm:hidden">Revenue</span>
+                  <span className="hidden sm:inline">Revenue Analysis</span>
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="trends" className="w-full">
+                <Card className="shadow-xl border-0 w-full">
+                  <CardHeader>
+                    <CardTitle className="text-xl sm:text-2xl font-bold text-gray-800">Monthly Trends</CardTitle>
+                    <CardDescription className="text-base sm:text-lg text-gray-600">
+                      Claims and revenue trends over time
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="w-full">
+                    <div className="h-64 sm:h-80 bg-gray-50 rounded-lg flex items-center justify-center overflow-x-auto min-w-0">
+                      <div className="text-center p-4">
+                        <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-600 font-medium">Monthly Trends Chart</p>
+                        <p className="text-gray-500 text-sm mt-2">Interactive chart showing monthly performance</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="activity" className="w-full">
+                <Card className="shadow-xl border-0 w-full">
+                  <CardHeader>
+                    <CardTitle className="text-xl sm:text-2xl font-bold text-gray-800">Daily Activity</CardTitle>
+                    <CardDescription className="text-base sm:text-lg text-gray-600">
+                      Daily claims and processing activity
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="w-full">
+                    <div className="h-64 sm:h-80 bg-gray-50 rounded-lg flex items-center justify-center overflow-x-auto min-w-0">
+                      <div className="text-center p-4">
+                        <Activity className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-600 font-medium">Daily Activity Chart</p>
+                        <p className="text-gray-500 text-sm mt-2">Real-time activity monitoring</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="distribution" className="w-full">
+                <Card className="shadow-xl border-0 w-full">
+                  <CardHeader>
+                    <CardTitle className="text-xl sm:text-2xl font-bold text-gray-800">Status Distribution</CardTitle>
+                    <CardDescription className="text-base sm:text-lg text-gray-600">
+                      Breakdown of claim statuses
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="w-full">
+                    <div className="h-64 sm:h-80 bg-gray-50 rounded-lg flex items-center justify-center overflow-x-auto min-w-0">
+                      <div className="text-center p-4">
+                        <PieChart className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-600 font-medium">Status Distribution Chart</p>
+                        <p className="text-gray-500 text-sm mt-2">Visual breakdown of all statuses</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="revenue" className="w-full">
+                <Card className="shadow-xl border-0 w-full">
+                  <CardHeader>
+                    <CardTitle className="text-xl sm:text-2xl font-bold text-gray-800">Revenue Analysis</CardTitle>
+                    <CardDescription className="text-base sm:text-lg text-gray-600">
+                      Revenue trends and projections
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="w-full">
+                    <div className="h-64 sm:h-80 bg-gray-50 rounded-lg flex items-center justify-center overflow-x-auto min-w-0">
+                      <div className="text-center p-4">
+                        <Target className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-600 font-medium">Revenue Analysis Chart</p>
+                        <p className="text-gray-500 text-sm mt-2">Comprehensive revenue insights</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
           </div>
         </SidebarInset>
       </div>

@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic"
 
 import { type NextRequest, NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
+import type { ISalesRecord, SalesRecord } from "@/lib/models"
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,18 +10,17 @@ export async function GET(request: NextRequest) {
     const page = Number.parseInt(searchParams.get("page") || "1")
     const limit = Number.parseInt(searchParams.get("limit") || "10")
     const search = searchParams.get("search") || ""
-    const statusFilter = searchParams.get("status") || ""
+    const status = searchParams.get("status")
     const sortBy = searchParams.get("sortBy") || "createdAt"
     const sortOrder = searchParams.get("sortOrder") || "desc"
 
     const db = await getDatabase()
-    const collection = db.collection("salesrecords")
+    const salesCollection = db.collection<ISalesRecord>("salesrecords")
 
-    // Build filter query
-    const filter: any = {}
-
+    // Build search query
+    const query: any = {}
     if (search) {
-      filter.$or = [
+      query.$or = [
         { activationCode: { $regex: search, $options: "i" } },
         { product: { $regex: search, $options: "i" } },
         { productSubCategory: { $regex: search, $options: "i" } },
@@ -28,48 +28,54 @@ export async function GET(request: NextRequest) {
       ]
     }
 
-    if (statusFilter && statusFilter !== "all") {
-      filter.status = statusFilter
+    if (status && status !== "all") {
+      query.status = status
     }
 
-    // Build sort query
-    const sort: any = {}
-    sort[sortBy] = sortOrder === "asc" ? 1 : -1
+    console.log("Sales query:", JSON.stringify(query, null, 2))
 
-    // Get total count
-    const total = await collection.countDocuments(filter)
+    // Build sort object
+    const sortObj: any = {}
+    sortObj[sortBy] = sortOrder === "asc" ? 1 : -1
 
-    // Get paginated results
-    const sales = await collection
-      .find(filter)
-      .sort(sort)
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .toArray()
+    // Get total count for pagination
+    const total = await salesCollection.countDocuments(query)
+    const totalPages = Math.ceil(total / limit)
+    const skip = (page - 1) * limit
 
-    // Convert ObjectId to string for JSON serialization
-    const serializedSales = sales.map((sale) => ({
+    console.log(`Sales pagination: page=${page}, limit=${limit}, skip=${skip}, total=${total}`)
+
+    // Fetch paginated data
+    const sales = await salesCollection.find(query).sort(sortObj).skip(skip).limit(limit).toArray()
+
+    console.log(`Found ${sales.length} sales records`)
+
+    const formattedSales: SalesRecord[] = sales.map((sale) => ({
       ...sale,
-      _id: sale._id.toString(),
+      id: sale._id?.toString() || "",
+      _id: sale._id?.toString() || "",
+      createdAt: sale.createdAt ? sale.createdAt.toISOString() : new Date().toISOString(),
+      updatedAt: sale.updatedAt ? sale.updatedAt.toISOString() : new Date().toISOString(),
+      claimedDate: sale.claimedDate ? sale.claimedDate.toISOString() : undefined,
     }))
 
     return NextResponse.json({
-      success: true,
-      sales: serializedSales,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-      },
+      data: formattedSales,
+      total,
+      page,
+      totalPages,
+      limit,
     })
   } catch (error: any) {
-    console.error("Error fetching sales:", error)
+    console.error("Error fetching sales records:", error)
     return NextResponse.json(
       {
-        success: false,
-        error: "Failed to fetch sales",
-        message: error.message,
+        data: [],
+        total: 0,
+        page: 1,
+        totalPages: 0,
+        limit: 10,
+        error: error.message || "Failed to fetch sales records",
       },
       { status: 500 },
     )
