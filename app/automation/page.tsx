@@ -70,9 +70,9 @@ export default function AutomationPage() {
   const [isRunning, setIsRunning] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [settings, setSettings] = useState<AutomationSettings>({
-    enabled: false,
-    intervalMinutes: 30,
-    emailNotifications: true,
+    enabled: true, // Enable scheduled processing by default
+    intervalMinutes: 1, // Set to 1 minute
+    emailNotifications: true, // Keep email notifications enabled
     processOnlyPaid: true,
   })
   const [stats, setStats] = useState<AutomationStats>({
@@ -85,13 +85,21 @@ export default function AutomationPage() {
   const [expandedLogs, setExpandedLogs] = useState<Set<string>>(new Set())
 
   // Claims monitoring state
-  const [claimsMonitorEnabled, setClaimsMonitorEnabled] = useState(false)
+  const [claimsMonitorEnabled, setClaimsMonitorEnabled] = useState(true)
   const [claimsMonitorStatus, setClaimsMonitorStatus] = useState<"idle" | "monitoring" | "processing">("idle")
   const [claimsStats, setClaimsStats] = useState<ClaimsMonitorStats>({
     claimsFound: 0,
     claimIds: [],
     isActive: false,
   })
+
+  // Password protection state
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false)
+  const [passwordInput, setPasswordInput] = useState("")
+  const [pendingAction, setPendingAction] = useState<{
+    type: "scheduledProcessing" | "emailNotifications" | "realTimeDetection"
+    value: boolean
+  } | null>(null)
 
   // Progress tracking
   const [automationProgress, setAutomationProgress] = useState(0)
@@ -112,6 +120,7 @@ export default function AutomationPage() {
 
     // Load saved settings
     loadSettings()
+    setIsRunning(true)
   }, [router])
 
   // Add activity log
@@ -422,6 +431,55 @@ export default function AutomationPage() {
     }
   }
 
+  // Password verification function
+  const verifyPassword = (password: string): boolean => {
+    return password === "Admin@12345"
+  }
+
+  // Password protected toggle functions
+  const handlePasswordProtectedToggle = (
+    type: "scheduledProcessing" | "emailNotifications" | "realTimeDetection",
+    newValue: boolean,
+  ) => {
+    // If trying to disable, require password
+    if (!newValue) {
+      setPendingAction({ type, value: newValue })
+      setShowPasswordDialog(true)
+      setPasswordInput("")
+    } else {
+      // Allow enabling without password
+      executeToggle(type, newValue)
+    }
+  }
+
+  const executeToggle = (type: "scheduledProcessing" | "emailNotifications" | "realTimeDetection", value: boolean) => {
+    switch (type) {
+      case "scheduledProcessing":
+        saveSettings({ ...settings, enabled: value })
+        if (!value) setIsRunning(false)
+        break
+      case "emailNotifications":
+        saveSettings({ ...settings, emailNotifications: value })
+        break
+      case "realTimeDetection":
+        toggleClaimsMonitoring(value)
+        break
+    }
+    addLog("info", `${type} ${value ? "enabled" : "disabled"}`)
+  }
+
+  const handlePasswordSubmit = () => {
+    if (verifyPassword(passwordInput) && pendingAction) {
+      executeToggle(pendingAction.type, pendingAction.value)
+      setShowPasswordDialog(false)
+      setPendingAction(null)
+      setPasswordInput("")
+    } else {
+      alert("Incorrect password!")
+      setPasswordInput("")
+    }
+  }
+
   return (
     <SidebarProvider>
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 flex">
@@ -558,7 +616,7 @@ export default function AutomationPage() {
                       <Switch
                         id="claims-monitor"
                         checked={claimsMonitorEnabled}
-                        onCheckedChange={toggleClaimsMonitoring}
+                        onCheckedChange={(checked) => handlePasswordProtectedToggle("realTimeDetection", checked)}
                         className="data-[state=checked]:bg-blue-600"
                       />
                     </div>
@@ -628,7 +686,7 @@ export default function AutomationPage() {
                       <Switch
                         id="automation-enabled"
                         checked={settings.enabled}
-                        onCheckedChange={(checked) => saveSettings({ ...settings, enabled: checked })}
+                        onCheckedChange={(checked) => handlePasswordProtectedToggle("scheduledProcessing", checked)}
                         className="data-[state=checked]:bg-green-600"
                       />
                     </div>
@@ -645,6 +703,7 @@ export default function AutomationPage() {
                         }
                         className="w-full p-2 border rounded-md bg-white"
                       >
+                        <option value={1}>1 minute</option>
                         <option value={30}>30 minutes</option>
                         <option value={60}>1 hour</option>
                         <option value={120}>2 hours</option>
@@ -660,7 +719,7 @@ export default function AutomationPage() {
                       <Switch
                         id="email-notifications"
                         checked={settings.emailNotifications}
-                        onCheckedChange={(checked) => saveSettings({ ...settings, emailNotifications: checked })}
+                        onCheckedChange={(checked) => handlePasswordProtectedToggle("emailNotifications", checked)}
                         className="data-[state=checked]:bg-green-600"
                       />
                     </div>
@@ -791,6 +850,41 @@ export default function AutomationPage() {
             </div>
           </div>
         </SidebarInset>
+
+        {/* Password Dialog */}
+        {showPasswordDialog && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+              <h3 className="text-lg font-semibold mb-4">Password Required</h3>
+              <p className="text-sm text-gray-600 mb-4">Enter the admin password to disable this feature:</p>
+              <input
+                type="password"
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                onKeyPress={(e) => e.key === "Enter" && handlePasswordSubmit()}
+                className="w-full p-2 border rounded-md mb-4"
+                placeholder="Enter password"
+                autoFocus
+              />
+              <div className="flex gap-2">
+                <Button onClick={handlePasswordSubmit} className="flex-1">
+                  Confirm
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowPasswordDialog(false)
+                    setPendingAction(null)
+                    setPasswordInput("")
+                  }}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </SidebarProvider>
   )
