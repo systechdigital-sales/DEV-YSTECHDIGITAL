@@ -331,9 +331,7 @@ export default function DashboardPage() {
                     <div className="min-w-0 flex-1">
                       <p className="text-green-100 text-sm font-medium">Total Revenue</p>
                       <p className="text-2xl sm:text-3xl font-bold">{formatCurrency(stats.totalRevenue)}</p>
-                      <p className="text-green-200 text-xs sm:text-sm mt-1">
-                        💰 Avg: ₹99
-                      </p>
+                      
                     </div>
                     <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
                       <DollarSign className="w-6 h-6 sm:w-8 sm:h-8" />
