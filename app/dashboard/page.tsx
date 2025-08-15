@@ -249,9 +249,7 @@ export default function DashboardPage() {
         </div>
       </SidebarProvider>
     )
-  }
-
-  return (
+   return (
     <SidebarProvider>
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex w-full">
         <DashboardSidebar />
@@ -334,7 +332,7 @@ export default function DashboardPage() {
                       <p className="text-green-100 text-sm font-medium">Total Revenue</p>
                       <p className="text-2xl sm:text-3xl font-bold">{formatCurrency(stats.totalRevenue)}</p>
                       <p className="text-green-200 text-xs sm:text-sm mt-1">
-                        💰 Avg: {stats.totalClaims > 0 ? formatCurrency(stats.totalRevenue / stats.totalClaims) : "₹0"}
+                        💰 Avg: ₹99}
                       </p>
                     </div>
                     <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
@@ -643,7 +641,7 @@ export default function DashboardPage() {
                           <div className="text-right">
                             <span className="text-2xl font-bold text-green-900">{stats.successful}</span>
                             <p className="text-sm text-green-600">
-                              {stats.totalClaims > 0 ? Math.round((stats.successful / stats.totalClaims) * 100) : 0}%
+                              {stats.paidClaims}
                             </p>
                           </div>
                         </div>
@@ -656,7 +654,7 @@ export default function DashboardPage() {
                           <div className="text-right">
                             <span className="text-2xl font-bold text-yellow-900">{stats.pending}</span>
                             <p className="text-sm text-yellow-600">
-                              {stats.totalClaims > 0 ? Math.round((stats.pending / stats.totalClaims) * 100) : 0}%
+                              {stats.pendingClaims}
                             </p>
                           </div>
                         </div>
@@ -671,7 +669,7 @@ export default function DashboardPage() {
                           <div className="text-right">
                             <span className="text-2xl font-bold text-red-900">{stats.failed}</span>
                             <p className="text-sm text-red-600">
-                              {stats.totalClaims > 0 ? Math.round((stats.failed / stats.totalClaims) * 100) : 0}%
+                              {Number(stats?.paidClaims) - Number(stats?.pendingClaims)}
                             </p>
                           </div>
                         </div>
