@@ -417,10 +417,10 @@ export default function DashboardPage() {
   if (loading && stats.totalClaims === 0) {
     return (
       <SidebarProvider>
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex w-full">
           <DashboardSidebar />
-          <SidebarInset className="flex-1">
-            <div className="flex items-center justify-center h-full">
+          <SidebarInset className="flex-1 w-full">
+            <div className="flex items-center justify-center h-full w-full">
               <div className="text-center space-y-4">
                 <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-600 border-t-transparent mx-auto"></div>
                 <div className="space-y-2">
@@ -441,17 +441,17 @@ export default function DashboardPage() {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex w-full">
         <DashboardSidebar />
-        <SidebarInset className="flex-1 w-full overflow-hidden">
+        <SidebarInset className="flex-1 w-full min-w-0">
           {/* Header */}
-          <header className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 shadow-2xl border-b border-slate-200 sticky top-0 z-10">
-            <div className="px-6 py-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <SidebarTrigger className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors" />
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+          <header className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 shadow-2xl border-b border-slate-200 sticky top-0 z-10 w-full">
+            <div className="px-4 sm:px-6 py-4 sm:py-6 w-full">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 w-full">
+                <div className="flex items-center space-x-4 min-w-0 flex-1">
+                  <SidebarTrigger className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors flex-shrink-0" />
+                  <div className="flex items-center space-x-3 min-w-0 flex-1">
+                    <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm flex-shrink-0">
                       <Image
                         src="/logo.png"
                         alt="SYSTECH DIGITAL Logo"
@@ -460,18 +460,18 @@ export default function DashboardPage() {
                         className="rounded-full"
                       />
                     </div>
-                    <div>
-                      <h1 className="text-2xl font-bold text-white flex items-center">
-                        <BarChart className="w-6 h-6 mr-2" />
-                        Dashboard Analytics
+                    <div className="min-w-0 flex-1">
+                      <h1 className="text-xl sm:text-2xl font-bold text-white flex items-center">
+                        <BarChart className="w-5 h-5 sm:w-6 sm:h-6 mr-2 flex-shrink-0" />
+                        <span className="truncate">Dashboard Analytics</span>
                       </h1>
-                      <p className="text-sm text-slate-300 mt-1">
+                      <p className="text-xs sm:text-sm text-slate-300 mt-1 truncate">
                         Real-time insights • {stats.totalClaims.toLocaleString()} total records
                       </p>
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-4 flex-shrink-0">
                   <Button
                     onClick={fetchDashboardData}
                     disabled={loading}
@@ -480,48 +480,53 @@ export default function DashboardPage() {
                     className="bg-white/10 border-white/20 text-white hover:bg-white/20"
                   >
                     <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-                    Refresh
+                    <span className="hidden sm:inline">Refresh</span>
                   </Button>
                   <div className="text-right">
-                    <p className="text-sm text-slate-300">Last updated</p>
-                    <p className="text-white font-semibold">{lastUpdated} IST</p>
+                    <p className="text-xs sm:text-sm text-slate-300">Last updated</p>
+                    <p className="text-white font-semibold text-xs sm:text-sm">{lastUpdated} IST</p>
                   </div>
                 </div>
               </div>
             </div>
           </header>
 
-          <div className="p-6 w-full max-w-full">
+          <div className="p-4 sm:p-6 w-full">
             {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-3">
-                <AlertCircle className="w-5 h-5 text-red-600" />
-                <div>
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-3">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
                   <p className="text-red-800 font-medium">Error loading data</p>
-                  <p className="text-red-600 text-sm">{error}</p>
+                  <p className="text-red-600 text-sm break-words">{error}</p>
                 </div>
-                <Button onClick={fetchDashboardData} size="sm" variant="outline">
+                <Button
+                  onClick={fetchDashboardData}
+                  size="sm"
+                  variant="outline"
+                  className="flex-shrink-0 bg-transparent"
+                >
                   Retry
                 </Button>
               </div>
             )}
 
-            <div className="space-y-8">
+            <div className="space-y-6 sm:space-y-8 w-full">
               {/* Key Metrics Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 w-full">
                 <Card className="shadow-xl border-0 bg-gradient-to-br from-blue-600 to-blue-700 text-white overflow-hidden relative">
                   <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -mr-10 -mt-10"></div>
-                  <CardContent className="p-6 relative">
+                  <CardContent className="p-4 sm:p-6 relative">
                     <div className="flex items-center justify-between">
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <p className="text-blue-100 text-sm font-medium">Total Claims</p>
-                        <p className="text-3xl font-bold">{stats.totalClaims.toLocaleString()}</p>
+                        <p className="text-2xl sm:text-3xl font-bold truncate">{stats.totalClaims.toLocaleString()}</p>
                         <div className="flex items-center mt-2 text-blue-200 text-xs">
-                          <TrendingUp className="w-3 h-3 mr-1" />
+                          <TrendingUp className="w-3 h-3 mr-1 flex-shrink-0" />
                           <span>All time</span>
                         </div>
                       </div>
-                      <div className="p-3 bg-white/20 rounded-full">
-                        <Users className="w-8 h-8 text-blue-100" />
+                      <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
+                        <Users className="w-6 h-6 sm:w-8 sm:h-8 text-blue-100" />
                       </div>
                     </div>
                   </CardContent>
@@ -529,18 +534,18 @@ export default function DashboardPage() {
 
                 <Card className="shadow-xl border-0 bg-gradient-to-br from-emerald-600 to-emerald-700 text-white overflow-hidden relative">
                   <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -mr-10 -mt-10"></div>
-                  <CardContent className="p-6 relative">
+                  <CardContent className="p-4 sm:p-6 relative">
                     <div className="flex items-center justify-between">
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <p className="text-emerald-100 text-sm font-medium">Total Revenue</p>
-                        <p className="text-3xl font-bold">{formatCurrency(stats.totalRevenue)}</p>
+                        <p className="text-2xl sm:text-3xl font-bold truncate">{formatCurrency(stats.totalRevenue)}</p>
                         <div className="flex items-center mt-2 text-emerald-200 text-xs">
-                          <DollarSign className="w-3 h-3 mr-1" />
-                          <span>Avg: {formatCurrency(stats.averageClaimValue)}</span>
+                          <DollarSign className="w-3 h-3 mr-1 flex-shrink-0" />
+                          <span className="truncate">Avg: {formatCurrency(stats.averageClaimValue)}</span>
                         </div>
                       </div>
-                      <div className="p-3 bg-white/20 rounded-full">
-                        <DollarSign className="w-8 h-8 text-emerald-100" />
+                      <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
+                        <DollarSign className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-100" />
                       </div>
                     </div>
                   </CardContent>
@@ -548,18 +553,18 @@ export default function DashboardPage() {
 
                 <Card className="shadow-xl border-0 bg-gradient-to-br from-violet-600 to-violet-700 text-white overflow-hidden relative">
                   <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -mr-10 -mt-10"></div>
-                  <CardContent className="p-6 relative">
+                  <CardContent className="p-4 sm:p-6 relative">
                     <div className="flex items-center justify-between">
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <p className="text-violet-100 text-sm font-medium">Success Rate</p>
-                        <p className="text-3xl font-bold">{successRate.toFixed(1)}%</p>
+                        <p className="text-2xl sm:text-3xl font-bold">{successRate.toFixed(1)}%</p>
                         <div className="flex items-center mt-2 text-violet-200 text-xs">
-                          <CheckCircle className="w-3 h-3 mr-1" />
+                          <CheckCircle className="w-3 h-3 mr-1 flex-shrink-0" />
                           <span>{stats.successfulClaims} delivered</span>
                         </div>
                       </div>
-                      <div className="p-3 bg-white/20 rounded-full">
-                        <TrendingUp className="w-8 h-8 text-violet-100" />
+                      <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
+                        <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8 text-violet-100" />
                       </div>
                     </div>
                   </CardContent>
@@ -567,18 +572,18 @@ export default function DashboardPage() {
 
                 <Card className="shadow-xl border-0 bg-gradient-to-br from-orange-600 to-orange-700 text-white overflow-hidden relative">
                   <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -mr-10 -mt-10"></div>
-                  <CardContent className="p-6 relative">
+                  <CardContent className="p-4 sm:p-6 relative">
                     <div className="flex items-center justify-between">
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <p className="text-orange-100 text-sm font-medium">Today's Claims</p>
-                        <p className="text-3xl font-bold">{stats.todayClaims}</p>
+                        <p className="text-2xl sm:text-3xl font-bold">{stats.todayClaims}</p>
                         <div className="flex items-center mt-2 text-orange-200 text-xs">
-                          <Calendar className="w-3 h-3 mr-1" />
-                          <span>{getDateIST()}</span>
+                          <Calendar className="w-3 h-3 mr-1 flex-shrink-0" />
+                          <span className="truncate">{getDateIST()}</span>
                         </div>
                       </div>
-                      <div className="p-3 bg-white/20 rounded-full">
-                        <Activity className="w-8 h-8 text-orange-100" />
+                      <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
+                        <Activity className="w-6 h-6 sm:w-8 sm:h-8 text-orange-100" />
                       </div>
                     </div>
                   </CardContent>
@@ -586,59 +591,59 @@ export default function DashboardPage() {
               </div>
 
               {/* Secondary Metrics */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 w-full">
                 <Card className="shadow-lg border-0 bg-gradient-to-br from-cyan-500 to-cyan-600 text-white">
-                  <CardContent className="p-6">
+                  <CardContent className="p-4 sm:p-6">
                     <div className="flex items-center justify-between">
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <p className="text-cyan-100 text-sm font-medium">Total Sales</p>
-                        <p className="text-2xl font-bold">{stats.totalSalesRecords}</p>
+                        <p className="text-xl sm:text-2xl font-bold">{stats.totalSalesRecords}</p>
                         <p className="text-cyan-200 text-xs mt-1">{stats.availableSalesRecords} available</p>
                       </div>
-                      <ShoppingCart className="w-8 h-8 text-cyan-200" />
+                      <ShoppingCart className="w-6 h-6 sm:w-8 sm:h-8 text-cyan-200 flex-shrink-0" />
                     </div>
                   </CardContent>
                 </Card>
 
                 <Card className="shadow-lg border-0 bg-gradient-to-br from-purple-500 to-purple-600 text-white">
-                  <CardContent className="p-6">
+                  <CardContent className="p-4 sm:p-6">
                     <div className="flex items-center justify-between">
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <p className="text-purple-100 text-sm font-medium">OTT Keys</p>
-                        <p className="text-2xl font-bold">{stats.totalKeys}</p>
+                        <p className="text-xl sm:text-2xl font-bold">{stats.totalKeys}</p>
                         <p className="text-purple-200 text-xs mt-1">{stats.availableKeys} available</p>
                       </div>
-                      <Target className="w-8 h-8 text-purple-200" />
+                      <Target className="w-6 h-6 sm:w-8 sm:h-8 text-purple-200 flex-shrink-0" />
                     </div>
                   </CardContent>
                 </Card>
 
                 <Card className="shadow-lg border-0 bg-gradient-to-br from-indigo-500 to-indigo-600 text-white">
-                  <CardContent className="p-6">
+                  <CardContent className="p-4 sm:p-6">
                     <div className="flex items-center justify-between">
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <p className="text-indigo-100 text-sm font-medium">Processing</p>
-                        <p className="text-2xl font-bold">{stats.processingClaims}</p>
+                        <p className="text-xl sm:text-2xl font-bold">{stats.processingClaims}</p>
                         <p className="text-indigo-200 text-xs mt-1">Currently processing</p>
                       </div>
-                      <RefreshCw className="w-8 h-8 text-indigo-200" />
+                      <RefreshCw className="w-6 h-6 sm:w-8 sm:h-8 text-indigo-200 flex-shrink-0" />
                     </div>
                   </CardContent>
                 </Card>
               </div>
 
               {/* Status Overview */}
-              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 w-full">
                 <Card className="shadow-xl border-0 bg-gradient-to-br from-emerald-50 to-emerald-100">
                   <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center text-emerald-800 text-lg">
-                      <CheckCircle className="w-5 h-5 mr-2" />
-                      Successful
+                    <CardTitle className="flex items-center text-emerald-800 text-base sm:text-lg">
+                      <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 mr-2 flex-shrink-0" />
+                      <span>Successful</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="text-center">
-                      <p className="text-4xl font-bold text-emerald-600 mb-2">{stats.successfulClaims}</p>
+                      <p className="text-3xl sm:text-4xl font-bold text-emerald-600 mb-2">{stats.successfulClaims}</p>
                       <p className="text-emerald-700 text-sm mb-3">OTT codes delivered</p>
                       <Progress
                         value={stats.totalClaims > 0 ? (stats.successfulClaims / stats.totalClaims) * 100 : 0}
@@ -650,14 +655,14 @@ export default function DashboardPage() {
 
                 <Card className="shadow-xl border-0 bg-gradient-to-br from-amber-50 to-amber-100">
                   <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center text-amber-800 text-lg">
-                      <Clock className="w-5 h-5 mr-2" />
-                      Pending
+                    <CardTitle className="flex items-center text-amber-800 text-base sm:text-lg">
+                      <Clock className="w-4 h-4 sm:w-5 sm:h-5 mr-2 flex-shrink-0" />
+                      <span>Pending</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="text-center">
-                      <p className="text-4xl font-bold text-amber-600 mb-2">{stats.pendingClaims}</p>
+                      <p className="text-3xl sm:text-4xl font-bold text-amber-600 mb-2">{stats.pendingClaims}</p>
                       <p className="text-amber-700 text-sm mb-3">Awaiting processing</p>
                       <Progress
                         value={stats.totalClaims > 0 ? (stats.pendingClaims / stats.totalClaims) * 100 : 0}
@@ -669,14 +674,14 @@ export default function DashboardPage() {
 
                 <Card className="shadow-xl border-0 bg-gradient-to-br from-red-50 to-red-100">
                   <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center text-red-800 text-lg">
-                      <XCircle className="w-5 h-5 mr-2" />
-                      Failed
+                    <CardTitle className="flex items-center text-red-800 text-base sm:text-lg">
+                      <XCircle className="w-4 h-4 sm:w-5 sm:h-5 mr-2 flex-shrink-0" />
+                      <span>Failed</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="text-center">
-                      <p className="text-4xl font-bold text-red-600 mb-2">{stats.failedClaims}</p>
+                      <p className="text-3xl sm:text-4xl font-bold text-red-600 mb-2">{stats.failedClaims}</p>
                       <p className="text-red-700 text-sm mb-3">Processing failed</p>
                       <Progress
                         value={stats.totalClaims > 0 ? (stats.failedClaims / stats.totalClaims) * 100 : 0}
@@ -688,14 +693,14 @@ export default function DashboardPage() {
 
                 <Card className="shadow-xl border-0 bg-gradient-to-br from-violet-50 to-violet-100">
                   <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center text-violet-800 text-lg">
-                      <RefreshCw className="w-5 h-5 mr-2" />
-                      Processing
+                    <CardTitle className="flex items-center text-violet-800 text-base sm:text-lg">
+                      <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 mr-2 flex-shrink-0" />
+                      <span>Processing</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="text-center">
-                      <p className="text-4xl font-bold text-violet-600 mb-2">{stats.processingClaims}</p>
+                      <p className="text-3xl sm:text-4xl font-bold text-violet-600 mb-2">{stats.processingClaims}</p>
                       <p className="text-violet-700 text-sm mb-3">Currently processing</p>
                       <Progress
                         value={stats.totalClaims > 0 ? (stats.processingClaims / stats.totalClaims) * 100 : 0}
@@ -707,159 +712,180 @@ export default function DashboardPage() {
               </div>
 
               {/* Charts */}
-              <Tabs defaultValue="trends" className="space-y-6">
-                <TabsList className="grid grid-cols-4 mb-6 bg-white shadow-lg rounded-xl p-1 h-14">
+              <Tabs defaultValue="trends" className="space-y-6 w-full">
+                <TabsList className="grid grid-cols-2 sm:grid-cols-4 mb-6 bg-white shadow-lg rounded-xl p-1 h-auto sm:h-14 w-full">
                   <TabsTrigger
                     value="trends"
-                    className="rounded-lg data-[state=active]:bg-slate-700 data-[state=active]:text-white text-base font-medium"
+                    className="rounded-lg data-[state=active]:bg-slate-700 data-[state=active]:text-white text-sm sm:text-base font-medium p-2 sm:p-3"
                   >
-                    Monthly Trends
+                    <span className="hidden sm:inline">Monthly Trends</span>
+                    <span className="sm:hidden">Trends</span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="daily"
-                    className="rounded-lg data-[state=active]:bg-slate-700 data-[state=active]:text-white text-base font-medium"
+                    className="rounded-lg data-[state=active]:bg-slate-700 data-[state=active]:text-white text-sm sm:text-base font-medium p-2 sm:p-3"
                   >
-                    Daily Activity
+                    <span className="hidden sm:inline">Daily Activity</span>
+                    <span className="sm:hidden">Daily</span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="distribution"
-                    className="rounded-lg data-[state=active]:bg-slate-700 data-[state=active]:text-white text-base font-medium"
+                    className="rounded-lg data-[state=active]:bg-slate-700 data-[state=active]:text-white text-sm sm:text-base font-medium p-2 sm:p-3"
                   >
-                    Status Distribution
+                    <span className="hidden sm:inline">Status Distribution</span>
+                    <span className="sm:hidden">Status</span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="revenue"
-                    className="rounded-lg data-[state=active]:bg-slate-700 data-[state=active]:text-white text-base font-medium"
+                    className="rounded-lg data-[state=active]:bg-slate-700 data-[state=active]:text-white text-sm sm:text-base font-medium p-2 sm:p-3"
                   >
-                    Revenue Analysis
+                    <span className="hidden sm:inline">Revenue Analysis</span>
+                    <span className="sm:hidden">Revenue</span>
                   </TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="trends">
-                  <Card className="shadow-xl border-0">
+                <TabsContent value="trends" className="w-full">
+                  <Card className="shadow-xl border-0 w-full">
                     <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-t-lg border-b">
-                      <CardTitle className="text-2xl font-bold text-slate-800">Monthly Performance Trends</CardTitle>
-                      <p className="text-slate-600 mt-2">6-month performance overview with success/failure rates</p>
+                      <CardTitle className="text-xl sm:text-2xl font-bold text-slate-800">
+                        Monthly Performance Trends
+                      </CardTitle>
+                      <p className="text-slate-600 mt-2 text-sm sm:text-base">
+                        6-month performance overview with success/failure rates
+                      </p>
                     </CardHeader>
-                    <CardContent className="p-8">
-                      <ResponsiveContainer width="100%" height={400}>
-                        <LineChart data={stats.monthlyData}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                          <XAxis dataKey="month" stroke="#64748b" />
-                          <YAxis stroke="#64748b" />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: "#f8fafc",
-                              border: "1px solid #e2e8f0",
-                              borderRadius: "8px",
-                            }}
-                          />
-                          <Line
-                            type="monotone"
-                            dataKey="claims"
-                            stroke="#3b82f6"
-                            strokeWidth={3}
-                            name="Total Claims"
-                            dot={{ fill: "#3b82f6", strokeWidth: 2, r: 4 }}
-                          />
-                          <Line
-                            type="monotone"
-                            dataKey="success"
-                            stroke="#10b981"
-                            strokeWidth={3}
-                            name="Successful Claims"
-                            dot={{ fill: "#10b981", strokeWidth: 2, r: 4 }}
-                          />
-                          <Line
-                            type="monotone"
-                            dataKey="failed"
-                            stroke="#ef4444"
-                            strokeWidth={3}
-                            name="Failed Claims"
-                            dot={{ fill: "#ef4444", strokeWidth: 2, r: 4 }}
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                <TabsContent value="daily">
-                  <Card className="shadow-xl border-0">
-                    <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-lg border-b">
-                      <CardTitle className="text-2xl font-bold text-slate-800">Daily Activity (Last 7 Days)</CardTitle>
-                      <p className="text-slate-600 mt-2">Recent daily claims and revenue trends</p>
-                    </CardHeader>
-                    <CardContent className="p-8">
-                      <ResponsiveContainer width="100%" height={400}>
-                        <AreaChart data={stats.dailyData}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                          <XAxis dataKey="date" stroke="#64748b" />
-                          <YAxis stroke="#64748b" />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: "#f8fafc",
-                              border: "1px solid #e2e8f0",
-                              borderRadius: "8px",
-                            }}
-                            formatter={(value, name) => [
-                              name === "revenue" ? formatCurrency(Number(value)) : value,
-                              name === "revenue" ? "Revenue" : "Claims",
-                            ]}
-                          />
-                          <Area
-                            type="monotone"
-                            dataKey="claims"
-                            stackId="1"
-                            stroke="#3b82f6"
-                            fill="#3b82f6"
-                            fillOpacity={0.6}
-                            name="claims"
-                          />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                <TabsContent value="distribution">
-                  <Card className="shadow-xl border-0">
-                    <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-t-lg border-b">
-                      <CardTitle className="text-2xl font-bold text-slate-800">Claim Status Distribution</CardTitle>
-                      <p className="text-slate-600 mt-2">Current distribution of claim statuses</p>
-                    </CardHeader>
-                    <CardContent className="p-8">
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        <ResponsiveContainer width="100%" height={300}>
-                          <PieChart>
-                            <Pie
-                              data={stats.statusDistribution}
-                              cx="50%"
-                              cy="50%"
-                              labelLine={false}
-                              label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                              outerRadius={100}
-                              fill="#8884d8"
-                              dataKey="value"
-                            >
-                              {stats.statusDistribution.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.color} />
-                              ))}
-                            </Pie>
-                            <Tooltip />
-                          </PieChart>
+                    <CardContent className="p-4 sm:p-8 w-full">
+                      <div className="w-full overflow-x-auto">
+                        <ResponsiveContainer width="100%" height={300} minWidth={600}>
+                          <LineChart data={stats.monthlyData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                            <XAxis dataKey="month" stroke="#64748b" fontSize={12} />
+                            <YAxis stroke="#64748b" fontSize={12} />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: "#f8fafc",
+                                border: "1px solid #e2e8f0",
+                                borderRadius: "8px",
+                              }}
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="claims"
+                              stroke="#3b82f6"
+                              strokeWidth={3}
+                              name="Total Claims"
+                              dot={{ fill: "#3b82f6", strokeWidth: 2, r: 4 }}
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="success"
+                              stroke="#10b981"
+                              strokeWidth={3}
+                              name="Successful Claims"
+                              dot={{ fill: "#10b981", strokeWidth: 2, r: 4 }}
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="failed"
+                              stroke="#ef4444"
+                              strokeWidth={3}
+                              name="Failed Claims"
+                              dot={{ fill: "#ef4444", strokeWidth: 2, r: 4 }}
+                            />
+                          </LineChart>
                         </ResponsiveContainer>
-                        <div className="space-y-4">
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="daily" className="w-full">
+                  <Card className="shadow-xl border-0 w-full">
+                    <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-lg border-b">
+                      <CardTitle className="text-xl sm:text-2xl font-bold text-slate-800">
+                        Daily Activity (Last 7 Days)
+                      </CardTitle>
+                      <p className="text-slate-600 mt-2 text-sm sm:text-base">Recent daily claims and revenue trends</p>
+                    </CardHeader>
+                    <CardContent className="p-4 sm:p-8 w-full">
+                      <div className="w-full overflow-x-auto">
+                        <ResponsiveContainer width="100%" height={300} minWidth={600}>
+                          <AreaChart data={stats.dailyData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                            <XAxis dataKey="date" stroke="#64748b" fontSize={12} />
+                            <YAxis stroke="#64748b" fontSize={12} />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: "#f8fafc",
+                                border: "1px solid #e2e8f0",
+                                borderRadius: "8px",
+                              }}
+                              formatter={(value, name) => [
+                                name === "revenue" ? formatCurrency(Number(value)) : value,
+                                name === "revenue" ? "Revenue" : "Claims",
+                              ]}
+                            />
+                            <Area
+                              type="monotone"
+                              dataKey="claims"
+                              stackId="1"
+                              stroke="#3b82f6"
+                              fill="#3b82f6"
+                              fillOpacity={0.6}
+                              name="claims"
+                            />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="distribution" className="w-full">
+                  <Card className="shadow-xl border-0 w-full">
+                    <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-t-lg border-b">
+                      <CardTitle className="text-xl sm:text-2xl font-bold text-slate-800">
+                        Claim Status Distribution
+                      </CardTitle>
+                      <p className="text-slate-600 mt-2 text-sm sm:text-base">Current distribution of claim statuses</p>
+                    </CardHeader>
+                    <CardContent className="p-4 sm:p-8 w-full">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 w-full">
+                        <div className="w-full overflow-hidden">
+                          <ResponsiveContainer width="100%" height={300}>
+                            <PieChart>
+                              <Pie
+                                data={stats.statusDistribution}
+                                cx="50%"
+                                cy="50%"
+                                labelLine={false}
+                                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                outerRadius={100}
+                                fill="#8884d8"
+                                dataKey="value"
+                              >
+                                {stats.statusDistribution.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={entry.color} />
+                                ))}
+                              </Pie>
+                              <Tooltip />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+                        <div className="space-y-4 w-full">
                           {stats.statusDistribution.map((item, index) => (
                             <div
                               key={index}
-                              className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border"
+                              className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border w-full"
                             >
-                              <div className="flex items-center space-x-3">
-                                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: item.color }} />
-                                <span className="font-semibold text-slate-800">{item.name}</span>
+                              <div className="flex items-center space-x-3 min-w-0 flex-1">
+                                <div
+                                  className="w-4 h-4 rounded-full flex-shrink-0"
+                                  style={{ backgroundColor: item.color }}
+                                />
+                                <span className="font-semibold text-slate-800 truncate">{item.name}</span>
                               </div>
-                              <div className="text-right">
+                              <div className="text-right flex-shrink-0">
                                 <Badge variant="outline" className="text-lg px-3 py-1 font-bold">
                                   {item.value.toLocaleString()}
                                 </Badge>
@@ -875,48 +901,52 @@ export default function DashboardPage() {
                   </Card>
                 </TabsContent>
 
-                <TabsContent value="revenue">
-                  <Card className="shadow-xl border-0">
+                <TabsContent value="revenue" className="w-full">
+                  <Card className="shadow-xl border-0 w-full">
                     <CardHeader className="bg-gradient-to-r from-emerald-50 to-green-50 rounded-t-lg border-b">
-                      <CardTitle className="text-2xl font-bold text-slate-800">Monthly Revenue Analysis</CardTitle>
-                      <p className="text-slate-600 mt-2">Revenue trends from paid claims</p>
+                      <CardTitle className="text-xl sm:text-2xl font-bold text-slate-800">
+                        Monthly Revenue Analysis
+                      </CardTitle>
+                      <p className="text-slate-600 mt-2 text-sm sm:text-base">Revenue trends from paid claims</p>
                     </CardHeader>
-                    <CardContent className="p-8">
-                      <ResponsiveContainer width="100%" height={400}>
-                        <BarChart data={stats.monthlyData}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                          <XAxis dataKey="month" stroke="#64748b" />
-                          <YAxis stroke="#64748b" />
-                          <Tooltip
-                            formatter={(value) => [formatCurrency(Number(value)), "Revenue"]}
-                            contentStyle={{
-                              backgroundColor: "#f8fafc",
-                              border: "1px solid #e2e8f0",
-                              borderRadius: "8px",
-                            }}
-                          />
-                          <Bar dataKey="revenue" fill="#10b981" radius={[4, 4, 0, 0]} name="Revenue" />
-                        </BarChart>
-                      </ResponsiveContainer>
+                    <CardContent className="p-4 sm:p-8 w-full">
+                      <div className="w-full overflow-x-auto">
+                        <ResponsiveContainer width="100%" height={300} minWidth={600}>
+                          <BarChart data={stats.monthlyData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                            <XAxis dataKey="month" stroke="#64748b" fontSize={12} />
+                            <YAxis stroke="#64748b" fontSize={12} />
+                            <Tooltip
+                              formatter={(value) => [formatCurrency(Number(value)), "Revenue"]}
+                              contentStyle={{
+                                backgroundColor: "#f8fafc",
+                                border: "1px solid #e2e8f0",
+                                borderRadius: "8px",
+                              }}
+                            />
+                            <Bar dataKey="revenue" fill="#10b981" radius={[4, 4, 0, 0]} name="Revenue" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
                     </CardContent>
                   </Card>
                 </TabsContent>
               </Tabs>
 
               {/* System Health */}
-              <Card className="shadow-xl border-0">
+              <Card className="shadow-xl border-0 w-full">
                 <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-t-lg border-b">
-                  <CardTitle className="text-2xl font-bold text-slate-800 flex items-center">
-                    <Database className="w-6 h-6 mr-3 text-slate-600" />
-                    System Health & Status
+                  <CardTitle className="text-xl sm:text-2xl font-bold text-slate-800 flex items-center">
+                    <Database className="w-5 h-5 sm:w-6 sm:h-6 mr-3 text-slate-600 flex-shrink-0" />
+                    <span>System Health & Status</span>
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="p-8">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="text-center p-6 bg-emerald-50 rounded-xl border border-emerald-200">
-                      <Database className="w-12 h-12 text-emerald-600 mx-auto mb-3" />
-                      <h3 className="font-bold text-emerald-800 mb-2">Database Status</h3>
-                      <Badge variant="default" className="bg-emerald-100 text-emerald-800 mb-2">
+                <CardContent className="p-4 sm:p-8 w-full">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 w-full">
+                    <div className="text-center p-4 sm:p-6 bg-emerald-50 rounded-xl border border-emerald-200">
+                      <Database className="w-10 h-10 sm:w-12 sm:h-12 text-emerald-600 mx-auto mb-3" />
+                      <h3 className="font-bold text-emerald-800 mb-2 text-sm sm:text-base">Database Status</h3>
+                      <Badge variant="default" className="bg-emerald-100 text-emerald-800 mb-2 text-xs sm:text-sm">
                         Connected
                       </Badge>
                       <p className="text-sm text-emerald-700">systech_ott_platform</p>
@@ -925,20 +955,20 @@ export default function DashboardPage() {
                       </p>
                     </div>
 
-                    <div className="text-center p-6 bg-blue-50 rounded-xl border border-blue-200">
-                      <Mail className="w-12 h-12 text-blue-600 mx-auto mb-3" />
-                      <h3 className="font-bold text-blue-800 mb-2">Email Service</h3>
-                      <Badge variant="default" className="bg-blue-100 text-blue-800 mb-2">
+                    <div className="text-center p-4 sm:p-6 bg-blue-50 rounded-xl border border-blue-200">
+                      <Mail className="w-10 h-10 sm:w-12 sm:h-12 text-blue-600 mx-auto mb-3" />
+                      <h3 className="font-bold text-blue-800 mb-2 text-sm sm:text-base">Email Service</h3>
+                      <Badge variant="default" className="bg-blue-100 text-blue-800 mb-2 text-xs sm:text-sm">
                         Active
                       </Badge>
                       <p className="text-sm text-blue-700">Gmail SMTP</p>
                       <p className="text-xs text-blue-600 mt-1">{stats.successfulClaims} emails sent</p>
                     </div>
 
-                    <div className="text-center p-6 bg-violet-50 rounded-xl border border-violet-200">
-                      <Target className="w-12 h-12 text-violet-600 mx-auto mb-3" />
-                      <h3 className="font-bold text-violet-800 mb-2">Auto-Processing</h3>
-                      <Badge variant="default" className="bg-violet-100 text-violet-800 mb-2">
+                    <div className="text-center p-4 sm:p-6 bg-violet-50 rounded-xl border border-violet-200 sm:col-span-2 lg:col-span-1">
+                      <Target className="w-10 h-10 sm:w-12 sm:h-12 text-violet-600 mx-auto mb-3" />
+                      <h3 className="font-bold text-violet-800 mb-2 text-sm sm:text-base">Auto-Processing</h3>
+                      <Badge variant="default" className="bg-violet-100 text-violet-800 mb-2 text-xs sm:text-sm">
                         Ready
                       </Badge>
                       <p className="text-sm text-violet-700">Every 60 seconds</p>
