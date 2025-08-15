@@ -329,18 +329,16 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
 
-               <Card className="bg-gradient-to-br from-teal-500 to-teal-600 text-white shadow-lg border-0 min-w-0">
+              <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-lg border-0 min-w-0">
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
                     <div className="min-w-0 flex-1">
-                      <p className="text-teal-100 text-sm font-medium">Total Sales</p>
-                      <p className="text-2xl sm:text-3xl font-bold text-white">{stats.totalSales}</p>
-                      <p className="text-teal-200 text-xs sm:text-sm mt-1">
-                        {stats.availableSales} available • {stats.claimedSales} claimed
-                      </p>
+                      <p className="text-purple-100 text-sm font-medium">Success Rate</p>
+                      <p className="text-2xl sm:text-3xl font-bold">{stats.successRate}%</p>
+                      <p className="text-purple-200 text-xs sm:text-sm mt-1">✅ {stats.successful} delivered</p>
                     </div>
                     <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
-                      <ShoppingCart className="w-6 h-6 sm:w-8 sm:h-8" />
+                      <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8" />
                     </div>
                   </div>
                 </CardContent>
@@ -364,15 +362,65 @@ export default function DashboardPage() {
               </Card>
             </div>
 
-            {/* Secondary Stats Cards
+            {/* Secondary Stats Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8 w-full">
-          
+              <Card className="bg-gradient-to-br from-teal-500 to-teal-600 text-white shadow-lg border-0 min-w-0">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-teal-100 text-sm font-medium">Total Sales</p>
+                      <p className="text-2xl sm:text-3xl font-bold text-white">{stats.totalSales}</p>
+                      <p className="text-teal-200 text-xs sm:text-sm mt-1">
+                        {stats.availableSales} available • {stats.claimedSales} claimed
+                      </p>
+                    </div>
+                    <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
+                      <ShoppingCart className="w-6 h-6 sm:w-8 sm:h-8" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-         
-            </div> */}
+              <Card className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-lg border-0 min-w-0">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-indigo-100 text-sm font-medium">OTT Keys</p>
+                      <p className="text-2xl sm:text-3xl font-bold">{stats.totalKeys}</p>
+                      <p className="text-indigo-200 text-xs sm:text-sm mt-1">{stats.availableKeys} available</p>
+                    </div>
+                    <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
+                      <Key className="w-6 h-6 sm:w-8 sm:h-8" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-lg border-0 min-w-0">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <Loader className="w-5 h-5 text-blue-600 animate-spin flex-shrink-0" />
+                    <h3 className="font-semibold text-blue-800 truncate">Processing</h3>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-2xl font-bold text-blue-900">{stats.processing}</span>
+                      <span className="text-sm text-blue-600">
+                        {stats.totalClaims > 0 ? Math.round((stats.processing / stats.totalClaims) * 100) : 0}%
+                      </span>
+                    </div>
+                    <Progress
+                      value={stats.totalClaims > 0 ? (stats.processing / stats.totalClaims) * 100 : 0}
+                      className="h-2"
+                    />
+                    <p className="text-xs text-blue-600">Currently processing</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
             {/* Status Cards with Progress */}
-            {/* <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8 w-full">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8 w-full">
               <Card className="bg-green-50 border-green-200 shadow-lg min-w-0">
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center space-x-3 mb-3">
@@ -460,7 +508,7 @@ export default function DashboardPage() {
                   </div>
                 </CardContent>
               </Card>
-            </div> */}
+            </div>
 
             {/* Analytics Tabs */}
             <Tabs defaultValue="trends" className="w-full">
@@ -579,7 +627,18 @@ export default function DashboardPage() {
                   <CardContent className="w-full">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                       <div className="space-y-4">
-                     
+                        <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg border border-green-200">
+                          <div className="flex items-center space-x-3">
+                            <CheckCircle className="w-6 h-6 text-green-600" />
+                            <span className="font-medium text-green-800">Successful</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-2xl font-bold text-green-900">{stats.successful}</span>
+                            <p className="text-sm text-green-600">
+                              {stats.totalClaims > 0 ? Math.round((stats.successful / stats.totalClaims) * 100) : 0}%
+                            </p>
+                          </div>
+                        </div>
 
                         <div className="flex items-center justify-between p-4 bg-yellow-50 rounded-lg border border-yellow-200">
                           <div className="flex items-center space-x-3">
@@ -596,7 +655,18 @@ export default function DashboardPage() {
                       </div>
 
                       <div className="space-y-4">
-                      
+                        <div className="flex items-center justify-between p-4 bg-red-50 rounded-lg border border-red-200">
+                          <div className="flex items-center space-x-3">
+                            <XCircle className="w-6 h-6 text-red-600" />
+                            <span className="font-medium text-red-800">Failed</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-2xl font-bold text-red-900">{stats.failed}</span>
+                            <p className="text-sm text-red-600">
+                              {stats.totalClaims > 0 ? Math.round((stats.failed / stats.totalClaims) * 100) : 0}%
+                            </p>
+                          </div>
+                        </div>
 
                         <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-200">
                           <div className="flex items-center space-x-3">

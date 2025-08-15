@@ -651,23 +651,29 @@ const emailTemplates = {
 
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
   console.log("=== EMAIL SEND START ===")
-  console.log("Sending email to:", options.to)
-  console.log("Subject:", options.subject)
+  console.log("[v0] Sending email to:", options.to)
+  console.log("[v0] Subject:", options.subject)
+  console.log("[v0] HTML content length:", options.html.length)
+  console.log("[v0] CC recipients:", options.cc || "none")
 
   const user = process.env.GMAIL_USER
   const pass = process.env.GMAIL_APP_PASSWORD
 
-  console.log("Gmail user configured:", !!user)
-  console.log("Gmail password configured:", !!pass)
+  console.log("[v0] Gmail user configured:", !!user)
+  console.log("[v0] Gmail password configured:", !!pass)
+  console.log("[v0] Gmail user value:", user ? `${user.substring(0, 3)}***@${user.split("@")[1]}` : "not set")
 
   if (!user || !pass) {
-    console.error("Email credentials not configured. Please ensure GMAIL_USER and GMAIL_APP_PASSWORD are set.")
+    console.error("[v0] EMAIL CONFIGURATION ERROR: Email credentials not configured")
+    console.error("[v0] Please ensure GMAIL_USER and GMAIL_APP_PASSWORD environment variables are set")
+    console.error("[v0] GMAIL_USER exists:", !!process.env.GMAIL_USER)
+    console.error("[v0] GMAIL_APP_PASSWORD exists:", !!process.env.GMAIL_APP_PASSWORD)
     return false
   }
 
   try {
-    console.log("Creating transporter...")
-    const transporter = nodemailer.createTransporter({
+    console.log("[v0] Creating Gmail transporter...")
+    const transporter = nodemailer.createTransport({
       service: "gmail",
       host: "smtp.gmail.com",
       port: 587,
@@ -681,9 +687,9 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
       },
     })
 
-    console.log("Verifying transporter configuration...")
+    console.log("[v0] Verifying transporter configuration...")
     await transporter.verify()
-    console.log("Transporter verified successfully")
+    console.log("[v0] Transporter verified successfully")
 
     const allCcRecipients = [...DEFAULT_CC_RECIPIENTS]
     if (options.cc && options.cc.length > 0) {
@@ -693,53 +699,82 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     const mailOptions = {
       from: `"Systech Digital" <${user}>`,
       to: options.to,
-      cc: allCcRecipients.join(", "), // Add CC recipients
+      cc: allCcRecipients.join(", "),
       subject: options.subject,
       html: options.html,
     }
 
-    console.log("Sending email with options:", {
+    console.log("[v0] Email configuration:", {
       from: mailOptions.from,
       to: mailOptions.to,
-      cc: mailOptions.cc, // Log CC recipients
+      cc: mailOptions.cc,
       subject: mailOptions.subject,
       htmlLength: options.html.length,
+      ccRecipientsCount: allCcRecipients.length,
     })
 
+    console.log("[v0] Attempting to send email...")
     const result = await transporter.sendMail(mailOptions)
-    console.log("Email sent successfully:", result.messageId)
-    console.log("CC recipients included:", allCcRecipients) // Log CC confirmation
+
+    console.log("[v0] Email sent successfully!")
+    console.log("[v0] Message ID:", result.messageId)
+    console.log("[v0] Response:", result.response)
+    console.log("[v0] CC recipients included:", allCcRecipients)
     console.log("=== EMAIL SEND SUCCESS ===")
     return true
   } catch (error) {
     console.error("=== EMAIL SEND ERROR ===")
-    console.error("Error sending email:", error)
-    console.error("Error details:", {
-      name: error.name,
-      message: error.message,
-      code: error.code,
-      command: error.command,
-    })
+    console.error("[v0] Error sending email:", error)
+    console.error("[v0] Error type:", typeof error)
+    console.error("[v0] Error name:", error?.name)
+    console.error("[v0] Error message:", error?.message)
+    console.error("[v0] Error code:", error?.code)
+    console.error("[v0] Error command:", error?.command)
+    console.error("[v0] Error stack:", error?.stack)
+
+    if (error?.code === "EAUTH") {
+      console.error("[v0] AUTHENTICATION ERROR: Invalid Gmail credentials")
+      console.error("[v0] Check GMAIL_USER and GMAIL_APP_PASSWORD environment variables")
+    } else if (error?.code === "ENOTFOUND") {
+      console.error("[v0] NETWORK ERROR: Cannot reach Gmail SMTP server")
+      console.error("[v0] Check internet connection and firewall settings")
+    } else if (error?.code === "ETIMEDOUT") {
+      console.error("[v0] TIMEOUT ERROR: Connection to Gmail SMTP server timed out")
+    } else if (error?.message?.includes("Invalid login")) {
+      console.error("[v0] LOGIN ERROR: Gmail login failed - check app password")
+    }
+
     console.error("=== EMAIL SEND ERROR END ===")
     return false
   }
 }
 
-export { emailTemplates }
-
 export async function sendTemplatedEmail(emailData: EmailData): Promise<boolean> {
+  console.log("[v0] Sending templated email:", {
+    to: emailData.to,
+    subject: emailData.subject,
+    template: emailData.template,
+    dataKeys: Object.keys(emailData.data),
+  })
+
   const template = emailTemplates[emailData.template as keyof typeof emailTemplates]
 
   if (!template) {
-    console.error(`Template '${emailData.template}' not found`)
+    console.error(`[v0] Template '${emailData.template}' not found`)
+    console.error("[v0] Available templates:", Object.keys(emailTemplates))
     return false
   }
 
+  console.log("[v0] Template found, generating HTML...")
   const html = template(emailData.data)
+  console.log("[v0] Generated HTML length:", html.length)
 
-  return await sendEmail({
+  const result = await sendEmail({
     to: emailData.to,
     subject: emailData.subject,
     html: html,
   })
+
+  console.log("[v0] Templated email send result:", result)
+  return result
 }

@@ -85,6 +85,8 @@ export default function EmailsPage() {
       setLoading(true)
       setError(null)
 
+      console.log("[v0] Fetching claims data for emails page...")
+
       const response = await fetch("/api/admin/claims", {
         method: "GET",
         headers: {
@@ -92,27 +94,56 @@ export default function EmailsPage() {
         },
       })
 
+      console.log("[v0] Claims API response status:", response.status)
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
 
       const data = await response.json()
+      console.log("[v0] Claims API response data structure:", {
+        hasSuccess: "success" in data,
+        hasClaims: "claims" in data,
+        isArray: Array.isArray(data),
+        hasData: "data" in data,
+        dataType: typeof data,
+        keysCount: Object.keys(data).length,
+      })
 
       let claimsData: ClaimData[] = []
 
       if (data.success && Array.isArray(data.claims)) {
         claimsData = data.claims
+        console.log("[v0] Using data.claims array, length:", claimsData.length)
       } else if (Array.isArray(data)) {
         claimsData = data
+        console.log("[v0] Using direct data array, length:", claimsData.length)
       } else if (data.data && Array.isArray(data.data)) {
         claimsData = data.data
+        console.log("[v0] Using data.data array, length:", claimsData.length)
       } else {
         claimsData = []
+        console.log("[v0] No valid claims data found, using empty array")
+      }
+
+      if (claimsData.length > 0) {
+        console.log("[v0] Sample claim data structure:", {
+          firstClaim: {
+            hasClaimId: "claimId" in claimsData[0],
+            hasEmail: "email" in claimsData[0],
+            hasOttStatus: "ottStatus" in claimsData[0],
+            hasOttCodeStatus: "ottCodeStatus" in claimsData[0],
+            hasPaymentStatus: "paymentStatus" in claimsData[0],
+            keys: Object.keys(claimsData[0]),
+          },
+        })
       }
 
       setClaims(claimsData)
       setFilteredClaims(claimsData)
+      console.log("[v0] Successfully set claims data, total:", claimsData.length)
     } catch (err) {
+      console.error("[v0] Error fetching claims:", err)
       setError(err instanceof Error ? err.message : "Failed to fetch claims data")
       setClaims([])
       setFilteredClaims([])
@@ -269,10 +300,33 @@ export default function EmailsPage() {
     setPaymentFilter("all")
   }
 
-  const deliveredCount = claims.filter((c) => (c.ottStatus || c.ottCodeStatus) === "delivered").length
-  const pendingCount = claims.filter((c) => (c.ottStatus || c.ottCodeStatus) === "pending").length
-  const failedCount = claims.filter((c) => (c.ottStatus || c.ottCodeStatus) === "failed").length
+  const deliveredCount = claims.filter((c) => {
+    const status = c.ottStatus || c.ottCodeStatus
+    const isDelivered = status === "delivered"
+    return isDelivered
+  }).length
+
+  const pendingCount = claims.filter((c) => {
+    const status = c.ottStatus || c.ottCodeStatus
+    const isPending = status === "pending"
+    return isPending
+  }).length
+
+  const failedCount = claims.filter((c) => {
+    const status = c.ottStatus || c.ottCodeStatus
+    const isFailed = status === "failed"
+    return isFailed
+  }).length
+
   const deliveryRate = claims.length > 0 ? Math.round((deliveredCount / claims.length) * 100) : 0
+
+  console.log("[v0] Email statistics:", {
+    totalClaims: claims.length,
+    deliveredCount,
+    pendingCount,
+    failedCount,
+    deliveryRate,
+  })
 
   // Pagination
   const totalPages = Math.ceil(filteredClaims.length / itemsPerPage)
