@@ -382,10 +382,7 @@ export default function DashboardPage() {
                   </div>
                 </CardContent>
               </Card>
-            </div>
 
-            {/* Secondary Stats Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8 w-full">
               <Card className="bg-gradient-to-br from-teal-500 to-teal-600 text-white shadow-lg border-0 min-w-0">
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
@@ -402,11 +399,9 @@ export default function DashboardPage() {
                   </div>
                 </CardContent>
               </Card>
-
-              
-
-              
             </div>
+
+           
 
             {/* Status Cards with Progress */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8 w-full">
