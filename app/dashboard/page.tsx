@@ -301,9 +301,7 @@ export default function DashboardPage() {
                       <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white truncate">
                         Dashboard Analytics
                       </h1>
-                      <p className="text-purple-200 text-sm sm:text-base lg:text-lg truncate">
-                        Real-time insights • {stats.totalClaims + stats.totalSales + stats.totalKeys} total records
-                      </p>
+                      
                     </div>
                   </div>
                 </div>
@@ -387,7 +385,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Secondary Stats Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8 w-full">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8 w-full">
               <Card className="bg-gradient-to-br from-teal-500 to-teal-600 text-white shadow-lg border-0 min-w-0">
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
@@ -407,27 +405,7 @@ export default function DashboardPage() {
 
               
 
-              <Card className="bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-lg border-0 min-w-0">
-                <CardContent className="p-4 sm:p-6">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <Loader className="w-5 h-5 text-blue-600 animate-spin flex-shrink-0" />
-                    <h3 className="font-semibold text-blue-800 truncate">Processing</h3>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-2xl font-bold text-blue-900">{stats.processing}</span>
-                      <span className="text-sm text-blue-600">
-                        {stats.totalClaims > 0 ? Math.round((stats.processing / stats.totalClaims) * 100) : 0}%
-                      </span>
-                    </div>
-                    <Progress
-                      value={stats.totalClaims > 0 ? (stats.processing / stats.totalClaims) * 100 : 0}
-                      className="h-2"
-                    />
-                    <p className="text-xs text-blue-600">Currently processing</p>
-                  </div>
-                </CardContent>
-              </Card>
+              
             </div>
 
             {/* Status Cards with Progress */}
