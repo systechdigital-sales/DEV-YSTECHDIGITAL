@@ -766,6 +766,50 @@ export default function AdminPage() {
     )
   }
 
+  const [currentPage, setCurrentPage] = useState(1)
+  const [claims, setClaims] = useState<ClaimResponse[]>([])
+  const [totalPages, setTotalPages] = useState(1)
+
+  const fetchClaims = useCallback(async () => {
+    try {
+      setLoading(true)
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: "10",
+        search: searchTerm,
+        paymentStatus: filters.paymentStatus,
+        ottStatus: filters.ottStatus,
+        sortBy: "createdAt",
+        sortOrder: "desc",
+      })
+
+      // Add date filters if they exist
+      if (dateFilter.startDate) {
+        params.append("startDate", dateFilter.startDate)
+      }
+      if (dateFilter.endDate) {
+        params.append("endDate", dateFilter.endDate)
+      }
+
+      const response = await fetch(`/api/admin/claims?${params}`)
+      const data = await response.json()
+
+      if (data.data) {
+        setClaims(data.data)
+        setTotalPages(data.totalPages || 1)
+      }
+    } catch (error) {
+      console.error("Error fetching claims:", error)
+      setClaims([])
+    } finally {
+      setLoading(false)
+    }
+  }, [currentPage, searchTerm, filters.paymentStatus, filters.ottStatus, dateFilter.startDate, dateFilter.endDate])
+
+  useEffect(() => {
+    fetchClaims()
+  }, [fetchClaims, dateFilter.startDate, dateFilter.endDate])
+
   if (loading) {
     return (
       <SidebarProvider>
@@ -806,7 +850,6 @@ export default function AdminPage() {
                     </div>
                     <div>
                       <h1 className="text-xl sm:text-3xl font-bold text-white">Admin Panel</h1>
-                      
                     </div>
                   </div>
                 </div>

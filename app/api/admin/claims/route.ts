@@ -14,6 +14,8 @@ export async function GET(request: NextRequest) {
     const ottStatus = searchParams.get("ottStatus")
     const sortBy = searchParams.get("sortBy") || "createdAt"
     const sortOrder = searchParams.get("sortOrder") || "desc"
+    const startDate = searchParams.get("startDate")
+    const endDate = searchParams.get("endDate")
 
     const db = await getDatabase()
     const claimsCollection = db.collection("claims")
@@ -85,6 +87,25 @@ export async function GET(request: NextRequest) {
       query.$and.push({
         $or: [{ ottStatus: ottStatus }, { ottCodeStatus: ottStatus }],
       })
+    }
+
+    if (startDate || endDate) {
+      const dateQuery: any = {}
+
+      if (startDate) {
+        dateQuery.$gte = new Date(startDate)
+      }
+
+      if (endDate) {
+        // Add one day to endDate to include the entire end date
+        const endDateTime = new Date(endDate)
+        endDateTime.setDate(endDateTime.getDate() + 1)
+        dateQuery.$lt = endDateTime
+      }
+
+      if (Object.keys(dateQuery).length > 0) {
+        query.createdAt = dateQuery
+      }
     }
 
     console.log("Claims query:", JSON.stringify(query, null, 2))
