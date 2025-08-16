@@ -806,9 +806,7 @@ export default function AdminPage() {
                     </div>
                     <div>
                       <h1 className="text-xl sm:text-3xl font-bold text-white">Admin Panel</h1>
-                      <p className="text-purple-200 text-sm sm:text-lg hidden sm:block">
-                        systech_ott_platform Database Management
-                      </p>
+                      
                     </div>
                   </div>
                 </div>
