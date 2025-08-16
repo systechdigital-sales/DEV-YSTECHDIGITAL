@@ -1086,23 +1086,7 @@ export default function AdminPage() {
                           </Select>
                         </div>
 
-                        <div>
-                          <Label className="text-sm font-medium text-gray-700">OTT Status</Label>
-                          <Select
-                            value={filters.ottStatus}
-                            onValueChange={(value) => handleFilterChange("ottStatus", value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="All OTT Status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">All OTT Status</SelectItem>
-                              <SelectItem value="pending">Pending</SelectItem>
-                              <SelectItem value="delivered">Delivered</SelectItem>
-                              <SelectItem value="failed">Failed</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
+                        
                       </div>
                     </div>
                   </CardHeader>
