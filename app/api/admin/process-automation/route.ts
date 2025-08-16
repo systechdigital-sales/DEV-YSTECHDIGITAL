@@ -538,11 +538,11 @@ async function sendSuccessEmail(claim: any, ottCode: string, platform: string) {
             <h2 style="color: #2d3748; margin-top: 0;">Hello ${customerName},</h2>
             
             <p style="color: #4a5568; line-height: 1.6; font-size: 16px;">
-              Great news! Your OTT subscription claim has been processed successfully. Here's your Coupon code:
+              Great news! Your OTT subscription claim has been processed successfully. Here's your activation code:
             </p>
             
             <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 10px; margin: 25px 0; text-align: center;">
-              <p style="color: white; margin: 0 0 10px 0; font-size: 14px; opacity: 0.9;">Your ${platform} Coupon Code</p>
+              <p style="color: white; margin: 0 0 10px 0; font-size: 14px; opacity: 0.9;">Your ${platform} Activation Code</p>
               <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; border: 2px dashed rgba(255,255,255,0.5);">
                 <h1 style="color: white; margin: 0; font-size: 32px; font-weight: bold; letter-spacing: 2px; font-family: 'Courier New', monospace;">
                   ${ottCode}
@@ -554,9 +554,9 @@ async function sendSuccessEmail(claim: any, ottCode: string, platform: string) {
               <h3 style="color: #234e52; margin: 0 0 15px 0;">📱 How to Redeem:</h3>
               <ol style="color: #234e52; line-height: 1.8; margin: 0; padding-left: 20px;">
                 <li>Open the <a href="https://www.ottplay.com/partner/systech-it-solution/ott_sustech_annualtest" style="color: #2b6cb0;">OTT Play app</a> from your web browser</li>
-                <li>Tap ‘Apply Coupon’, enter code & get 100% off.</li>
-                <li>Tap ‘Subscribe Yearly”</li>
-                <li>Enter the Coupon code: <strong>${ottCode}</strong></li>
+                <li>Create an account or log in to your existing account</li>
+                <li>Go to "Redeem Code" or "Activate Subscription" section</li>
+                <li>Enter the activation code: <strong>${ottCode}</strong></li>
                 <li>Enjoy your premium subscription!</li>
               </ol>
             </div>

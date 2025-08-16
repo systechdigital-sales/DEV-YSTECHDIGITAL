@@ -139,16 +139,16 @@ export async function POST(request: NextRequest) {
               <div style="background: #eff6ff; padding: 20px; border-radius: 8px; margin-bottom: 25px; border-left: 4px solid #3b82f6;">
                 <h3 style="color: #1e40af; margin: 0 0 15px 0; font-size: 18px;">What Happens Next?</h3>
                 <ol style="color: #374151; margin: 0; padding-left: 20px;">
-                  <li style="margin-bottom: 8px;">Your Coupon Code, Product Serial Number, or IMEI Number will be verified.</li>
-                  <li style="margin-bottom: 8px;">Once your claim is submitted and successfully verified, your OTTplay Coupon Code will be generated and sent to your registered email ID.</li>
+                  <li style="margin-bottom: 8px;">Your Activation Code, Product Serial Number, or IMEI Number will be verified.</li>
+                  <li style="margin-bottom: 8px;">Once your claim is submitted and successfully verified, your OTTplay code will be generated and sent to your registered email ID.</li>
                   <li style="margin-bottom: 8px;">You'll receive the code within 24-48 hours</li>
-                  <li>Start enjoying your premium OTTplay subscription!</li>
+                  <li>Start enjoying your premium OTT subscription!</li>
                 </ol>
               </div>
 
               <div style="background: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0;">
                 <p style="color: #92400e; margin: 0; font-size: 14px; text-align: center;">
-                  <strong>Processing Time:</strong> Your OTTplay Coupon Code will be delivered to this email address within 24-48 hours. Please check your inbox and spam folder.
+                  <strong>Processing Time:</strong> Your OTT code will be delivered to this email address within 24-48 hours. Please check your inbox and spam folder.
                 </p>
               </div>
 

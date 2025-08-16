@@ -456,12 +456,32 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
 
-              
+              <Card className="bg-blue-50 border-blue-200 shadow-lg min-w-0">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <Loader className="w-5 h-5 text-blue-600 animate-spin flex-shrink-0" />
+                    <h3 className="font-semibold text-blue-800 truncate">Processing</h3>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-2xl font-bold text-blue-900">{stats.currentlyProcessing}</span>
+                      <span className="text-sm text-blue-600">
+                        {stats.totalClaims > 0 ? Math.round((stats.currentlyProcessing / stats.totalClaims) * 100) : 0}%
+                      </span>
+                    </div>
+                    <Progress
+                      value={stats.totalClaims > 0 ? (stats.currentlyProcessing / stats.totalClaims) * 100 : 0}
+                      className="h-2"
+                    />
+                    <p className="text-xs text-blue-600">Currently processing</p>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
 
             {/* Analytics Tabs */}
             <Tabs defaultValue="trends" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 lg:grid-cols-3 mb-6 bg-white shadow-lg rounded-xl p-1 h-auto">
+              <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 mb-6 bg-white shadow-lg rounded-xl p-1 h-auto">
                 <TabsTrigger
                   value="trends"
                   className="rounded-lg data-[state=active]:bg-purple-600 data-[state=active]:text-white text-sm sm:text-base font-semibold py-2 sm:py-3"
@@ -478,7 +498,14 @@ export default function DashboardPage() {
                   <span className="sm:hidden">Activity</span>
                   <span className="hidden sm:inline">Daily Activity</span>
                 </TabsTrigger>
-                
+                <TabsTrigger
+                  value="distribution"
+                  className="rounded-lg data-[state=active]:bg-purple-600 data-[state=active]:text-white text-sm sm:text-base font-semibold py-2 sm:py-3"
+                >
+                  <PieChart className="w-4 h-4 mr-2 hidden sm:inline" />
+                  <span className="sm:hidden">Status</span>
+                  <span className="hidden sm:inline">Status Distribution</span>
+                </TabsTrigger>
                 <TabsTrigger
                   value="revenue"
                   className="rounded-lg data-[state=active]:bg-purple-600 data-[state=active]:text-white text-sm sm:text-base font-semibold py-2 sm:py-3"
@@ -558,7 +585,78 @@ export default function DashboardPage() {
                 </Card>
               </TabsContent>
 
-              
+              <TabsContent value="distribution" className="w-full">
+                <Card className="shadow-xl border-0 w-full">
+                  <CardHeader>
+                    <CardTitle className="text-xl sm:text-2xl font-bold text-gray-800">Status Distribution</CardTitle>
+                    <CardDescription className="text-base sm:text-lg text-gray-600">
+                      Breakdown of all claim statuses
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="w-full">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg border border-green-200">
+                          <div className="flex items-center space-x-3">
+                            <CheckCircle className="w-6 h-6 text-green-600" />
+                            <span className="font-medium text-green-800">Successful</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-2xl font-bold text-green-900">{stats.successful}</span>
+                            <p className="text-sm text-green-600">
+                              {stats.totalClaims > 0 ? Math.round((stats.successful / stats.totalClaims) * 100) : 0}%
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                          <div className="flex items-center space-x-3">
+                            <Clock className="w-6 h-6 text-yellow-600" />
+                            <span className="font-medium text-yellow-800">Pending</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-2xl font-bold text-yellow-900">{stats.pending}</span>
+                            <p className="text-sm text-yellow-600">
+                              {stats.totalClaims > 0 ? Math.round((stats.pending / stats.totalClaims) * 100) : 0}%
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between p-4 bg-red-50 rounded-lg border border-red-200">
+                          <div className="flex items-center space-x-3">
+                            <XCircle className="w-6 h-6 text-red-600" />
+                            <span className="font-medium text-red-800">Failed</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-2xl font-bold text-red-900">{stats.failed}</span>
+                            <p className="text-sm text-red-600">
+                              {stats.totalClaims > 0 ? Math.round((stats.failed / stats.totalClaims) * 100) : 0}%
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-200">
+                          <div className="flex items-center space-x-3">
+                            <Loader className="w-6 h-6 text-blue-600 animate-spin" />
+                            <span className="font-medium text-blue-800">Processing</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-2xl font-bold text-blue-900">{stats.currentlyProcessing}</span>
+                            <p className="text-sm text-blue-600">
+                              {stats.totalClaims > 0
+                                ? Math.round((stats.currentlyProcessing / stats.totalClaims) * 100)
+                                : 0}
+                              %
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
               <TabsContent value="revenue" className="w-full">
                 <Card className="shadow-xl border-0 w-full">
