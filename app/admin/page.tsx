@@ -12,7 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
   Upload,
-  Download,
+  DownloadIcon,
   AlertCircle,
   CheckCircle,
   Users,
@@ -23,9 +23,7 @@ import {
   Trash2,
   Lock,
   Send,
-  ChevronLeft,
-  ChevronRight,
-  Search,
+  SearchIcon,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
@@ -45,6 +43,7 @@ import { DashboardSidebar } from "@/components/dashboard-sidebar"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import Image from "next/image"
 import { toast } from "@/hooks/use-toast"
+import { ChevronLeft, ChevronRight, ChevronsRight } from "lucide-react"
 
 // Reduced page size for better performance
 const ITEMS_PER_PAGE = 10
@@ -207,24 +206,28 @@ export default function AdminPage() {
           sortOrder: sortConfig.direction,
         })
 
-        // Add filters based on active tab
         if (activeTab === "claims") {
           if (filters.paymentStatus !== "all") {
             params.append("paymentStatus", filters.paymentStatus)
+            console.log("[v0] Adding paymentStatus filter:", filters.paymentStatus)
           }
           if (filters.ottStatus !== "all") {
             params.append("ottStatus", filters.ottStatus)
+            console.log("[v0] Adding ottStatus filter:", filters.ottStatus)
           }
         } else if (activeTab === "sales") {
           if (filters.salesStatus !== "all") {
             params.append("status", filters.salesStatus)
+            console.log("[v0] Adding salesStatus filter:", filters.salesStatus)
           }
         } else if (activeTab === "keys") {
           if (filters.keysStatus !== "all") {
             params.append("status", filters.keysStatus)
+            console.log("[v0] Adding keysStatus filter:", filters.keysStatus)
           }
         }
 
+        console.log("[v0] API URL:", `/api/admin/${activeTab}?${params}`)
         const response = await fetch(`/api/admin/${activeTab}?${params}`, {
           method: "GET",
           headers: { "Content-Type": "application/json" },
@@ -232,6 +235,7 @@ export default function AdminPage() {
 
         if (response.ok) {
           const result: PaginatedResponse<any> = await response.json()
+          console.log("[v0] API Response:", result)
 
           setCurrentData((prev) => ({
             ...prev,
@@ -279,6 +283,7 @@ export default function AdminPage() {
 
   // Handle page change
   const handlePageChange = (page: number) => {
+    console.log("[v0] Page change to:", page)
     setPagination((prev) => ({
       ...prev,
       [activeTab]: { ...prev[activeTab as keyof typeof prev], page },
@@ -301,10 +306,18 @@ export default function AdminPage() {
 
   // Handle filter change
   const handleFilterChange = (filterType: keyof FilterConfig, value: string) => {
+    console.log("[v0] Filter change:", filterType, "=", value)
     setFilters((prev) => ({
       ...prev,
       [filterType]: value,
     }))
+    setPagination((prev) => ({
+      ...prev,
+      [activeTab]: { ...prev[activeTab as keyof typeof prev], page: 1 },
+    }))
+    setTimeout(() => {
+      loadCurrentTabData(1, searchTerm)
+    }, 0)
   }
 
   // Handle sort change
@@ -720,6 +733,17 @@ export default function AdminPage() {
             Next
             <ChevronRight className="w-4 h-4 ml-1" />
           </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handlePageChange(totalPages)}
+            disabled={page === totalPages}
+            className="flex items-center ml-2"
+          >
+            Last Record
+            <ChevronsRight className="w-4 h-4 ml-1" />
+          </Button>
         </div>
       </div>
     )
@@ -728,7 +752,7 @@ export default function AdminPage() {
   if (loading) {
     return (
       <SidebarProvider>
-        <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex">
+        <div className="min-h-screen  bg-gradient-to-br from-purple-50 to-indigo-100 flex">
           <DashboardSidebar />
           <SidebarInset className="flex-1 flex items-center justify-center">
             <div className="text-center">
@@ -744,7 +768,7 @@ export default function AdminPage() {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex">
+      <div className="min-h-screen min-w-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex">
         <DashboardSidebar />
         <SidebarInset className="flex-1 overflow-hidden">
           {/* Header */}
@@ -795,7 +819,7 @@ export default function AdminPage() {
                       <p className="text-sm font-medium text-gray-600">Total Claims</p>
                       <p className="text-3xl font-bold text-gray-900">{stats.totalClaims}</p>
                       <p className="text-sm text-gray-500">
-                        {stats.paidClaims} paid • {stats.pendingClaims} pending 
+                        {stats.paidClaims} paid • {stats.pendingClaims} pending
                       </p>
                     </div>
                     <div className="p-3 bg-blue-100 rounded-full">
@@ -828,8 +852,9 @@ export default function AdminPage() {
                     <div>
                       <p className="text-sm font-medium text-gray-600">OTT Keys</p>
                       <p className="text-3xl font-bold">{stats.totalKeys}</p>
-                     <p className="text-sm text-gray-500">
-                        {Number(stats?.totalKeys || 0) - Number(stats?.assignedKeys || 0)} available • {stats?.assignedKeys || 0} assigned
+                      <p className="text-sm text-gray-500">
+                        {Number(stats?.totalKeys || 0) - Number(stats?.assignedKeys || 0)} available •{" "}
+                        {stats?.assignedKeys || 0} assigned
                       </p>
                     </div>
                     <div className="p-3 bg-purple-100 rounded-full">
@@ -970,19 +995,19 @@ export default function AdminPage() {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <Button onClick={() => exportData()} className="bg-purple-600 hover:bg-purple-700">
-                      <Download className="w-4 h-4 mr-2" />
+                      <DownloadIcon className="w-4 h-4 mr-2" />
                       Export All Data
                     </Button>
                     <Button onClick={() => exportData("claims")} className="bg-blue-600 hover:bg-blue-700">
-                      <Download className="w-4 h-4 mr-2" />
+                      <DownloadIcon className="w-4 h-4 mr-2" />
                       Export Claims
                     </Button>
                     <Button onClick={() => exportData("sales")} className="bg-green-600 hover:bg-green-700">
-                      <Download className="w-4 h-4 mr-2" />
+                      <DownloadIcon className="w-4 h-4 mr-2" />
                       Export Sales
                     </Button>
                     <Button onClick={() => exportData("keys")} className="bg-orange-600 hover:bg-orange-700">
-                      <Download className="w-4 h-4 mr-2" />
+                      <DownloadIcon className="w-4 h-4 mr-2" />
                       Export Keys
                     </Button>
                   </div>
@@ -1029,7 +1054,7 @@ export default function AdminPage() {
                     <div className="mt-6 space-y-4">
                       <div className="flex items-center space-x-4">
                         <div className="flex-1 relative">
-                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                          <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                           <Input
                             placeholder="Search by name, email, phone, activation code..."
                             value={searchTerm}
@@ -1198,7 +1223,7 @@ export default function AdminPage() {
                     <div className="mt-6 space-y-4">
                       <div className="flex items-center space-x-4">
                         <div className="flex-1 relative">
-                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                          <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                           <Input
                             placeholder="Search by activation code, product, category..."
                             value={searchTerm}
@@ -1313,7 +1338,7 @@ export default function AdminPage() {
                     <div className="mt-6 space-y-4">
                       <div className="flex items-center space-x-4">
                         <div className="flex-1 relative">
-                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                          <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                           <Input
                             placeholder="Search by activation code, product, category..."
                             value={searchTerm}

@@ -56,6 +56,12 @@ export interface IOTTKey {
 
 // Client-side interfaces (mapping _id to id string)
 export interface ClaimResponse extends Omit<IClaimResponse, "_id" | "createdAt" | "updatedAt"> {
+  pincode: string
+  ottStatus(ottStatus: any): import("react").ReactNode
+  amount: number
+  phoneNumber: string
+  claimId: string
+  _id: string
   id: string
   createdAt: string
   updatedAt?: string
@@ -63,6 +69,7 @@ export interface ClaimResponse extends Omit<IClaimResponse, "_id" | "createdAt" 
 }
 
 export interface SalesRecord extends Omit<ISalesRecord, "_id" | "createdAt" | "updatedAt" | "claimedDate"> {
+  _id: string
   id: string
   createdAt?: string
   updatedAt?: string
@@ -70,6 +77,7 @@ export interface SalesRecord extends Omit<ISalesRecord, "_id" | "createdAt" | "u
 }
 
 export interface OTTKey extends Omit<IOTTKey, "_id" | "createdAt" | "updatedAt" | "assignedDate" | "assignedTo"> {
+  _id: string
   id: string
   createdAt?: string
   updatedAt?: string
