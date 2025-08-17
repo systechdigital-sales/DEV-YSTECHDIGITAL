@@ -105,7 +105,7 @@ export default function Footer() {
               variant="ghost"
               size="sm"
               className="text-gray-400 hover:text-gray-800 "
-              onClick={() => router.push("/contact")}
+              onClick={() => router.push("/about")}
             >
               About Us
             </Button>

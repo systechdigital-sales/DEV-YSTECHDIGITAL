@@ -237,7 +237,7 @@ export default function TermsAndConditions() {
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <h4 className="font-semibold text-green-900 mb-2">Subscription Benefits</h4>
               <ul className="text-sm text-green-700 space-y-1">
-                <li>• 12-month access to 31+ OTT platform from the date of activation of OTTplay Power Play subscription</li>
+                <li>• 12-month access to 28+ OTT & 500 Live Channels platform from the date of activation of OTTplay Power Play subscription</li>
                 <li>• Powered by OTTplay premium service</li>
                 <li>• HD/4K streaming where available</li>
                 <li>• Multi-device access support</li>
@@ -535,7 +535,7 @@ export default function TermsAndConditions() {
               <div className="bg-white border border-gray-200 rounded-lg p-4">
                 <p className="text-sm text-gray-600">
                   <strong>Document Version:</strong> 2.1 | <strong>Last Review:</strong> July 23, 2025 |
-                  <strong>Next Review:</strong> July 23, 2025
+                  <strong>Next Review:</strong> Sep 30, 2025
                 </p>
               </div>
             </div>

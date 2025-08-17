@@ -157,27 +157,17 @@ export default function ContactPage() {
                 </div>
 
                 <div className="flex items-center space-x-4">
-                  <div className="bg-green-100 p-3 rounded-full">
-                    <Phone className="h-6 w-6 text-green-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900">Phone</h3>
-                    <p className="text-gray-600">+91 9876543210</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-4">
                   <div className="bg-purple-100 p-3 rounded-full">
                     <MapPin className="h-6 w-6 text-purple-600" />
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900">Address</h3>
                     <p className="text-gray-600">
-                      123 Tech Street
+                      #23/1,1st floor ,j.c.1st cross, 
                       <br />
-                      Digital City, DC 12345
+                      JC Rd, near poornima theatre, 
                       <br />
-                      India
+                      Bengaluru, Karnataka 560027
                     </p>
                   </div>
                 </div>
