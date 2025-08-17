@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,7 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Mail, Phone, MapPin, Send, CheckCircle, AlertCircle } from "lucide-react"
+import { Mail, MapPin, Send, CheckCircle, AlertCircle } from "lucide-react"
+import Footer from "@/components/footer"
 
 interface ContactForm {
   name: string
@@ -27,7 +27,7 @@ interface FormErrors {
   message?: string
 }
 
-export default function ContactPage() {
+export default function AboutPage() {
   const [formData, setFormData] = useState<ContactForm>({
     name: "",
     email: "",
@@ -43,26 +43,18 @@ export default function ContactPage() {
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {}
 
-    if (!formData.name.trim()) {
-      newErrors.name = "Name is required"
-    }
-
+    if (!formData.name.trim()) newErrors.name = "Name is required"
     if (!formData.email.trim()) {
       newErrors.email = "Email is required"
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = "Please enter a valid email address"
     }
-
     if (!formData.phone.trim()) {
       newErrors.phone = "Phone number is required"
-    } else if (!/^[\d\s\-+$$$$]{10,}$/.test(formData.phone.replace(/\s/g, ""))) {
+    } else if (!/^[\d\s\-+]{10,}$/.test(formData.phone.replace(/\s/g, ""))) {
       newErrors.phone = "Please enter a valid phone number"
     }
-
-    if (!formData.subject.trim()) {
-      newErrors.subject = "Subject is required"
-    }
-
+    if (!formData.subject.trim()) newErrors.subject = "Subject is required"
     if (!formData.message.trim()) {
       newErrors.message = "Message is required"
     } else if (formData.message.trim().length < 10) {
@@ -75,18 +67,12 @@ export default function ContactPage() {
 
   const handleInputChange = (field: keyof ContactForm, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
-    // Clear error when user starts typing
-    if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: undefined }))
-    }
+    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    if (!validateForm()) {
-      return
-    }
+    if (!validateForm()) return
 
     setIsSubmitting(true)
     setSubmitStatus("idle")
@@ -94,29 +80,20 @@ export default function ContactPage() {
     try {
       const response = await fetch("/api/contact", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       })
 
       const result = await response.json()
-
       if (response.ok && result.success) {
         setSubmitStatus("success")
         setSubmitMessage("Thank you for your message! We'll get back to you soon.")
-        setFormData({
-          name: "",
-          email: "",
-          phone: "",
-          subject: "",
-          message: "",
-        })
+        setFormData({ name: "", email: "", phone: "", subject: "", message: "" })
       } else {
         setSubmitStatus("error")
         setSubmitMessage(result.message || "Failed to send message. Please try again.")
       }
-    } catch (error) {
+    } catch {
       setSubmitStatus("error")
       setSubmitMessage("An error occurred. Please try again later.")
     } finally {
@@ -125,61 +102,57 @@ export default function ContactPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      
-      <section className="py-16 px-6 md:px-12 lg:px-24 bg-white">
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold text-gray-900 mb-6">About Us</h1>
-        <div className="text-lg text-gray-700 max-w-3xl mx-auto space-y-6">
-          <p>
-            At <span className="font-semibold">Systech IT Solutions</span>, we bring technology
-            closer to you. Headquartered in Bengaluru, Karnataka, and led by{" "}
-            <span className="font-medium">Mr. Abhishek Jain (Director)</span>, we are among India’s
-            premier IT distribution houses, trusted for IT hardware, security software, networking,
-            and automation solutions. With a partner network of 5,000+ retail and corporate resellers
-            across 90+ cities, we make sure the latest in digital security and IT products reaches
-            you—quickly and reliably.
-          </p>
-
-          <p>
-            Through <span className="font-semibold">Systech Digital</span>, we go a step further.
-            Our focus is on making technology simple, secure, and seamless for everyday users. From
-            innovative software to digital services, everything we create is designed with your
-            convenience and safety in mind.
-          </p>
-
-          <p>
-            We believe technology should work for you—not the other way around. That’s why our
-            solutions are built to protect your digital life, simplify daily tasks, and keep you
-            connected without friction. Whether you’re an individual, a family, or a business,
-            we’re here to help you embrace the digital world with confidence, ease, and peace of mind.
-          </p>
-
-          <p className="font-semibold text-gray-900 text-xl">
-            With Systech, technology becomes smarter, safer, and more human.
-          </p>
-        </div>
-      </div>
-    </section>
-      
-      
-      <div className="container mx-auto px-4 py-12">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex flex-col">
+      {/* About Section */}
+      <section className="py-20 px-6 md:px-12 lg:px-24 bg-white shadow-sm">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">Contact Us</h1>
+          <h1 className="text-4xl font-bold text-gray-900 mb-6">About Us</h1>
+          <div className="text-lg text-gray-700 max-w-3xl mx-auto space-y-6 leading-relaxed">
+            <p>
+              At <span className="font-semibold">SYSTECH IT SOLUTIONS Limited</span>, we bring
+              technology closer to you. Headquartered in Bengaluru, Karnataka, and led by{" "}
+              <span className="font-medium">Mr. Abhishek Jain (Director)</span>, we are among
+              India’s premier IT distribution houses, trusted for IT hardware, security software,
+              networking, and automation solutions. With a partner network of 5,000+ retail and
+              corporate resellers across 90+ cities, we ensure the latest in digital security and IT
+              products reaches you—quickly and reliably.
+            </p>
+            <p>
+              Through <span className="font-semibold">Systech Digital</span>, we go a step further.
+              Our focus is on making technology simple, secure, and seamless for everyday users. From
+              innovative software to digital services, everything we create is designed with your
+              convenience and safety in mind.
+            </p>
+            <p>
+              We believe technology should work for you—not the other way around. That’s why our
+              solutions are built to protect your digital life, simplify daily tasks, and keep you
+              connected without friction. Whether you’re an individual, a family, or a business,
+              we’re here to help you embrace the digital world with confidence, ease, and peace of mind.
+            </p>
+            <p className="font-semibold text-gray-900 text-xl">
+              With SYSTECH IT SOLUTIONS Limited, technology becomes smarter, safer, and more human.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Contact Section */}
+      <div className="container mx-auto px-4 py-20 flex-1">
+        <div className="text-center mb-12">
+          <h2 className="text-4xl font-bold text-gray-900 mb-4">Contact Us</h2>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
             Get in touch with our team for support, inquiries, or partnership opportunities
           </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 max-w-6xl mx-auto">
-          {/* Contact Information */}
+          {/* Contact Info */}
           <div className="space-y-8">
             <Card>
               <CardHeader>
                 <CardTitle className="text-2xl font-bold text-gray-900">Get in Touch</CardTitle>
                 <CardDescription>
-                  We're here to help you with all your OTT platform needs. Reach out to us through any of the following
-                  channels.
+                  We're here to help you with all your IT and digital needs.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -199,11 +172,9 @@ export default function ContactPage() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900">Address</h3>
-                    <p className="text-gray-600">
-                      #23/1,1st floor ,J.C.1st cross, 
-                      <br />
-                      JC Rd, Near Poornima Theatre, 
-                      <br />
+                    <p className="text-gray-600 leading-relaxed">
+                      #23/1, 1st Floor, J.C. 1st Cross, <br />
+                      JC Rd, Near Poornima Theatre, <br />
                       Bengaluru, Karnataka 560027
                     </p>
                   </div>
@@ -216,17 +187,17 @@ export default function ContactPage() {
                 <CardTitle>Business Hours</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
+                <div className="space-y-2 text-gray-700">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Monday - Friday</span>
+                    <span>Monday - Friday</span>
                     <span className="font-medium">9:00 AM - 6:00 PM</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Saturday</span>
+                    <span>Saturday</span>
                     <span className="font-medium">10:00 AM - 4:00 PM</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Sunday</span>
+                    <span>Sunday</span>
                     <span className="font-medium">Closed</span>
                   </div>
                 </div>
@@ -238,7 +209,9 @@ export default function ContactPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl font-bold text-gray-900">Send us a Message</CardTitle>
-              <CardDescription>Fill out the form below and we'll get back to you as soon as possible.</CardDescription>
+              <CardDescription>
+                Fill out the form below and we'll get back to you as soon as possible.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
@@ -313,14 +286,20 @@ export default function ContactPage() {
 
                 {submitStatus !== "idle" && (
                   <Alert
-                    className={submitStatus === "success" ? "border-green-500 bg-green-50" : "border-red-500 bg-red-50"}
+                    className={
+                      submitStatus === "success"
+                        ? "border-green-500 bg-green-50"
+                        : "border-red-500 bg-red-50"
+                    }
                   >
                     {submitStatus === "success" ? (
                       <CheckCircle className="h-4 w-4 text-green-600" />
                     ) : (
                       <AlertCircle className="h-4 w-4 text-red-600" />
                     )}
-                    <AlertDescription className={submitStatus === "success" ? "text-green-800" : "text-red-800"}>
+                    <AlertDescription
+                      className={submitStatus === "success" ? "text-green-800" : "text-red-800"}
+                    >
                       {submitMessage}
                     </AlertDescription>
                   </Alert>
@@ -344,6 +323,8 @@ export default function ContactPage() {
           </Card>
         </div>
       </div>
+
+      <Footer />
     </div>
   )
 }
