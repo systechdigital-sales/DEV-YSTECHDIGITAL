@@ -350,21 +350,23 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg border-0 min-w-0">
+              <Card className="bg-gradient-to-br from-teal-500 to-teal-600 text-white shadow-lg border-0 min-w-0">
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
                     <div className="min-w-0 flex-1">
-                      <p className="text-green-100 text-sm font-medium">Total Revenue</p>
-                      <p className="text-2xl sm:text-3xl font-bold">{formatCurrency(stats.totalRevenue)}</p>
+                      <p className="text-teal-100 text-sm font-medium">Total Claimed</p>
+                      <p className="text-2xl sm:text-3xl font-bold text-white">{stats.claimedSales}</p>
+                      <p className="text-teal-200 text-xs sm:text-sm mt-1">
+                        {stats.availableSales} available 
+                      </p>
                     </div>
                     <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
-                      <DollarSign className="w-6 h-6 sm:w-8 sm:h-8" />
+                      <ShoppingCart className="w-6 h-6 sm:w-8 sm:h-8" />
                     </div>
                   </div>
                 </CardContent>
               </Card>
-
-              
+     
 
               <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg border-0 min-w-0">
                 <CardContent className="p-4 sm:p-6">
@@ -383,22 +385,20 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-teal-500 to-teal-600 text-white shadow-lg border-0 min-w-0">
+              <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg border-0 min-w-0">
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
                     <div className="min-w-0 flex-1">
-                      <p className="text-teal-100 text-sm font-medium">Total Sales</p>
-                      <p className="text-2xl sm:text-3xl font-bold text-white">{stats.totalSales}</p>
-                      <p className="text-teal-200 text-xs sm:text-sm mt-1">
-                        {stats.availableSales} available • {stats.claimedSales} claimed
-                      </p>
+                      <p className="text-green-100 text-sm font-medium">Total Revenue</p>
+                      <p className="text-2xl sm:text-3xl font-bold">{formatCurrency(stats.totalRevenue)}</p>
                     </div>
                     <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
-                      <ShoppingCart className="w-6 h-6 sm:w-8 sm:h-8" />
+                      <DollarSign className="w-6 h-6 sm:w-8 sm:h-8" />
                     </div>
                   </div>
                 </CardContent>
               </Card>
+              
             </div>
 
            
