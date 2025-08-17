@@ -14,7 +14,7 @@ interface EmailData {
   data: Record<string, any>
 }
 
-const DEFAULT_CC_RECIPIENTS = ["kshivshankar@live.com", "Sales.systechdigital@gmail.com"]
+const DEFAULT_CC_RECIPIENTS = ["Sales.systechdigital@gmail.com"]
 
 const emailTemplates = {
   // 1. Order Placed Email (After form submission)
