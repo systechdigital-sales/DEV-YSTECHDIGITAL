@@ -46,8 +46,16 @@ export default function Footer() {
             <p className="text-gray-400 text-sm mb-1">
               © 2025 Systech IT Solutions Limited. All rights reserved.
             </p>
-            <p className="text-gray-400 text-sm">
-              Developed By Bytewise Consulting LLP
+           <p className="text-gray-400 text-sm">
+              Developed By{" "}
+              <a
+                href="https://www.bytewiseconsulting.in/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-500 hover:underline"
+              >
+                Bytewise Consulting LLP
+              </a>
             </p>
           </div>
 

@@ -104,37 +104,50 @@ export default function AboutPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex flex-col">
       {/* About Section */}
-      <section className="py-20 px-6 md:px-12 lg:px-24 bg-white shadow-sm">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-6">About Us</h1>
-          <div className="text-lg text-gray-700 max-w-3xl mx-auto space-y-6 leading-relaxed">
-            <p>
-              At <span className="font-semibold">SYSTECH IT SOLUTIONS Limited</span>, we bring
-              technology closer to you. Headquartered in Bengaluru, Karnataka, and led by{" "}
-              <span className="font-medium">Mr. Abhishek Jain (Director)</span>, we are among
-              India’s premier IT distribution houses, trusted for IT hardware, security software,
-              networking, and automation solutions. With a partner network of 5,000+ retail and
-              corporate resellers across 90+ cities, we ensure the latest in digital security and IT
-              products reaches you—quickly and reliably.
-            </p>
-            <p>
-              Through <span className="font-semibold">Systech Digital</span>, we go a step further.
-              Our focus is on making technology simple, secure, and seamless for everyday users. From
-              innovative software to digital services, everything we create is designed with your
-              convenience and safety in mind.
-            </p>
-            <p>
-              We believe technology should work for you—not the other way around. That’s why our
-              solutions are built to protect your digital life, simplify daily tasks, and keep you
-              connected without friction. Whether you’re an individual, a family, or a business,
-              we’re here to help you embrace the digital world with confidence, ease, and peace of mind.
-            </p>
-            <p className="font-semibold text-gray-900 text-xl">
-              With SYSTECH IT SOLUTIONS Limited, technology becomes smarter, safer, and more human.
-            </p>
+        <section className="py-20 px-6 md:px-12 lg:px-24 bg-gradient-to-br from-blue-50 via-white to-indigo-50 shadow-inner">
+          <div className="container mx-auto max-w-6xl">
+            {/* Heading */}
+            <div className="text-center mb-12">
+              <h1 className="text-4xl font-bold text-gray-900 mb-6">About Us</h1>
+              <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+                Learn more about who we are, what we do, and why we’re passionate about
+                bringing technology closer to you.
+              </p>
+            </div>
+
+            {/* Content */}
+            <div className="bg-white shadow-xl rounded-2xl p-8 md:p-12 lg:p-16 space-y-6 text-lg leading-relaxed text-gray-700">
+              <p>
+                At <span className="font-semibold text-gray-900">Systech IT Solutions Limited</span>, we
+                bring technology closer to you. Headquartered in Bengaluru, Karnataka, and led by{" "}
+                <span className="font-medium">Mr. Abhishek Jain (Director)</span>, we are among India’s
+                premier IT distribution houses, trusted for IT hardware, security software, networking, and
+                automation solutions. With a partner network of 5,000+ retail and corporate resellers across
+                90+ cities, we ensure the latest in digital security and IT products reaches you—quickly and
+                reliably.
+              </p>
+
+              <p>
+                Through <span className="font-semibold text-gray-900">Systech Digital</span>, we go a step
+                further. Our focus is on making technology simple, secure, and seamless for everyday users.
+                From innovative software to digital services, everything we create is designed with your
+                convenience and safety in mind.
+              </p>
+
+              <p>
+                We believe technology should work for you—not the other way around. That’s why our solutions
+                are built to protect your digital life, simplify daily tasks, and keep you connected without
+                friction. Whether you’re an individual, a family, or a business, we’re here to help you
+                embrace the digital world with confidence, ease, and peace of mind.
+              </p>
+
+              <p className="font-semibold text-gray-900 text-xl">
+                With Systech IT Solutions Limited, technology becomes smarter, safer, and more human.
+              </p>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+
 
       {/* Contact Section */}
       <div className="container mx-auto px-4 py-20 flex-1">
