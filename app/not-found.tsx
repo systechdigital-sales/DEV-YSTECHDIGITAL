@@ -140,7 +140,6 @@ export default function NotFound() {
             <div>
               <h4 className="font-semibold mb-3 text-white">Contact Us</h4>
               <ul className="space-y-2 text-sm text-red-200">
-                <li>📞 +91 7709803412</li>
                 <li>📧 sales.systechdigital@gmail.com</li>
                 <li>🌐 www.systechdigital.co.in</li>
               </ul>

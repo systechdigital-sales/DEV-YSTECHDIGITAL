@@ -549,7 +549,7 @@ const emailTemplates = {
           
           <div class="footer">
               <p>Need assistance? Contact us:</p>
-              <p>📞 +91 7709803412 | ✉️ <a href="mailto:sales.systechdigital@gmail.com">sales.systechdigital@gmail.com</a></p>
+              <p>✉️ <a href="mailto:sales.systechdigital@gmail.com">sales.systechdigital@gmail.com</a></p>
               <p style="margin-top: 10px; font-size: 12px;">© ${new Date().getFullYear()} SYSTECH DIGITAL. All rights reserved.</p>
           </div>
       </div>
