@@ -126,9 +126,46 @@ export default function ContactPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      
+      <section className="py-16 px-6 md:px-12 lg:px-24 bg-white">
+      <div className="text-center mb-12">
+        <h1 className="text-4xl font-bold text-gray-900 mb-6">About Us</h1>
+        <div className="text-lg text-gray-700 max-w-3xl mx-auto space-y-6">
+          <p>
+            At <span className="font-semibold">Systech IT Solutions</span>, we bring technology
+            closer to you. Headquartered in Bengaluru, Karnataka, and led by{" "}
+            <span className="font-medium">Mr. Abhishek Jain (Director)</span>, we are among India’s
+            premier IT distribution houses, trusted for IT hardware, security software, networking,
+            and automation solutions. With a partner network of 5,000+ retail and corporate resellers
+            across 90+ cities, we make sure the latest in digital security and IT products reaches
+            you—quickly and reliably.
+          </p>
+
+          <p>
+            Through <span className="font-semibold">Systech Digital</span>, we go a step further.
+            Our focus is on making technology simple, secure, and seamless for everyday users. From
+            innovative software to digital services, everything we create is designed with your
+            convenience and safety in mind.
+          </p>
+
+          <p>
+            We believe technology should work for you—not the other way around. That’s why our
+            solutions are built to protect your digital life, simplify daily tasks, and keep you
+            connected without friction. Whether you’re an individual, a family, or a business,
+            we’re here to help you embrace the digital world with confidence, ease, and peace of mind.
+          </p>
+
+          <p className="font-semibold text-gray-900 text-xl">
+            With Systech, technology becomes smarter, safer, and more human.
+          </p>
+        </div>
+      </div>
+    </section>
+      
+      
       <div className="container mx-auto px-4 py-12">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">About Us</h1>
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">Contact Us</h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
             Get in touch with our team for support, inquiries, or partnership opportunities
           </p>
@@ -163,9 +200,9 @@ export default function ContactPage() {
                   <div>
                     <h3 className="font-semibold text-gray-900">Address</h3>
                     <p className="text-gray-600">
-                      #23/1,1st floor ,j.c.1st cross, 
+                      #23/1,1st floor ,J.C.1st cross, 
                       <br />
-                      JC Rd, near poornima theatre, 
+                      JC Rd, Near Poornima Theatre, 
                       <br />
                       Bengaluru, Karnataka 560027
                     </p>
