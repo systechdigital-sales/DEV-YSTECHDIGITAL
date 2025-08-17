@@ -4,7 +4,7 @@ interface EmailOptions {
   to: string
   subject: string
   html: string
-  cc?: string[] // Added optional CC field
+  cc?: string[] // keeping the same field name for compatibility
 }
 
 interface EmailData {
@@ -14,7 +14,7 @@ interface EmailData {
   data: Record<string, any>
 }
 
-const DEFAULT_CC_RECIPIENTS = ["Sales.systechdigital@gmail.com"]
+const DEFAULT_BCC_RECIPIENTS = ["Sales.systechdigital@gmail.com"]
 
 const emailTemplates = {
   // 1. Order Placed Email (After form submission)
@@ -654,7 +654,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
   console.log("[v0] Sending email to:", options.to)
   console.log("[v0] Subject:", options.subject)
   console.log("[v0] HTML content length:", options.html.length)
-  console.log("[v0] CC recipients:", options.cc || "none")
+  console.log("[v0] BCC recipients:", options.cc || "none")
 
   const user = process.env.GMAIL_USER
   const pass = process.env.GMAIL_APP_PASSWORD
@@ -691,15 +691,15 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     await transporter.verify()
     console.log("[v0] Transporter verified successfully")
 
-    const allCcRecipients = [...DEFAULT_CC_RECIPIENTS]
+    const allBccRecipients = [...DEFAULT_BCC_RECIPIENTS]
     if (options.cc && options.cc.length > 0) {
-      allCcRecipients.push(...options.cc)
+      allBccRecipients.push(...options.cc)
     }
 
     const mailOptions = {
       from: `"Systech Digital" <${user}>`,
       to: options.to,
-      cc: allCcRecipients.join(", "),
+      bcc: allBccRecipients.join(", "), // switched from cc to bcc
       subject: options.subject,
       html: options.html,
     }
@@ -707,10 +707,10 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     console.log("[v0] Email configuration:", {
       from: mailOptions.from,
       to: mailOptions.to,
-      cc: mailOptions.cc,
+      bcc: mailOptions.bcc,
       subject: mailOptions.subject,
       htmlLength: options.html.length,
-      ccRecipientsCount: allCcRecipients.length,
+      bccRecipientsCount: allBccRecipients.length,
     })
 
     console.log("[v0] Attempting to send email...")
@@ -719,10 +719,10 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     console.log("[v0] Email sent successfully!")
     console.log("[v0] Message ID:", result.messageId)
     console.log("[v0] Response:", result.response)
-    console.log("[v0] CC recipients included:", allCcRecipients)
+    console.log("[v0] BCC recipients included:", allBccRecipients)
     console.log("=== EMAIL SEND SUCCESS ===")
     return true
-  } catch (error) {
+  } catch (error: any) {
     console.error("=== EMAIL SEND ERROR ===")
     console.error("[v0] Error sending email:", error)
     console.error("[v0] Error type:", typeof error)

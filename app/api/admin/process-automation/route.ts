@@ -495,6 +495,7 @@ async function sendExpiredPaymentEmail(claim: any) {
             
             <p style="color: #4a5568; line-height: 1.6;">
               To claim your OTT code, please submit a new request and complete payment within 48 hours.
+              If you have received OTTplay coupon code then ignore this email .
             </p>
             
             <div style="background: #e6fffa; padding: 15px; border-radius: 6px; margin: 20px 0;">
