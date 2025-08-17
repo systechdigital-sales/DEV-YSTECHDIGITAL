@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Mail, MapPin, Send, CheckCircle, AlertCircle } from "lucide-react"
 import Footer from "@/components/footer"
+import Image from "next/image"
 
 interface ContactForm {
   name: string
@@ -103,6 +104,38 @@ export default function AboutPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex flex-col">
+      {/* Header */}
+            <header className="bg-gradient-to-r from-black via-red-900 to-black shadow-lg">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <Image src="/logo.png" alt="SYSTECH DIGITAL Logo" width={50} height={50} className="rounded-full mr-4" />
+                    <div>
+                      <h1 className="text-3xl font-bold text-white">Systech Digital</h1>
+                      <p className="text-sm text-red-200">Simplifying the Digital Experience</p>
+                    </div>
+                  </div>
+                  {/* <div className="flex items-center space-x-4">
+                    <Button
+                      onClick={handleCustomerDashboard}
+                      variant="ghost"
+                      className="text-white hover:bg-white/20 border border-white/30"
+                    >
+                      <User className="w-4 h-4 mr-2" />
+                      My Dashboard
+                    </Button>
+                    <Button
+                      onClick={() => router.push("/ott")}
+                      className="bg-white text-red-900 hover:bg-red-50 font-semibold"
+                    >
+                      Claim Now
+                    </Button>
+                  </div> */}
+                </div>
+              </div>
+            </header>
+      
+
       {/* About Section */}
         <section className="py-20 px-6 md:px-12 lg:px-24 bg-gradient-to-br from-blue-50 via-white to-indigo-50 shadow-inner">
           <div className="container mx-auto max-w-6xl">
