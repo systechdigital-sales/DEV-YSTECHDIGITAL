@@ -502,7 +502,6 @@ async function sendExpiredPaymentEmail(claim: any) {
               <h4 style="color: #234e52; margin: 0 0 10px 0;">📞 Need Help?</h4>
               <p style="margin: 0; color: #234e52;">
                 <strong>Email:</strong> sales.systechdigital@gmail.com<br />
-                <strong>Phone:</strong> +91 7709803412
               </p>
             </div>
           </div>
@@ -679,7 +678,6 @@ async function sendFailureEmail(claim: any, failureType: string, reason: string)
                 <h4 style="color: #234e52; margin: 0 0 10px 0;">📞 Contact Support</h4>
                 <p style="margin: 0; color: #234e52;">
                   <strong>Email:</strong> sales.systechdigital@gmail.com<br />
-                  <strong>Phone:</strong> +91 7709803412<br />
                   <strong>Claim ID:</strong> ${claim.claimId}
                 </p>
               </div>

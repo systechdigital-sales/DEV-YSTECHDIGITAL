@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
           <p style="color: #4b5563; font-size: 14px; margin-top: 30px;">
             If you have any questions or need assistance, please contact our support team at 
             <a href="mailto:sales.systechdigital@gmail.com" style="color: #dc2626;">sales.systechdigital@gmail.com</a>
-            or call us at +91 7709803412.
+            
           </p>
           
           <div style="text-align: center; margin-top: 30px;">

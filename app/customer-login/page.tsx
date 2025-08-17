@@ -386,7 +386,6 @@ export default function CustomerLogin() {
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center justify-center text-blue-800">
                       <Phone className="w-4 h-4 mr-2" />
-                      <span>+91 7709803412</span>
                     </div>
                     <div className="flex items-center justify-center text-blue-800">
                       <Mail className="w-4 h-4 mr-2" />

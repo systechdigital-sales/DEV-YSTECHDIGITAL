@@ -492,7 +492,6 @@ export default function CookiePolicy() {
               <p className="text-sm text-teal-700 mb-2">To exercise any of these rights, please contact us at:</p>
               <ul className="text-sm text-teal-700 space-y-1">
                 <li>• Email: sales.systechdigital@gmail.com</li>
-                <li>• Phone: +91 7709803412</li>
                 <li>• Include "Cookie Rights Request" in your subject line</li>
                 <li>• We will respond within 30 days of receiving your request</li>
               </ul>
@@ -633,7 +632,6 @@ export default function CookiePolicy() {
             <div>
               <h4 className="font-semibold mb-3 text-white">Contact Us</h4>
               <ul className="space-y-2 text-sm text-red-200">
-                <li>📞 +91 7709803412</li>
                 <li>📧 sales.systechdigital@gmail.com</li>
                 <li>🌐 www.systechdigital.co.in</li>
               </ul>
