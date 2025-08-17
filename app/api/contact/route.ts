@@ -56,7 +56,16 @@ export async function POST(req: Request) {
         <p><strong>Phone:</strong> ${escapeHtml(phone || "-")}</p>
         <p style="white-space: pre-wrap;"><strong>Message:</strong><br/>${escapeHtml(message)}</p>
         <hr style="margin: 16px 0; border: none; border-top: 1px solid #eee;" />
-        <p style="font-size:12px;color:#555;">Owned by SYSTECH IT SOLUTIONS Pvt. Ltd. • Developed by BYTEWISE CONSULTING LLP</p>
+        <p style="font-size:12px;color:#555;">
+          Owned by 
+          <a href="https://www.systechdigital.co.in/" target="_blank" rel="noopener noreferrer" style="color:#555; text-decoration:none; font-weight:bold;">
+            SYSTECH IT SOLUTIONS Pvt. Ltd.
+          </a> 
+          • Developed by 
+          <a href="https://www.bytewiseconsulting.in/" target="_blank" rel="noopener noreferrer" style="color:#555; text-decoration:none; font-weight:bold;">
+            BYTEWISE CONSULTING LLP
+          </a>
+        </p>
       </div>
     `
 

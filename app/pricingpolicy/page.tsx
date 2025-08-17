@@ -117,9 +117,26 @@ export default function PricingPolicyPage() {
 
             <Separator className="my-5" />
             <p className="text-xs text-neutral-600">
-              Owned by <strong>Systech IT Solutions Limited</strong> • Developed by{" "}
-              <strong>BYTEWISE CONSULTING LLP</strong>
+              Owned by{" "}
+              <a
+                href="https://www.systechdigital.co.in/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold hover:underline"
+              >
+                Systech IT Solutions Limited
+              </a>{" "}
+              • Developed by{" "}
+              <a
+                href="https://www.bytewiseconsulting.in/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold hover:underline"
+              >
+                BYTEWISE CONSULTING LLP
+              </a>
             </p>
+
           </CardContent>
         </Card>
       </main>
