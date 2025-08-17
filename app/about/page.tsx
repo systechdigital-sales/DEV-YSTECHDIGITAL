@@ -152,7 +152,7 @@ export default function ContactPage() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900">Email</h3>
-                    <p className="text-gray-600">support@systechdigital.com</p>
+                    <p className="text-gray-600">sales.systechdigital@gmail.com</p>
                   </div>
                 </div>
 
