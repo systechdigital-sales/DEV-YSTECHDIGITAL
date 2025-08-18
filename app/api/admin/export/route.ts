@@ -3,6 +3,18 @@ import * as XLSX from "xlsx"
 import { getDatabase } from "@/lib/mongodb"
 import type { IClaimResponse, ISalesRecord, IOTTKey } from "@/lib/models"
 
+const formatDateTimeIST = (dateString: string | Date) => {
+  if (!dateString) return { date: "", time: "" }
+
+  const date = new Date(dateString)
+  const istDate = new Date(date.getTime() + 5.5 * 60 * 60 * 1000) // Add 5.5 hours for IST
+
+  const dateStr = istDate.toISOString().split("T")[0] // YYYY-MM-DD
+  const timeStr = istDate.toISOString().split("T")[1].split(".")[0] // HH:MM:SS
+
+  return { date: dateStr, time: timeStr }
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const type = searchParams.get("type")
@@ -43,38 +55,49 @@ export async function GET(request: Request) {
           "Payment Status",
           "Payment ID",
           "Razorpay Order ID",
-          "OTT Code Status",
+          "OTT Status",
           "OTT Code",
           "Bill File Name",
-          "Created At",
+          "Created Date",
+          "Created Time",
+          "Updated Date",
+          "Updated Time",
         ]
-        formattedData = data.map((doc) => [
-          doc._id?.toString() || "",
-          doc.claimId || "",
-          doc.firstName || "",
-          doc.lastName || "",
-          doc.email || "",
-          doc.phone || doc.phoneNumber || "",
-          doc.streetAddress || doc.address || "",
-          doc.addressLine2 || "",
-          doc.city || "",
-          doc.state || "",
-          doc.postalCode || doc.pincode || "",
-          doc.country || "",
-          doc.purchaseType || "",
-          doc.activationCode || "",
-          doc.purchaseDate || "",
-          doc.createdAt instanceof Date ? doc.createdAt.toISOString() : doc.createdAt || "",
-          doc.invoiceNumber || "",
-          doc.sellerName || "",
-          doc.paymentStatus || "",
-          doc.paymentId || "",
-          doc.razorpayOrderId || "",
-          doc.ottCodeStatus || doc.ottStatus || "",
-          doc.ottCode || "",
-          doc.billFileName || "",
-          doc.createdAt instanceof Date ? doc.createdAt.toISOString() : doc.createdAt || "",
-        ])
+        formattedData = data.map((doc) => {
+          const createdDateTime = formatDateTimeIST(doc.createdAt)
+          const updatedDateTime = formatDateTimeIST(doc.updatedAt)
+
+          return [
+            doc._id?.toString() || "",
+            doc.claimId || "",
+            doc.firstName || "",
+            doc.lastName || "",
+            doc.email || "",
+            doc.phone || doc.phoneNumber || "",
+            doc.streetAddress || doc.address || "",
+            doc.addressLine2 || "",
+            doc.city || "",
+            doc.state || "",
+            doc.postalCode || doc.pincode || "",
+            doc.country || "",
+            doc.purchaseType || "",
+            doc.activationCode || "",
+            doc.purchaseDate || "",
+            doc.createdAt instanceof Date ? doc.createdAt.toISOString() : doc.createdAt || "",
+            doc.invoiceNumber || "",
+            doc.sellerName || "",
+            doc.paymentStatus || "",
+            doc.paymentId || "",
+            doc.razorpayOrderId || "",
+            doc.ottStatus || "",
+            doc.ottCode || "",
+            doc.billFileName || "",
+            createdDateTime.date,
+            createdDateTime.time,
+            updatedDateTime.date,
+            updatedDateTime.time,
+          ]
+        })
       }
     }
 
@@ -91,19 +114,28 @@ export async function GET(request: Request) {
           "Activation Code",
           "Status",
           "Claimed By",
-          "Created At",
-          "Updated At",
+          "Created Date",
+          "Created Time",
+          "Updated Date",
+          "Updated Time",
         ]
-        formattedData = data.map((doc) => [
-          doc._id?.toString() || "",
-          doc.productSubCategory || "",
-          doc.product || "",
-          doc.activationCode || "",
-          doc.status || "",
-          doc.claimedBy || "",
-          doc.createdAt instanceof Date ? doc.createdAt.toISOString() : doc.createdAt || "",
-          doc.updatedAt instanceof Date ? doc.updatedAt.toISOString() : doc.updatedAt || "",
-        ])
+        formattedData = data.map((doc) => {
+          const createdDateTime = formatDateTimeIST(doc.createdAt)
+          const updatedDateTime = formatDateTimeIST(doc.updatedAt)
+
+          return [
+            doc._id?.toString() || "",
+            doc.productSubCategory || "",
+            doc.product || "",
+            doc.activationCode || "",
+            doc.status || "",
+            doc.claimedBy || "",
+            createdDateTime.date,
+            createdDateTime.time,
+            updatedDateTime.date,
+            updatedDateTime.time,
+          ]
+        })
       }
     }
 
@@ -121,20 +153,32 @@ export async function GET(request: Request) {
           "Status",
           "Assigned Email",
           "Assigned Date",
-          "Created At",
-          "Updated At",
+          "Assigned Time",
+          "Created Date",
+          "Created Time",
+          "Updated Date",
+          "Updated Time",
         ]
-        formattedData = data.map((doc) => [
-          doc._id?.toString() || "",
-          doc.productSubCategory || "",
-          doc.product || "",
-          doc.activationCode || "",
-          doc.status || "",
-          doc.assignedEmail || "",
-          doc.assignedDate instanceof Date ? doc.assignedDate.toISOString() : doc.assignedDate || "",
-          doc.createdAt instanceof Date ? doc.createdAt.toISOString() : doc.createdAt || "",
-          doc.updatedAt instanceof Date ? doc.updatedAt.toISOString() : doc.updatedAt || "",
-        ])
+        formattedData = data.map((doc) => {
+          const assignedDateTime = formatDateTimeIST(doc.assignedDate)
+          const createdDateTime = formatDateTimeIST(doc.createdAt)
+          const updatedDateTime = formatDateTimeIST(doc.updatedAt)
+
+          return [
+            doc._id?.toString() || "",
+            doc.productSubCategory || "",
+            doc.product || "",
+            doc.activationCode || "",
+            doc.status || "",
+            doc.assignedEmail || "",
+            assignedDateTime.date,
+            assignedDateTime.time,
+            createdDateTime.date,
+            createdDateTime.time,
+            updatedDateTime.date,
+            updatedDateTime.time,
+          ]
+        })
       }
     }
 
@@ -164,38 +208,67 @@ export async function GET(request: Request) {
         "Payment Status",
         "OTT Status",
         "OTT Code",
-        "Created At",
+        "Created Date",
+        "Created Time",
+        "Updated Date",
+        "Updated Time",
       ]
-      const claimsFormatted = claimsData.map((doc) => [
-        doc._id?.toString() || "",
-        doc.claimId || "",
-        doc.firstName || "",
-        doc.lastName || "",
-        doc.email || "",
-        doc.phone || doc.phoneNumber || "",
-        doc.address || doc.streetAddress || "",
-        doc.city || "",
-        doc.state || "",
-        doc.pincode || doc.postalCode || "",
-        doc.activationCode || "",
-        doc.paymentStatus || "",
-        doc.ottCodeStatus || doc.ottStatus || "",
-        doc.ottCode || "",
-        doc.createdAt instanceof Date ? doc.createdAt.toISOString() : doc.createdAt || "",
-      ])
+      const claimsFormatted = claimsData.map((doc) => {
+        const createdDateTime = formatDateTimeIST(doc.createdAt)
+        const updatedDateTime = formatDateTimeIST(doc.updatedAt)
+
+        return [
+          doc._id?.toString() || "",
+          doc.claimId || "",
+          doc.firstName || "",
+          doc.lastName || "",
+          doc.email || "",
+          doc.phone || doc.phoneNumber || "",
+          doc.address || doc.streetAddress || "",
+          doc.city || "",
+          doc.state || "",
+          doc.pincode || doc.postalCode || "",
+          doc.activationCode || "",
+          doc.paymentStatus || "",
+          doc.ottStatus || "",
+          doc.ottCode || "",
+          createdDateTime.date,
+          createdDateTime.time,
+          updatedDateTime.date,
+          updatedDateTime.time,
+        ]
+      })
       const claimsSheet = XLSX.utils.aoa_to_sheet([claimsHeaders, ...claimsFormatted])
       XLSX.utils.book_append_sheet(workbook, claimsSheet, "Claims")
 
       // Sales sheet
-      const salesHeaders = ["ID", "Product Sub Category", "Product", "Activation Code", "Status", "Created At"]
-      const salesFormatted = salesData.map((doc) => [
-        doc._id?.toString() || "",
-        doc.productSubCategory || "",
-        doc.product || "",
-        doc.activationCode || "",
-        doc.status || "",
-        doc.createdAt instanceof Date ? doc.createdAt.toISOString() : doc.createdAt || "",
-      ])
+      const salesHeaders = [
+        "ID",
+        "Product Sub Category",
+        "Product",
+        "Activation Code",
+        "Status",
+        "Created Date",
+        "Created Time",
+        "Updated Date",
+        "Updated Time",
+      ]
+      const salesFormatted = salesData.map((doc) => {
+        const createdDateTime = formatDateTimeIST(doc.createdAt)
+        const updatedDateTime = formatDateTimeIST(doc.updatedAt)
+
+        return [
+          doc._id?.toString() || "",
+          doc.productSubCategory || "",
+          doc.product || "",
+          doc.activationCode || "",
+          doc.status || "",
+          createdDateTime.date,
+          createdDateTime.time,
+          updatedDateTime.date,
+          updatedDateTime.time,
+        ]
+      })
       const salesSheet = XLSX.utils.aoa_to_sheet([salesHeaders, ...salesFormatted])
       XLSX.utils.book_append_sheet(workbook, salesSheet, "Sales")
 
@@ -207,17 +280,28 @@ export async function GET(request: Request) {
         "Activation Code",
         "Status",
         "Assigned Email",
-        "Created At",
+        "Created Date",
+        "Created Time",
+        "Updated Date",
+        "Updated Time",
       ]
-      const keysFormatted = keysData.map((doc) => [
-        doc._id?.toString() || "",
-        doc.productSubCategory || "",
-        doc.product || "",
-        doc.activationCode || "",
-        doc.status || "",
-        doc.assignedEmail || "",
-        doc.createdAt instanceof Date ? doc.createdAt.toISOString() : doc.createdAt || "",
-      ])
+      const keysFormatted = keysData.map((doc) => {
+        const createdDateTime = formatDateTimeIST(doc.createdAt)
+        const updatedDateTime = formatDateTimeIST(doc.updatedAt)
+
+        return [
+          doc._id?.toString() || "",
+          doc.productSubCategory || "",
+          doc.product || "",
+          doc.activationCode || "",
+          doc.status || "",
+          doc.assignedEmail || "",
+          createdDateTime.date,
+          createdDateTime.time,
+          updatedDateTime.date,
+          updatedDateTime.time,
+        ]
+      })
       const keysSheet = XLSX.utils.aoa_to_sheet([keysHeaders, ...keysFormatted])
       XLSX.utils.book_append_sheet(workbook, keysSheet, "OTT Keys")
 
