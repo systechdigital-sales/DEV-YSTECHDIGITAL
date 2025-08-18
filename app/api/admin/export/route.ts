@@ -29,6 +29,15 @@ export async function GET(request: Request) {
     if (type === "claims" || !type) {
       // Export claims data
       const claimsData = await db.collection<IClaimResponse>("claims").find({}).toArray()
+      const salesData = await db.collection<ISalesRecord>("salesrecords").find({}).toArray()
+
+      // Create a map for quick lookup of product by activation code
+      const activationCodeToProduct = new Map()
+      salesData.forEach((sale) => {
+        if (sale.activationCode && sale.product) {
+          activationCodeToProduct.set(sale.activationCode, sale.product)
+        }
+      })
 
       if (type === "claims") {
         data = claimsData
@@ -48,6 +57,7 @@ export async function GET(request: Request) {
           "Country",
           "Purchase Type",
           "Activation Code",
+          "Product Name", // Added Product Name column
           "Purchase Date",
           "Claim Submission Date",
           "Invoice Number",
@@ -68,7 +78,8 @@ export async function GET(request: Request) {
           const createdDateTime = formatDateTimeIST(doc.createdAt)
           const updatedDateTime = formatDateTimeIST(doc.updatedAt)
 
-          const price = doc.paymentStatus === "paid" ? 99 : ""
+          const price = doc.paymentStatus === "success" ? 99 : ""
+          const productName = activationCodeToProduct.get(doc.activationCode) || ""
 
           return [
             doc._id?.toString() || "",
@@ -85,6 +96,7 @@ export async function GET(request: Request) {
             doc.country || "",
             doc.purchaseType || "",
             doc.activationCode || "",
+            productName, // Added product name from sales lookup
             doc.purchaseDate || "",
             doc.createdAt instanceof Date ? doc.createdAt.toISOString() : doc.createdAt || "",
             doc.invoiceNumber || "",
@@ -194,6 +206,13 @@ export async function GET(request: Request) {
         db.collection<IOTTKey>("ottkeys").find({}).toArray(),
       ])
 
+      const activationCodeToProduct = new Map()
+      salesData.forEach((sale) => {
+        if (sale.activationCode && sale.product) {
+          activationCodeToProduct.set(sale.activationCode, sale.product)
+        }
+      })
+
       const workbook = XLSX.utils.book_new()
 
       // Claims sheet
@@ -209,6 +228,7 @@ export async function GET(request: Request) {
         "State",
         "Pincode",
         "Activation Code",
+        "Product Name", // Added Product Name column
         "Payment Status",
         "Price",
         "OTT Status",
@@ -222,7 +242,8 @@ export async function GET(request: Request) {
         const createdDateTime = formatDateTimeIST(doc.createdAt)
         const updatedDateTime = formatDateTimeIST(doc.updatedAt)
 
-        const price = doc.paymentStatus === "paid" ? 99 : ""
+        const price = doc.paymentStatus === "success" ? 99 : ""
+        const productName = activationCodeToProduct.get(doc.activationCode) || ""
 
         return [
           doc._id?.toString() || "",
@@ -236,6 +257,7 @@ export async function GET(request: Request) {
           doc.state || "",
           doc.pincode || doc.postalCode || "",
           doc.activationCode || "",
+          productName, // Added product name from sales lookup
           doc.paymentStatus || "",
           price,
           doc.ottStatus || "",
