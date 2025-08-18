@@ -68,6 +68,8 @@ export async function GET(request: Request) {
           const createdDateTime = formatDateTimeIST(doc.createdAt)
           const updatedDateTime = formatDateTimeIST(doc.updatedAt)
 
+          const price = doc.paymentStatus === "success" ? 99 : ""
+
           return [
             doc._id?.toString() || "",
             doc.claimId || "",
@@ -90,7 +92,7 @@ export async function GET(request: Request) {
             doc.paymentStatus || "",
             doc.paymentId || "",
             doc.razorpayOrderId || "",
-            99,
+            price,
             doc.ottStatus || "",
             doc.ottCode || "",
             doc.billFileName || "",
@@ -220,6 +222,8 @@ export async function GET(request: Request) {
         const createdDateTime = formatDateTimeIST(doc.createdAt)
         const updatedDateTime = formatDateTimeIST(doc.updatedAt)
 
+        const price = doc.paymentStatus === "success" ? 99 : ""
+
         return [
           doc._id?.toString() || "",
           doc.claimId || "",
@@ -233,7 +237,7 @@ export async function GET(request: Request) {
           doc.pincode || doc.postalCode || "",
           doc.activationCode || "",
           doc.paymentStatus || "",
-          99,
+          price,
           doc.ottStatus || "",
           doc.ottCode || "",
           createdDateTime.date,
