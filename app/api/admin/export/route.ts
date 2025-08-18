@@ -68,7 +68,7 @@ export async function GET(request: Request) {
           const createdDateTime = formatDateTimeIST(doc.createdAt)
           const updatedDateTime = formatDateTimeIST(doc.updatedAt)
 
-          const price = doc.paymentStatus === "success" ? 99 : ""
+          const price = doc.paymentStatus === "paid" ? 99 : ""
 
           return [
             doc._id?.toString() || "",
@@ -222,7 +222,7 @@ export async function GET(request: Request) {
         const createdDateTime = formatDateTimeIST(doc.createdAt)
         const updatedDateTime = formatDateTimeIST(doc.updatedAt)
 
-        const price = doc.paymentStatus === "success" ? 99 : ""
+        const price = doc.paymentStatus === "paid" ? 99 : ""
 
         return [
           doc._id?.toString() || "",
