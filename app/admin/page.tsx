@@ -1319,9 +1319,11 @@ export default function AdminPage() {
     })
   }
 
+  
   const PaginationControls = () => {
     const currentPage = pagination[activeTab as keyof typeof pagination].page
     const totalPages = pagination[activeTab as keyof typeof pagination].totalPages
+    const total = pagination[activeTab as keyof typeof pagination].total
 
     const handlePreviousPage = () => {
       if (currentPage > 1) {
@@ -1335,24 +1337,20 @@ export default function AdminPage() {
       }
     }
 
-    if (totalPages <= 1) {
-      return null // Hide pagination if there's only one page
-    }
-
     return (
       <div className="flex items-center justify-between px-4 py-3 sm:px-6 bg-white border-t border-gray-200 rounded-b-lg">
         <div className="flex-1 flex justify-between sm:hidden">
           <Button
             onClick={handlePreviousPage}
-            disabled={currentPage === 1}
-            className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+            disabled={currentPage === 1 || totalPages <= 1}
+            className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
           >
             Previous
           </Button>
           <Button
             onClick={handleNextPage}
-            disabled={currentPage === totalPages}
-            className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+            disabled={currentPage === totalPages || totalPages <= 1}
+            className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
           >
             Next
           </Button>
@@ -1360,37 +1358,31 @@ export default function AdminPage() {
         <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
           <div>
             <p className="text-sm text-gray-700">
-              Showing
-              <span className="font-medium">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span>
-              to
-              <span className="font-medium">
-                {Math.min(currentPage * ITEMS_PER_PAGE, pagination[activeTab as keyof typeof pagination].total)}
-              </span>
-              of
-              <span className="font-medium">{pagination[activeTab as keyof typeof pagination].total}</span>
-              results
+              Showing <span className="font-medium">{Math.max(1, (currentPage - 1) * ITEMS_PER_PAGE + 1)}</span> to{" "}
+              <span className="font-medium">{Math.min(currentPage * ITEMS_PER_PAGE, total)}</span> of{" "}
+              <span className="font-medium">{total}</span> results
             </p>
           </div>
           <div>
             <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
               <Button
                 onClick={handlePreviousPage}
-                disabled={currentPage === 1}
-                className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                disabled={currentPage === 1 || totalPages <= 1}
+                className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
               >
                 <span className="sr-only">Previous</span>
                 <ChevronLeft className="h-5 w-5" aria-hidden="true" />
               </Button>
               <Button
-                className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700"
                 disabled
               >
-                Page {currentPage} of {totalPages}
+                Page {currentPage} of {Math.max(1, totalPages)}
               </Button>
               <Button
                 onClick={handleNextPage}
-                disabled={currentPage === totalPages}
-                className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                disabled={currentPage === totalPages || totalPages <= 1}
+                className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
               >
                 <span className="sr-only">Next</span>
                 <ChevronRight className="h-5 w-5" aria-hidden="true" />
@@ -1401,7 +1393,6 @@ export default function AdminPage() {
       </div>
     )
   }
-
   return (
     <SidebarProvider>
       <div className="h-screen w-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex overflow-hidden">
@@ -1447,12 +1438,7 @@ export default function AdminPage() {
 
           <div className="flex-1 overflow-auto">
             <div className="p-4 sm:p-6 max-w-7xl mx-auto">
-              <AdminExportPanel
-                onExport={exportData}
-                onExportAll={exportAllData}
-                exporting={exporting}
-                exportingTable={exportingTable}
-              />
+
 
               {/* Statistics Cards */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
@@ -1632,6 +1618,13 @@ export default function AdminPage() {
                   )}
                 </CardContent>
               </Card>
+
+              <AdminExportPanel
+                onExport={exportData}
+                onExportAll={exportAllData}
+                exporting={exporting}
+                exportingTable={exportingTable}
+              />
 
               {/* Data Tables */}
               <Tabs value={activeTab} onValueChange={handleTabChange}>
