@@ -12,7 +12,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
   Upload,
-  DownloadIcon,
   AlertCircle,
   CheckCircle,
   Users,
@@ -37,7 +36,7 @@ import { DashboardSidebar } from "@/components/dashboard-sidebar"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import Image from "next/image"
 import { toast } from "@/hooks/use-toast"
-import { ChevronLeft, ChevronRight, ChevronsRight } from "lucide-react"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -469,10 +468,15 @@ export default function AdminPage() {
   }
 
   const [exporting, setExporting] = useState(false)
+  const [exportingTable, setExportingTable] = useState<string | null>(null)
 
-  const exportData = async () => {
+  const exportData = async (tableType?: string) => {
     try {
+      const exportType = tableType || activeTab
       setExporting(true)
+      if (tableType) {
+        setExportingTable(tableType)
+      }
       setMessage("")
       setError("")
 
@@ -480,7 +484,7 @@ export default function AdminPage() {
       let filename = ""
       let headers: string[] = []
 
-      if (activeTab === "claims") {
+      if (exportType === "claims") {
         endpoint = "/api/admin/claims"
         filename = "claims_export"
         headers = [
@@ -504,7 +508,7 @@ export default function AdminPage() {
           "Created At",
           "Updated At",
         ]
-      } else if (activeTab === "sales") {
+      } else if (exportType === "sales") {
         endpoint = "/api/admin/sales"
         filename = "sales_records_export"
         headers = [
@@ -518,7 +522,7 @@ export default function AdminPage() {
           "Created At",
           "Updated At",
         ]
-      } else if (activeTab === "keys") {
+      } else if (exportType === "keys") {
         endpoint = "/api/admin/keys"
         filename = "ott_keys_export"
         headers = [
@@ -534,7 +538,7 @@ export default function AdminPage() {
           "Created At",
           "Updated At",
         ]
-      } else if (activeTab === "transactions") {
+      } else if (exportType === "transactions") {
         endpoint = "/api/admin/razorpay-transactions"
         filename = "razorpay_transactions_export"
         headers = [
@@ -564,9 +568,9 @@ export default function AdminPage() {
         paymentStatus: filters.paymentStatus,
         ottStatus: filters.ottStatus,
         status:
-          activeTab === "sales"
+          exportType === "sales"
             ? filters.salesStatus
-            : activeTab === "keys"
+            : exportType === "keys"
               ? filters.keysStatus
               : filters.transactionsStatus,
         startDate: dateFilter.startDate,
@@ -589,7 +593,7 @@ export default function AdminPage() {
 
       let csvData: string[][] = []
 
-      if (activeTab === "claims") {
+      if (exportType === "claims") {
         csvData = exportData.map((item: any) => [
           item.claimId || "",
           item.firstName || "",
@@ -611,7 +615,7 @@ export default function AdminPage() {
           item.createdAt ? new Date(item.createdAt).toLocaleString("en-IN") : "",
           item.updatedAt ? new Date(item.updatedAt).toLocaleString("en-IN") : "",
         ])
-      } else if (activeTab === "sales") {
+      } else if (exportType === "sales") {
         csvData = exportData.map((item: any) => [
           item.id || item._id || "",
           item.activationCode || "",
@@ -623,7 +627,7 @@ export default function AdminPage() {
           item.createdAt ? new Date(item.createdAt).toLocaleString("en-IN") : "",
           item.updatedAt ? new Date(item.updatedAt).toLocaleString("en-IN") : "",
         ])
-      } else if (activeTab === "keys") {
+      } else if (exportType === "keys") {
         csvData = exportData.map((item: any) => [
           item.id || item._id || "",
           item.activationCode || "",
@@ -637,7 +641,7 @@ export default function AdminPage() {
           item.createdAt ? new Date(item.createdAt).toLocaleString("en-IN") : "",
           item.updatedAt ? new Date(item.updatedAt).toLocaleString("en-IN") : "",
         ])
-      } else if (activeTab === "transactions") {
+      } else if (exportType === "transactions") {
         csvData = exportData.map((item: any) => [
           item.id || "",
           item.order_id || "",
@@ -671,349 +675,249 @@ export default function AdminPage() {
       link.click()
       document.body.removeChild(link)
 
-      setMessage(`Successfully exported ${exportData.length} ${activeTab} records`)
+      setMessage(`Successfully exported ${exportData.length} ${exportType} records`)
     } catch (err: any) {
       console.error("Export error:", err)
       setError(err.message || "Failed to export data")
     } finally {
       setExporting(false)
+      setExportingTable(null)
     }
   }
 
-  // Delete handlers
-  const handleDeleteClick = (type: string, id: string, name: string) => {
-    setRecordToDelete({ type, id, name })
-    setDeletePassword("")
-    setDeleteDialogOpen(true)
-  }
-
-  const handleDeleteConfirm = async () => {
-    if (!recordToDelete || deletePassword !== "Tr!ckyH@ck3r#2025") {
-      setError("Invalid password. Please enter the correct admin password.")
-      toast({
-        title: "Invalid Password",
-        description: "Please enter the correct admin password to proceed.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setDeleting(true)
-    setError("")
-
+  const exportAllData = async () => {
     try {
-      const url = `/api/admin/delete?type=${recordToDelete.type}&id=${encodeURIComponent(recordToDelete.id)}&password=${encodeURIComponent(deletePassword)}`
+      setExporting(true)
+      setMessage("")
+      setError("")
 
-      const response = await fetch(url, {
-        method: "DELETE",
-      })
+      const tables = ["claims", "sales", "keys", "transactions"]
+      const allData: any[] = []
+      let totalRecords = 0
 
-      const result = await response.json()
+      for (const table of tables) {
+        let endpoint = ""
+        let headers: string[] = []
 
-      if (response.ok) {
-        setMessage(result.message || "Record deleted successfully")
-        toast({
-          title: "Deletion Successful",
-          description: result.message || "Record deleted successfully.",
+        if (table === "claims") {
+          endpoint = "/api/admin/claims"
+          headers = [
+            "Table",
+            "Claim ID",
+            "First Name",
+            "Last Name",
+            "Email",
+            "Phone Number",
+            "Street Address",
+            "Address Line 2",
+            "State",
+            "City",
+            "Pincode",
+            "Activation Code",
+            "Payment Status",
+            "OTT Status",
+            "OTT Code",
+            "Payment ID",
+            "Razorpay Order ID",
+            "Amount",
+            "Created At",
+            "Updated At",
+          ]
+        } else if (table === "sales") {
+          endpoint = "/api/admin/sales"
+          headers = [
+            "Table",
+            "ID",
+            "Activation Code",
+            "Product",
+            "Product Sub Category",
+            "Status",
+            "Claimed By",
+            "Claimed Date",
+            "Created At",
+            "Updated At",
+          ]
+        } else if (table === "keys") {
+          endpoint = "/api/admin/keys"
+          headers = [
+            "Table",
+            "ID",
+            "Activation Code",
+            "Product",
+            "Product Sub Category",
+            "Status",
+            "Assigned Email",
+            "Assigned Date",
+            "Expiry Date",
+            "Duration",
+            "Created At",
+            "Updated At",
+          ]
+        } else if (table === "transactions") {
+          endpoint = "/api/admin/razorpay-transactions"
+          headers = [
+            "Table",
+            "Payment ID",
+            "Order ID",
+            "Amount",
+            "Currency",
+            "Status",
+            "Method",
+            "Email",
+            "Contact",
+            "Description",
+            "Created At",
+            "Captured At",
+            "Fee",
+            "Tax",
+            "Error Code",
+            "Error Description",
+          ]
+        }
+
+        const params = new URLSearchParams({
+          limit: "10000",
+          search: "",
+          sortBy: "createdAt",
+          order: "desc",
         })
-        setDeleteDialogOpen(false)
-        setRecordToDelete(null)
-        setDeletePassword("")
-        // Refresh data
-        loadStats()
-        loadCurrentTabData()
-      } else {
-        setError(result.error || "Delete failed")
-        toast({
-          title: "Deletion Failed",
-          description: result.error || "Failed to delete record.",
-          variant: "destructive",
-        })
+
+        const response = await fetch(`${endpoint}?${params}`)
+        const data = await response.json()
+
+        if (response.ok && data.data) {
+          const tableData = data.data.map((item: any) => {
+            if (table === "claims") {
+              return [
+                "Claims",
+                item.claimId || "",
+                item.firstName || "",
+                item.lastName || "",
+                item.email || "",
+                item.phoneNumber || "",
+                item.streetAddress || "",
+                item.addressLine2 || "",
+                item.state || "",
+                item.city || "",
+                item.pincode || "",
+                item.activationCode || "",
+                item.paymentStatus || "",
+                item.ottStatus || "",
+                item.ottCode || "",
+                item.paymentId || "",
+                item.razorpayOrderId || "",
+                item.amount?.toString() || "",
+                item.createdAt ? new Date(item.createdAt).toLocaleString("en-IN") : "",
+                item.updatedAt ? new Date(item.updatedAt).toLocaleString("en-IN") : "",
+              ]
+            } else if (table === "sales") {
+              return [
+                "Sales Records",
+                item.id || item._id || "",
+                item.activationCode || "",
+                item.product || "",
+                item.productSubCategory || "",
+                item.status || "",
+                item.claimedBy || "",
+                item.claimedDate ? new Date(item.claimedDate).toLocaleString("en-IN") : "",
+                item.createdAt ? new Date(item.createdAt).toLocaleString("en-IN") : "",
+                item.updatedAt ? new Date(item.updatedAt).toLocaleString("en-IN") : "",
+              ]
+            } else if (table === "keys") {
+              return [
+                "OTT Keys",
+                item.id || item._id || "",
+                item.activationCode || "",
+                item.product || "",
+                item.productSubCategory || "",
+                item.status || "",
+                item.assignedEmail || "",
+                item.assignedDate ? new Date(item.assignedDate).toLocaleString("en-IN") : "",
+                item.expiryDate ? new Date(item.expiryDate).toLocaleString("en-IN") : "",
+                item.duration || "",
+                item.createdAt ? new Date(item.createdAt).toLocaleString("en-IN") : "",
+                item.updatedAt ? new Date(item.updatedAt).toLocaleString("en-IN") : "",
+              ]
+            } else if (table === "transactions") {
+              return [
+                "Transactions",
+                item.id || "",
+                item.order_id || "",
+                (item.amount / 100).toString() || "",
+                item.currency || "",
+                item.status || "",
+                item.method || "",
+                item.email || "",
+                item.contact || "",
+                item.description || "",
+                item.created_at ? new Date(item.created_at * 1000).toLocaleString("en-IN") : "",
+                item.captured_at ? new Date(item.captured_at * 1000).toLocaleString("en-IN") : "",
+                item.fee ? (item.fee / 100).toString() : "",
+                item.tax ? (item.tax / 100).toString() : "",
+                item.error_code || "",
+                item.error_description || "",
+              ]
+            }
+            return []
+          })
+
+          if (allData.length === 0) {
+            // Add headers for the first table
+            allData.push([
+              "Table",
+              "ID/Claim ID",
+              "Code/Name",
+              "Product/Last Name",
+              "Category/Email",
+              "Status/Phone",
+              "Email/Address",
+              "Date/Address2",
+              "Expiry/State",
+              "Duration/City",
+              "Created/Pincode",
+              "Updated/Activation",
+              "Payment Status",
+              "OTT Status",
+              "OTT Code",
+              "Payment ID",
+              "Order ID",
+              "Amount",
+              "Created At",
+              "Updated At",
+            ])
+          }
+
+          allData.push(...tableData)
+          totalRecords += tableData.length
+        }
       }
-    } catch (error) {
-      console.error("Delete error:", error)
-      setError("Delete operation failed")
-      toast({
-        title: "Deletion Error",
-        description: "An unexpected error occurred during deletion.",
-        variant: "destructive",
-      })
+
+      if (allData.length <= 1) {
+        setMessage("No data available to export")
+        return
+      }
+
+      // Create CSV content
+      const csvContent = allData.map((row) => row.map((cell) => `"${cell}"`).join(",")).join("\n")
+
+      // Download CSV file
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+      const link = document.createElement("a")
+      const url = URL.createObjectURL(blob)
+      link.setAttribute("href", url)
+      link.setAttribute("download", `all_tables_export_${new Date().toISOString().split("T")[0]}.csv`)
+      link.style.visibility = "hidden"
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+
+      setMessage(`Successfully exported ${totalRecords} records from all tables`)
+    } catch (err: any) {
+      console.error("Export all error:", err)
+      setError(err.message || "Failed to export all data")
     } finally {
-      setDeleting(false)
+      setExporting(false)
     }
-  }
-
-  // Manual assignment handlers
-  const handleManualAssignClick = async (claim: ClaimResponse) => {
-    setSelectedClaimForManualAssign(claim)
-    setSelectedKeyForManualAssign("")
-    setManualAssignPassword("")
-
-    // Load available keys
-    try {
-      const response = await fetch("/api/admin/keys?status=available&limit=100")
-      if (response.ok) {
-        const result = await response.json()
-        setAvailableKeys(result.data || [])
-      }
-    } catch (error) {
-      console.error("Failed to load available keys:", error)
-      setAvailableKeys([])
-    }
-
-    setManualAssignDialogOpen(true)
-  }
-
-  const handleManualAssignConfirm = async () => {
-    if (!selectedClaimForManualAssign || !selectedKeyForManualAssign || manualAssignPassword !== "Tr!ckyH@ck3r#2025") {
-      setError("Invalid input or password. Please select a key and enter the correct admin password.")
-      toast({
-        title: "Assignment Failed",
-        description: "Invalid input or password. Please select a key and enter the correct admin password.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setAssigning(true)
-    setError("")
-    setMessage("")
-
-    try {
-      const response = await fetch("/api/admin/manual-assign-key", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          claimId: selectedClaimForManualAssign._id || selectedClaimForManualAssign.id,
-          ottKeyId: selectedKeyForManualAssign,
-          adminPassword: manualAssignPassword,
-        }),
-      })
-
-      const result = await response.json()
-
-      if (response.ok) {
-        setMessage(result.message || "OTT Key manually assigned successfully!")
-        toast({
-          title: "Assignment Successful",
-          description: result.message || "OTT Key manually assigned successfully!",
-        })
-        setManualAssignDialogOpen(false)
-        setSelectedClaimForManualAssign(null)
-        setSelectedKeyForManualAssign("")
-        setManualAssignPassword("")
-        // Refresh data
-        loadStats()
-        loadCurrentTabData()
-      } else {
-        setError(result.error || "Manual assignment failed.")
-        toast({
-          title: "Assignment Failed",
-          description: result.error || "Manual assignment failed.",
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
-      console.error("Manual assignment error:", error)
-      setError("An unexpected error occurred during manual assignment.")
-      toast({
-        title: "Assignment Error",
-        description: "An unexpected error occurred during manual assignment.",
-        variant: "destructive",
-      })
-    } finally {
-      setAssigning(false)
-    }
-  }
-
-  const syncTransactions = async () => {
-    setSyncingTransactions(true)
-    setError("")
-    setMessage("")
-
-    try {
-      const response = await fetch("/api/admin/razorpay-transactions?action=sync", {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        setMessage(
-          `Successfully synced ${data.syncedCount} new transactions and updated ${data.updatedCount} existing transactions`,
-        )
-        loadCurrentTabData()
-        loadStats()
-      } else {
-        throw new Error(data.error || "Failed to sync transactions")
-      }
-    } catch (error) {
-      console.error("Error syncing transactions:", error)
-      setError(error instanceof Error ? error.message : "Failed to sync transactions")
-    } finally {
-      setSyncingTransactions(false)
-    }
-  }
-
-  const formatAmount = (amount: number) => {
-    return `₹${(amount / 100).toFixed(2)}`
-  }
-
-  const formatDateTimeIST = (dateString: string | undefined) => {
-    if (!dateString) return "-"
-
-    try {
-      const date = new Date(dateString)
-      // Convert to IST (UTC + 5:30)
-      const istDate = new Date(date.getTime() + 5.5 * 60 * 60 * 1000)
-
-      const dateStr = istDate.toISOString().split("T")[0] // YYYY-MM-DD
-      const timeStr = istDate.toISOString().split("T")[1].split(".")[0] // HH:MM:SS
-
-      return `${dateStr} ${timeStr}`
-    } catch (error) {
-      return "-"
-    }
-  }
-
-  // Utility functions
-  const getStatusBadge = (status: string) => {
-    if (!status) return <Badge variant="outline">UNKNOWN</Badge>
-
-    switch (status.toLowerCase()) {
-      case "paid":
-      case "delivered":
-      case "available":
-      case "claimed":
-      case "completed":
-        return <Badge className="bg-green-100 text-green-800 border-green-300">{status.toUpperCase()}</Badge>
-      case "pending":
-      case "assigned":
-      case "sold":
-      case "processing":
-        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300">{status.toUpperCase()}</Badge>
-      case "failed":
-      case "used":
-      case "expired":
-      case "already_claimed":
-      case "activation_code_not_found":
-        return <Badge className="bg-red-100 text-red-800 border-red-300">{status.toUpperCase()}</Badge>
-      default:
-        return <Badge variant="outline">{status.toUpperCase()}</Badge>
-    }
-  }
-
-  const formatDateTime = (dateString: string) => {
-    if (!dateString) return "N/A"
-    try {
-      const date = new Date(dateString)
-      return date.toLocaleString("en-IN", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-      })
-    } catch (error) {
-      return "Invalid Date"
-    }
-  }
-
-  // Sortable table header component
-  const SortableHeader = ({ children, sortKey }: { children: React.ReactNode; sortKey: string }) => (
-    <TableHead
-      className="font-bold text-gray-800 cursor-pointer hover:bg-gray-100 select-none"
-      onClick={() => handleSort(sortKey)}
-    >
-      <div className="flex items-center">
-        {children}
-        {getSortIcon(sortKey)}
-      </div>
-    </TableHead>
-  )
-
-  // Pagination component
-  const PaginationControls = () => {
-    const currentPagination = pagination[activeTab as keyof typeof pagination]
-    const { page, totalPages, total } = currentPagination
-
-    if (totalPages <= 1) return null
-
-    const startItem = (page - 1) * ITEMS_PER_PAGE + 1
-    const endItem = Math.min(page * ITEMS_PER_PAGE, total)
-
-    return (
-      <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
-        <div className="text-sm text-gray-700">
-          Showing {startItem} to {endItem} of {total} entries
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handlePageChange(page - 1)}
-            disabled={page === 1}
-            className="flex items-center"
-          >
-            <ChevronLeft className="w-4 h-4 mr-1" />
-            Previous
-          </Button>
-
-          <div className="flex items-center space-x-1">
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-              let pageNum
-              if (totalPages <= 5) {
-                pageNum = i + 1
-              } else if (page <= 3) {
-                pageNum = i + 1
-              } else if (page >= totalPages - 2) {
-                pageNum = totalPages - 4 + i
-              } else {
-                pageNum = page - 2 + i
-              }
-
-              return (
-                <Button
-                  key={pageNum}
-                  variant={page === pageNum ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => handlePageChange(pageNum)}
-                  className="w-8 h-8 p-0"
-                >
-                  {pageNum}
-                </Button>
-              )
-            })}
-          </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handlePageChange(page + 1)}
-            disabled={page === totalPages}
-            className="flex items-center"
-          >
-            Next
-            <ChevronRight className="w-4 h-4 ml-1" />
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handlePageChange(totalPages)}
-            disabled={page === totalPages}
-            className="flex items-center ml-2"
-          >
-            Last Record
-            <ChevronsRight className="w-4 h-4 ml-1" />
-          </Button>
-        </div>
-      </div>
-    )
   }
 
   const [currentPage, setCurrentPage] = useState(1)
@@ -1210,20 +1114,291 @@ export default function AdminPage() {
     }
   }
 
-  if (loading) {
+  const SortableHeader = ({ sortKey, children }: { sortKey: string; children: React.ReactNode }) => {
+    const handleSortClick = () => {
+      handleSort(sortKey)
+    }
+
     return (
-      <SidebarProvider>
-        <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex w-full">
-          <DashboardSidebar />
-          <SidebarInset className="flex-1 flex items-center justify-center w-full min-w-0">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-600 mx-auto mb-4"></div>
-              <p className="text-purple-600 text-lg font-medium">Loading dashboard...</p>
-              <p className="text-gray-500 text-sm mt-2">Connecting to systech_ott_platform database</p>
-            </div>
-          </SidebarInset>
+      <TableHead className="font-bold text-gray-800 cursor-pointer select-none" onClick={handleSortClick}>
+        <div className="flex items-center">
+          {children}
+          {getSortIcon(sortKey)}
         </div>
-      </SidebarProvider>
+      </TableHead>
+    )
+  }
+
+  const getStatusBadge = (status: string) => {
+    let color = "gray"
+    if (status === "paid" || status === "captured" || status === "available") color = "green"
+    if (status === "pending" || status === "authorized") color = "yellow"
+    if (status === "failed" || status === "refunded") color = "red"
+
+    return (
+      <Badge className={`bg-${color}-100 text-${color}-800 border border-${color}-400`}>{status.toUpperCase()}</Badge>
+    )
+  }
+
+  const formatDateTime = (dateString: string | undefined) => {
+    if (!dateString) return "-"
+    try {
+      const date = new Date(dateString)
+      return date.toLocaleDateString("en-IN", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    } catch (error) {
+      console.error("Error formatting date:", error)
+      return "-"
+    }
+  }
+
+  const handleDeleteClick = (type: string, id: string, name: string) => {
+    setRecordToDelete({ type, id, name })
+    setDeleteDialogOpen(true)
+  }
+
+  const handleManualAssignClick = (claim: ClaimResponse) => {
+    setSelectedClaimForManualAssign(claim)
+    setManualAssignDialogOpen(true)
+    loadAvailableKeys()
+  }
+
+  const loadAvailableKeys = async () => {
+    try {
+      const response = await fetch("/api/admin/keys?limit=1000&status=available")
+      const data = await response.json()
+      if (response.ok) {
+        setAvailableKeys(data.data)
+      } else {
+        console.error("Failed to load available keys:", data.error)
+        toast({
+          title: "Error Loading Keys",
+          description: data.error || "Failed to load available keys.",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Error loading available keys:", error)
+      toast({
+        title: "Error Loading Keys",
+        description: "Failed to load available keys due to a network error.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleManualAssignSubmit = async () => {
+    if (!selectedClaimForManualAssign || !selectedKeyForManualAssign || !manualAssignPassword) {
+      setError("Please select a claim, a key, and enter the admin password.")
+      toast({
+        title: "Missing Information",
+        description: "Please select a claim, a key, and enter the admin password.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setAssigning(true)
+    setError("")
+    setMessage("")
+
+    try {
+      const response = await fetch("/api/admin/manual-assign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          claimId: selectedClaimForManualAssign._id || selectedClaimForManualAssign.id,
+          ottKeyId: selectedKeyForManualAssign,
+          adminPassword: manualAssignPassword,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (response.ok) {
+        setMessage(result.message || "Key assigned successfully!")
+        toast({
+          title: "Key Assigned",
+          description: result.message || "Key assigned successfully!",
+        })
+        setManualAssignDialogOpen(false)
+        setSelectedClaimForManualAssign(null)
+        setSelectedKeyForManualAssign("")
+        setManualAssignPassword("")
+        // Refresh data
+        loadStats()
+        loadCurrentTabData()
+      } else {
+        setError(result.error || "Key assignment failed.")
+        toast({
+          title: "Assignment Failed",
+          description: result.error || "Key assignment failed.",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Key assignment error:", error)
+      setError("Network error occurred during key assignment")
+      toast({
+        title: "Assignment Error",
+        description: "Network error occurred during key assignment",
+        variant: "destructive",
+      })
+    } finally {
+      setAssigning(false)
+    }
+  }
+
+  const syncTransactions = async () => {
+    setSyncingTransactions(true)
+    setError("")
+    setMessage("")
+
+    try {
+      const response = await fetch("/api/admin/sync-razorpay-transactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      })
+
+      const result = await response.json()
+
+      if (response.ok) {
+        setMessage(result.message || "Transactions synced successfully!")
+        toast({
+          title: "Transactions Synced",
+          description: result.message || "Transactions synced successfully!",
+        })
+        // Refresh data
+        loadStats()
+        loadCurrentTabData()
+      } else {
+        setError(result.error || "Transaction sync failed.")
+        toast({
+          title: "Sync Failed",
+          description: result.error || "Transaction sync failed.",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Transaction sync error:", error)
+      setError("Network error occurred during transaction sync")
+      toast({
+        title: "Sync Error",
+        description: "Network error occurred during transaction sync",
+        variant: "destructive",
+      })
+    } finally {
+      setSyncingTransactions(false)
+    }
+  }
+
+  const formatAmount = (amount: number) => {
+    return (amount / 100).toLocaleString("en-IN", {
+      style: "currency",
+      currency: "INR",
+    })
+  }
+
+  const formatDateTimeIST = (timestamp: number | undefined) => {
+    if (!timestamp) return "-"
+
+    const date = new Date(timestamp * 1000) // Convert seconds to milliseconds
+    return date.toLocaleString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    })
+  }
+
+  const PaginationControls = () => {
+    const currentPage = pagination[activeTab as keyof typeof pagination].page
+    const totalPages = pagination[activeTab as keyof typeof pagination].totalPages
+
+    const handlePreviousPage = () => {
+      if (currentPage > 1) {
+        handlePageChange(currentPage - 1)
+      }
+    }
+
+    const handleNextPage = () => {
+      if (currentPage < totalPages) {
+        handlePageChange(currentPage + 1)
+      }
+    }
+
+    if (totalPages <= 1) {
+      return null // Hide pagination if there's only one page
+    }
+
+    return (
+      <div className="flex items-center justify-between px-4 py-3 sm:px-6 bg-white border-t border-gray-200 rounded-b-lg">
+        <div className="flex-1 flex justify-between sm:hidden">
+          <Button
+            onClick={handlePreviousPage}
+            disabled={currentPage === 1}
+            className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+          >
+            Previous
+          </Button>
+          <Button
+            onClick={handleNextPage}
+            disabled={currentPage === totalPages}
+            className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+          >
+            Next
+          </Button>
+        </div>
+        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm text-gray-700">
+              Showing
+              <span className="font-medium">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span>
+              to
+              <span className="font-medium">
+                {Math.min(currentPage * ITEMS_PER_PAGE, pagination[activeTab as keyof typeof pagination].total)}
+              </span>
+              of
+              <span className="font-medium">{pagination[activeTab as keyof typeof pagination].total}</span>
+              results
+            </p>
+          </div>
+          <div>
+            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+              <Button
+                onClick={handlePreviousPage}
+                disabled={currentPage === 1}
+                className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+              >
+                <span className="sr-only">Previous</span>
+                <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+              </Button>
+              <Button
+                className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
+                disabled
+              >
+                Page {currentPage} of {totalPages}
+              </Button>
+              <Button
+                onClick={handleNextPage}
+                disabled={currentPage === totalPages}
+                className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+              >
+                <span className="sr-only">Next</span>
+                <ChevronRight className="h-5 w-5" aria-hidden="true" />
+              </Button>
+            </nav>
+          </div>
+        </div>
+      </div>
     )
   }
 
@@ -1448,45 +1623,6 @@ export default function AdminPage() {
                       </div>
                     </div>
                   )}
-
-                  <div className="mt-6 pt-4 sm:pt-6 border-t border-gray-200">
-                    <div className="flex items-center justify-between mb-3 sm:mb-4">
-                      <div>
-                        <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-1 sm:mb-2">
-                          📤 Export Data & Manual Actions
-                        </h3>
-                        <p className="text-gray-600 text-sm">
-                          Download data from systech_ott_platform database and perform manual operations
-                        </p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-2 sm:gap-4">
-                      <Button
-                        onClick={() => exportData()}
-                        className="bg-purple-600 hover:bg-purple-700 text-xs sm:text-sm"
-                        disabled={exporting}
-                      >
-                        {exporting ? (
-                          <>
-                            <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 animate-spin" />
-                            Exporting...
-                          </>
-                        ) : (
-                          <>
-                            <DownloadIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                            Export All Data
-                          </>
-                        )}
-                      </Button>
-                      <Button
-                        onClick={() => setManualClaimDialogOpen(true)}
-                        className="bg-red-600 hover:bg-red-700 text-xs sm:text-sm"
-                      >
-                        <PlusIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                        Manual Claim
-                      </Button>
-                    </div>
-                  </div>
                 </CardContent>
               </Card>
 
