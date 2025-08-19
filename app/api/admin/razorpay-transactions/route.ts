@@ -16,8 +16,8 @@ export async function GET(request: NextRequest) {
       // Sync transactions from Razorpay API
       return await syncTransactions()
     } else {
-      // Get transactions from database
-      return await getTransactions()
+      // Get transactions from database with pagination and filtering
+      return await getTransactions(request)
     }
   } catch (error) {
     console.error("Error in razorpay-transactions API:", error)
@@ -146,12 +146,52 @@ async function matchTransactionsWithClaims() {
   }
 }
 
-async function getTransactions() {
+async function getTransactions(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url)
+    const page = Number.parseInt(searchParams.get("page") || "1")
+    const limit = Number.parseInt(searchParams.get("limit") || "10")
+    const search = searchParams.get("search") || ""
+    const status = searchParams.get("status")
+    const sortBy = searchParams.get("sortBy") || "created_at"
+    const sortOrder = searchParams.get("order") || "desc"
+
     const { db } = await connectToDatabase()
     const transactionsCollection = db.collection("razorpay_transactions")
 
-    const transactions = await transactionsCollection.find({}).sort({ created_at: -1 }).toArray()
+    // Build search query
+    const query: any = {}
+    if (search) {
+      query.$or = [
+        { razorpay_payment_id: { $regex: search, $options: "i" } },
+        { razorpay_order_id: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+        { contact: { $regex: search, $options: "i" } },
+        { claimId: { $regex: search, $options: "i" } },
+      ]
+    }
+
+    if (status && status !== "all") {
+      query.status = status
+    }
+
+    console.log("Transactions query:", JSON.stringify(query, null, 2))
+
+    // Build sort object
+    const sortObj: any = {}
+    sortObj[sortBy] = sortOrder === "asc" ? 1 : -1
+
+    // Get total count for pagination
+    const total = await transactionsCollection.countDocuments(query)
+    const totalPages = Math.ceil(total / limit)
+    const skip = (page - 1) * limit
+
+    console.log(`Transactions pagination: page=${page}, limit=${limit}, skip=${skip}, total=${total}`)
+
+    // Fetch paginated data
+    const transactions = await transactionsCollection.find(query).sort(sortObj).skip(skip).limit(limit).toArray()
+
+    console.log(`Found ${transactions.length} transactions`)
 
     // Convert ObjectId to string and format dates
     const formattedTransactions = transactions.map((transaction) => ({
@@ -166,13 +206,24 @@ async function getTransactions() {
     }))
 
     return NextResponse.json({
-      success: true,
-      transactions: formattedTransactions,
-      count: formattedTransactions.length,
-      totalRecords: formattedTransactions.length,
+      data: formattedTransactions,
+      total,
+      page,
+      totalPages,
+      limit,
     })
   } catch (error) {
     console.error("Error fetching transactions:", error)
-    return NextResponse.json({ error: "Failed to fetch transactions" }, { status: 500 })
+    return NextResponse.json(
+      {
+        data: [],
+        total: 0,
+        page: 1,
+        totalPages: 0,
+        limit: 10,
+        error: "Failed to fetch transactions",
+      },
+      { status: 500 },
+    )
   }
 }
