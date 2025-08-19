@@ -46,9 +46,11 @@ export async function GET(request: NextRequest) {
         matchedRecords.push({
           paymentId: paymentId,
           claimEmail: matchingClaim.email || "N/A",
+          claimContact: matchingClaim.phone || "N/A",
           razorpayEmail: transaction.email || "N/A",
-          claimAmount: matchingClaim.amount || 0,
-          razorpayAmount: transaction.amount || 0,
+          razorpayContact: transaction.contact || "N/A",
+          claimAmount: (matchingClaim.amount || 0) / 100,
+          razorpayAmount: (transaction.amount || 0) / 100,
           claimStatus: matchingClaim.ottCodeStatus || "N/A",
           razorpayStatus: transaction.status || "N/A",
           claimDate: matchingClaim.createdAt ? new Date(matchingClaim.createdAt).toLocaleDateString() : "N/A",
@@ -58,7 +60,8 @@ export async function GET(request: NextRequest) {
         paymentsWithoutClaims.push({
           razorpay_payment_id: paymentId,
           email: transaction.email || "N/A",
-          amount: transaction.amount || 0,
+          contact: transaction.contact || "N/A",
+          amount: (transaction.amount || 0) / 100,
           status: transaction.status || "N/A",
           created_at: transaction.created_at ? new Date(transaction.created_at).toLocaleDateString() : "N/A",
         })
@@ -74,7 +77,8 @@ export async function GET(request: NextRequest) {
         unclaimedPayments.push({
           razorpay_payment_id: paymentId,
           email: claim.email || "N/A",
-          amount: claim.amount || 0,
+          contact: claim.phone || "N/A",
+          amount: (claim.amount || 0) / 100,
           status: "claim_only",
           created_at: claim.createdAt ? new Date(claim.createdAt).toLocaleDateString() : "N/A",
         })

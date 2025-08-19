@@ -19,6 +19,8 @@ interface ComparisonData {
     paymentId: string
     claimEmail: string
     razorpayEmail: string
+    claimContact: string
+    razorpayContact: string
     claimAmount: number
     razorpayAmount: number
     claimStatus: string
@@ -29,6 +31,7 @@ interface ComparisonData {
   unclaimedPayments: Array<{
     razorpay_payment_id: string
     email: string
+    contact: string
     amount: number
     status: string
     created_at: string
@@ -36,6 +39,7 @@ interface ComparisonData {
   paymentsWithoutClaims: Array<{
     razorpay_payment_id: string
     email: string
+    contact: string
     amount: number
     status: string
     created_at: string
@@ -118,23 +122,23 @@ export default function DataComparisonPage() {
     switch (dataType) {
       case "matched":
         csvContent =
-          "Payment ID,Claim Email,Razorpay Email,Claim Amount,Razorpay Amount,Claim Status,Razorpay Status,Claim Date,Razorpay Date\n"
+          "Payment ID,Claim Email,Razorpay Email,Claim Contact,Razorpay Contact,Claim Amount,Razorpay Amount,Claim Status,Razorpay Status,Claim Date,Razorpay Date\n"
         comparisonData.matchedRecords.forEach((record) => {
-          csvContent += `${record.paymentId},${record.claimEmail},${record.razorpayEmail},${record.claimAmount},${record.razorpayAmount},${record.claimStatus},${record.razorpayStatus},${record.claimDate},${record.razorpayDate}\n`
+          csvContent += `${record.paymentId},${record.claimEmail},${record.razorpayEmail},${record.claimContact},${record.razorpayContact},${record.claimAmount},${record.razorpayAmount},${record.claimStatus},${record.razorpayStatus},${record.claimDate},${record.razorpayDate}\n`
         })
         filename = "matched_records.csv"
         break
       case "unclaimed":
-        csvContent = "Payment ID,Email,Amount,Status,Date\n"
+        csvContent = "Payment ID,Email,Contact,Amount,Status,Date\n"
         comparisonData.unclaimedPayments.forEach((record) => {
-          csvContent += `${record.razorpay_payment_id},${record.email},${record.amount},${record.status},${record.created_at}\n`
+          csvContent += `${record.razorpay_payment_id},${record.email},${record.contact},${record.amount},${record.status},${record.created_at}\n`
         })
         filename = "unclaimed_payments.csv"
         break
       case "without_claims":
-        csvContent = "Payment ID,Email,Amount,Status,Date\n"
+        csvContent = "Payment ID,Email,Contact,Amount,Status,Date\n"
         comparisonData.paymentsWithoutClaims.forEach((record) => {
-          csvContent += `${record.razorpay_payment_id},${record.email},${record.amount},${record.status},${record.created_at}\n`
+          csvContent += `${record.razorpay_payment_id},${record.email},${record.contact},${record.amount},${record.status},${record.created_at}\n`
         })
         filename = "payments_without_claims.csv"
         break
@@ -357,6 +361,7 @@ export default function DataComparisonPage() {
                           <th className="text-left p-3 font-semibold">Payment ID</th>
                           <th className="text-left p-3 font-semibold">Claim Email</th>
                           <th className="text-left p-3 font-semibold">Razorpay Email</th>
+                          <th className="text-left p-3 font-semibold">Contact</th>
                           <th className="text-left p-3 font-semibold">Amount</th>
                           <th className="text-left p-3 font-semibold">Status</th>
                           <th className="text-left p-3 font-semibold">Dates</th>
@@ -368,6 +373,12 @@ export default function DataComparisonPage() {
                             <td className="p-3 font-mono text-xs">{record.paymentId}</td>
                             <td className="p-3">{record.claimEmail}</td>
                             <td className="p-3">{record.razorpayEmail}</td>
+                            <td className="p-3">
+                              <div className="space-y-1">
+                                <div>Claim: {record.claimContact}</div>
+                                <div>Razorpay: {record.razorpayContact}</div>
+                              </div>
+                            </td>
                             <td className="p-3">
                               <div className="space-y-1">
                                 <div>Claim: ₹{record.claimAmount}</div>
@@ -425,6 +436,7 @@ export default function DataComparisonPage() {
                         <tr>
                           <th className="text-left p-3 font-semibold">Payment ID</th>
                           <th className="text-left p-3 font-semibold">Email</th>
+                          <th className="text-left p-3 font-semibold">Contact</th>
                           <th className="text-left p-3 font-semibold">Amount</th>
                           <th className="text-left p-3 font-semibold">Status</th>
                           <th className="text-left p-3 font-semibold">Date</th>
@@ -435,6 +447,7 @@ export default function DataComparisonPage() {
                           <tr key={index} className="border-b hover:bg-gray-50">
                             <td className="p-3 font-mono text-xs">{record.razorpay_payment_id}</td>
                             <td className="p-3">{record.email}</td>
+                            <td className="p-3">{record.contact}</td>
                             <td className="p-3 font-semibold">₹{record.amount}</td>
                             <td className="p-3">
                               <Badge variant="outline" className="text-xs">
@@ -477,6 +490,7 @@ export default function DataComparisonPage() {
                         <tr>
                           <th className="text-left p-3 font-semibold">Payment ID</th>
                           <th className="text-left p-3 font-semibold">Email</th>
+                          <th className="text-left p-3 font-semibold">Contact</th>
                           <th className="text-left p-3 font-semibold">Amount</th>
                           <th className="text-left p-3 font-semibold">Status</th>
                           <th className="text-left p-3 font-semibold">Date</th>
@@ -487,6 +501,7 @@ export default function DataComparisonPage() {
                           <tr key={index} className="border-b hover:bg-gray-50">
                             <td className="p-3 font-mono text-xs">{record.razorpay_payment_id}</td>
                             <td className="p-3">{record.email}</td>
+                            <td className="p-3">{record.contact}</td>
                             <td className="p-3 font-semibold">₹{record.amount}</td>
                             <td className="p-3">
                               <Badge variant="outline" className="text-xs">
