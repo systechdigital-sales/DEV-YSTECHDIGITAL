@@ -58,8 +58,12 @@ export default function SendManualEmailPage() {
         .detail-value { color: #2d3748; font-family: 'Courier New', monospace; }
         .important-note { background: #fef3c7; border: 1px solid #f59e0b; padding: 20px; border-radius: 8px; margin: 20px 0; }
         .important-note h4 { color: #92400e; margin: 0 0 10px 0; }
-        .important-note p { margin: 0; color: #78350f; }
+        .important-note p { margin: 8px 0; color: #78350f; line-height: 1.5; }
+        .important-note p:first-of-type { margin-top: 0; }
+        .important-note p:last-of-type { margin-bottom: 0; }
         .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb; padding-top: 20px; }
+        .content p { margin: 16px 0; }
+        .content p:first-child { margin-top: 0; }
     </style>
 </head>
 <body>
