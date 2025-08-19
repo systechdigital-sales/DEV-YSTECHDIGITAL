@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Shield, Database, AlertTriangle, CheckCircle, XCircle, Download, RefreshCw } from "lucide-react"
+import { Shield, Database, AlertTriangle, CheckCircle, XCircle, Download, RefreshCw, Wrench } from "lucide-react"
 import Image from "next/image"
 
 interface ComparisonData {
@@ -61,8 +61,9 @@ export default function DataComparisonPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [comparisonData, setComparisonData] = useState<ComparisonData | null>(null)
   const [isLoadingData, setIsLoadingData] = useState(false)
+  const [isRecovering, setIsRecovering] = useState(false)
+  const [recoveryResult, setRecoveryResult] = useState<string>("")
 
-  // Check if user is already authenticated
   useEffect(() => {
     const adminAuth = sessionStorage.getItem("adminAuthenticated")
     const comparisonAuth = sessionStorage.getItem("dataComparisonAuthenticated")
@@ -110,6 +111,35 @@ export default function DataComparisonPage() {
       setError("Failed to load comparison data")
     } finally {
       setIsLoadingData(false)
+    }
+  }
+
+  const runDataRecovery = async () => {
+    setIsRecovering(true)
+    setRecoveryResult("")
+    setError("")
+
+    try {
+      const response = await fetch("/api/admin/run-data-recovery", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setRecoveryResult(data.message)
+        await loadComparisonData()
+      } else {
+        setError(data.message || "Data recovery failed")
+      }
+    } catch (error) {
+      console.error("Error running data recovery:", error)
+      setError("Failed to run data recovery script")
+    } finally {
+      setIsRecovering(false)
     }
   }
 
@@ -240,6 +270,19 @@ export default function DataComparisonPage() {
             </div>
             <div className="flex items-center space-x-4">
               <Button
+                onClick={runDataRecovery}
+                disabled={isRecovering || isLoadingData}
+                variant="outline"
+                className="bg-yellow-500/20 border-yellow-300/50 text-white hover:bg-yellow-500/30"
+              >
+                {isRecovering ? (
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Wrench className="w-4 h-4 mr-2" />
+                )}
+                {isRecovering ? "Recovering..." : "Fix Missing Data"}
+              </Button>
+              <Button
                 onClick={loadComparisonData}
                 disabled={isLoadingData}
                 variant="outline"
@@ -265,6 +308,20 @@ export default function DataComparisonPage() {
       </header>
 
       <div className="max-w-7xl mx-auto p-6">
+        {recoveryResult && (
+          <Alert className="mb-6 bg-green-50 border-green-200">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-800">{recoveryResult}</AlertDescription>
+          </Alert>
+        )}
+
+        {error && (
+          <Alert variant="destructive" className="mb-6">
+            <XCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
         {isLoadingData ? (
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
