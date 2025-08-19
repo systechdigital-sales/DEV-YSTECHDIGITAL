@@ -12,6 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
   Upload,
+  DownloadIcon,
   AlertCircle,
   CheckCircle,
   Users,
@@ -36,7 +37,7 @@ import { DashboardSidebar } from "@/components/dashboard-sidebar"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import Image from "next/image"
 import { toast } from "@/hooks/use-toast"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, ChevronsRight } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -46,7 +47,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { XIcon } from "lucide-react"
-import { AdminExportPanel } from "@/components/admin-export-panel"
 
 // Reduced page size for better performance
 const ITEMS_PER_PAGE = 10
@@ -223,28 +223,29 @@ export default function AdminPage() {
     }
   }
 
+  // Load current tab data with pagination
   const loadCurrentTabData = useCallback(
     async (page = 1, search = "") => {
-      try {
-        setLoading(true)
-        setError("")
+      setSearchLoading(true)
 
+      try {
         const params = new URLSearchParams({
           page: page.toString(),
-          limit: "10",
+          limit: ITEMS_PER_PAGE.toString(),
           search: search,
-          sortBy: sortConfig.key,
-          order: sortConfig.direction,
-          paymentStatus: filters.paymentStatus,
-          ottStatus: filters.ottStatus,
-          status:
-            activeTab === "sales"
-              ? filters.salesStatus
-              : activeTab === "keys"
-                ? filters.keysStatus
-                : filters.transactionsStatus,
-          startDate: dateFilter.startDate,
-          endDate: dateFilter.endDate,
+          ...(activeTab === "transactions"
+            ? {}
+            : {
+                sort: sortConfig.key,
+                order: sortConfig.direction,
+                paymentStatus: filters.paymentStatus,
+                ottStatus: filters.ottStatus,
+                salesStatus: filters.salesStatus,
+                keysStatus: filters.keysStatus,
+                transactionsStatus: filters.transactionsStatus,
+                startDate: dateFilter.startDate,
+                endDate: dateFilter.endDate,
+              }),
         })
 
         const endpoint = activeTab === "transactions" ? "/api/admin/razorpay-transactions" : `/api/admin/${activeTab}`
@@ -256,14 +257,14 @@ export default function AdminPage() {
           if (activeTab === "transactions") {
             setCurrentData((prev) => ({
               ...prev,
-              transactions: data.data || [],
+              transactions: data.transactions || [],
             }))
             setPagination((prev) => ({
               ...prev,
               transactions: {
-                page: data.page || 1,
-                total: data.total || 0,
-                totalPages: data.totalPages || 0,
+                page: page,
+                total: data.count || 0,
+                totalPages: Math.ceil((data.count || 0) / ITEMS_PER_PAGE),
               },
             }))
           } else {
@@ -276,32 +277,22 @@ export default function AdminPage() {
               [activeTab]: {
                 page: data.page || 1,
                 total: data.total || 0,
-                totalPages: data.totalPages || 0,
+                totalPages: data.totalPages || 1,
               },
             }))
           }
         } else {
-          throw new Error(data.error || `Failed to fetch ${activeTab}`)
+          throw new Error(data.error || "Failed to load data")
         }
-      } catch (err: any) {
-        console.error(`Error loading ${activeTab}:`, err)
-        setError(err.message || `Failed to load ${activeTab}`)
+      } catch (error) {
+        console.error(`Error loading ${activeTab} data:`, error)
+        setError(`Failed to load ${activeTab} data`)
       } finally {
+        setSearchLoading(false)
         setLoading(false)
       }
     },
-    [
-      activeTab,
-      sortConfig.key,
-      sortConfig.direction,
-      filters.paymentStatus,
-      filters.ottStatus,
-      filters.salesStatus,
-      filters.keysStatus,
-      filters.transactionsStatus,
-      dateFilter.startDate,
-      dateFilter.endDate,
-    ],
+    [activeTab, sortConfig, filters, dateFilter],
   )
 
   // Handle search with debouncing
@@ -468,457 +459,397 @@ export default function AdminPage() {
     }
   }
 
-  const [exporting, setExporting] = useState(false)
-  const [exportingTable, setExportingTable] = useState<string | null>(null)
-
-  const exportData = async (tableType?: string) => {
+  const exportData = async (type?: "claims" | "sales" | "keys") => {
     try {
-      const exportType = tableType || activeTab
-      setExporting(true)
-      if (tableType) {
-        setExportingTable(tableType)
-      }
       setMessage("")
       setError("")
 
-      let endpoint = ""
-      let filename = ""
-      let headers: string[] = []
-
-      if (exportType === "claims") {
-        endpoint = "/api/admin/claims"
-        filename = "claims_export"
-        headers = [
-          "Claim ID",
-          "First Name",
-          "Last Name",
-          "Email",
-          "Phone Number",
-          "Street Address",
-          "Address Line 2",
-          "State",
-          "City",
-          "Pincode",
-          "Activation Code",
-          "Payment Status",
-          "OTT Status",
-          "OTT Code",
-          "Payment ID",
-          "Razorpay Order ID",
-          "Amount",
-          "Created At",
-          "Updated At",
-        ]
-      } else if (exportType === "sales") {
-        endpoint = "/api/admin/sales"
-        filename = "sales_records_export"
-        headers = [
-          "ID",
-          "Activation Code",
-          "Product",
-          "Product Sub Category",
-          "Status",
-          "Claimed By",
-          "Claimed Date",
-          "Created At",
-          "Updated At",
-        ]
-      } else if (exportType === "keys") {
-        endpoint = "/api/admin/keys"
-        filename = "ott_keys_export"
-        headers = [
-          "ID",
-          "Activation Code",
-          "Product",
-          "Product Sub Category",
-          "Status",
-          "Assigned Email",
-          "Assigned Date",
-          "Expiry Date",
-          "Duration",
-          "Created At",
-          "Updated At",
-        ]
-      } else if (exportType === "transactions") {
-        endpoint = "/api/admin/razorpay-transactions"
-        filename = "razorpay_transactions_export"
-        headers = [
-          "Payment ID",
-          "Order ID",
-          "Amount",
-          "Currency",
-          "Status",
-          "Method",
-          "Email",
-          "Contact",
-          "Description",
-          "Created At",
-          "Captured At",
-          "Fee",
-          "Tax",
-          "Error Code",
-          "Error Description",
-        ]
+      let url = "/api/admin/export"
+      if (type) {
+        url += `?type=${type}`
       }
 
-      const params = new URLSearchParams({
-        limit: "10000", // Large limit to get all records
-        search: searchTerm,
-        sortBy: sortConfig.key,
-        order: sortConfig.direction,
-        paymentStatus: filters.paymentStatus,
-        ottStatus: filters.ottStatus,
-        status:
-          exportType === "sales"
-            ? filters.salesStatus
-            : exportType === "keys"
-              ? filters.keysStatus
-              : filters.transactionsStatus,
-        startDate: dateFilter.startDate,
-        endDate: dateFilter.endDate,
+      const response = await fetch(url)
+
+      if (response.ok) {
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        a.style.display = "none"
+        a.href = url
+
+        const fileName = type
+          ? `systech_ott_${type}_export_${new Date().toISOString().split("T")[0]}.xlsx`
+          : `systech_ott_platform_export_${new Date().toISOString().split("T")[0]}.xlsx`
+
+        a.download = fileName
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+
+        const successMessage = `${type ? type.charAt(0).toUpperCase() + type.slice(1) : "All"} data exported successfully with all columns`
+        setMessage(successMessage)
+        toast({
+          title: "Export Successful",
+          description: successMessage,
+        })
+      } else {
+        const errorResult = await response.json()
+        const errorMessage = errorResult.error || "Failed to export data"
+        setError(errorMessage)
+        toast({
+          title: "Export Failed",
+          description: errorMessage,
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Export error:", error)
+      const errorMessage = "Network error occurred during export"
+      setError(errorMessage)
+      toast({
+        title: "Export Error",
+        description: errorMessage,
+        variant: "destructive",
       })
-
-      const response = await fetch(`${endpoint}?${params}`)
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to fetch data for export")
-      }
-
-      const exportData = data.data || []
-
-      if (exportData.length === 0) {
-        setMessage("No data available to export")
-        return
-      }
-
-      let csvData: string[][] = []
-
-      if (exportType === "claims") {
-        csvData = exportData.map((item: any) => [
-          item.claimId || "",
-          item.firstName || "",
-          item.lastName || "",
-          item.email || "",
-          item.phoneNumber || "",
-          item.streetAddress || "",
-          item.addressLine2 || "",
-          item.state || "",
-          item.city || "",
-          item.pincode || "",
-          item.activationCode || "",
-          item.paymentStatus || "",
-          item.ottStatus || "",
-          item.ottCode || "",
-          item.paymentId || "",
-          item.razorpayOrderId || "",
-          item.amount?.toString() || "",
-          item.createdAt ? new Date(item.createdAt).toLocaleString("en-IN") : "",
-          item.updatedAt ? new Date(item.updatedAt).toLocaleString("en-IN") : "",
-        ])
-      } else if (exportType === "sales") {
-        csvData = exportData.map((item: any) => [
-          item.id || item._id || "",
-          item.activationCode || "",
-          item.product || "",
-          item.productSubCategory || "",
-          item.status || "",
-          item.claimedBy || "",
-          item.claimedDate ? new Date(item.claimedDate).toLocaleString("en-IN") : "",
-          item.createdAt ? new Date(item.createdAt).toLocaleString("en-IN") : "",
-          item.updatedAt ? new Date(item.updatedAt).toLocaleString("en-IN") : "",
-        ])
-      } else if (exportType === "keys") {
-        csvData = exportData.map((item: any) => [
-          item.id || item._id || "",
-          item.activationCode || "",
-          item.product || "",
-          item.productSubCategory || "",
-          item.status || "",
-          item.assignedEmail || "",
-          item.assignedDate ? new Date(item.assignedDate).toLocaleString("en-IN") : "",
-          item.expiryDate ? new Date(item.expiryDate).toLocaleString("en-IN") : "",
-          item.duration || "",
-          item.createdAt ? new Date(item.createdAt).toLocaleString("en-IN") : "",
-          item.updatedAt ? new Date(item.updatedAt).toLocaleString("en-IN") : "",
-        ])
-      } else if (exportType === "transactions") {
-        csvData = exportData.map((item: any) => [
-          item.id || "",
-          item.order_id || "",
-          (item.amount / 100).toString() || "", // Convert paise to rupees
-          item.currency || "",
-          item.status || "",
-          item.method || "",
-          item.email || "",
-          item.contact || "",
-          item.description || "",
-          item.created_at ? new Date(item.created_at * 1000).toLocaleString("en-IN") : "",
-          item.captured_at ? new Date(item.captured_at * 1000).toLocaleString("en-IN") : "",
-          item.fee ? (item.fee / 100).toString() : "",
-          item.tax ? (item.tax / 100).toString() : "",
-          item.error_code || "",
-          item.error_description || "",
-        ])
-      }
-
-      // Create CSV content
-      const csvContent = [headers, ...csvData].map((row) => row.map((cell) => `"${cell}"`).join(",")).join("\n")
-
-      // Download CSV file
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
-      const link = document.createElement("a")
-      const url = URL.createObjectURL(blob)
-      link.setAttribute("href", url)
-      link.setAttribute("download", `${filename}_${new Date().toISOString().split("T")[0]}.csv`)
-      link.style.visibility = "hidden"
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-
-      setMessage(`Successfully exported ${exportData.length} ${exportType} records`)
-    } catch (err: any) {
-      console.error("Export error:", err)
-      setError(err.message || "Failed to export data")
-    } finally {
-      setExporting(false)
-      setExportingTable(null)
     }
   }
 
-  const exportAllData = async () => {
-    try {
-      setExporting(true)
-      setMessage("")
-      setError("")
+  // Delete handlers
+  const handleDeleteClick = (type: string, id: string, name: string) => {
+    setRecordToDelete({ type, id, name })
+    setDeletePassword("")
+    setDeleteDialogOpen(true)
+  }
 
-      const tables = ["claims", "sales", "keys", "transactions"]
-      const allData: any[] = []
-      let totalRecords = 0
-
-      for (const table of tables) {
-        let endpoint = ""
-        let headers: string[] = []
-
-        if (table === "claims") {
-          endpoint = "/api/admin/claims"
-          headers = [
-            "Table",
-            "Claim ID",
-            "First Name",
-            "Last Name",
-            "Email",
-            "Phone Number",
-            "Street Address",
-            "Address Line 2",
-            "State",
-            "City",
-            "Pincode",
-            "Activation Code",
-            "Payment Status",
-            "OTT Status",
-            "OTT Code",
-            "Payment ID",
-            "Razorpay Order ID",
-            "Amount",
-            "Created At",
-            "Updated At",
-          ]
-        } else if (table === "sales") {
-          endpoint = "/api/admin/sales"
-          headers = [
-            "Table",
-            "ID",
-            "Activation Code",
-            "Product",
-            "Product Sub Category",
-            "Status",
-            "Claimed By",
-            "Claimed Date",
-            "Created At",
-            "Updated At",
-          ]
-        } else if (table === "keys") {
-          endpoint = "/api/admin/keys"
-          headers = [
-            "Table",
-            "ID",
-            "Activation Code",
-            "Product",
-            "Product Sub Category",
-            "Status",
-            "Assigned Email",
-            "Assigned Date",
-            "Expiry Date",
-            "Duration",
-            "Created At",
-            "Updated At",
-          ]
-        } else if (table === "transactions") {
-          endpoint = "/api/admin/razorpay-transactions"
-          headers = [
-            "Table",
-            "Payment ID",
-            "Order ID",
-            "Amount",
-            "Currency",
-            "Status",
-            "Method",
-            "Email",
-            "Contact",
-            "Description",
-            "Created At",
-            "Captured At",
-            "Fee",
-            "Tax",
-            "Error Code",
-            "Error Description",
-          ]
-        }
-
-        const params = new URLSearchParams({
-          limit: "10000",
-          search: "",
-          sortBy: "createdAt",
-          order: "desc",
-        })
-
-        const response = await fetch(`${endpoint}?${params}`)
-        const data = await response.json()
-
-        if (response.ok && data.data) {
-          const tableData = data.data.map((item: any) => {
-            if (table === "claims") {
-              return [
-                "Claims",
-                item.claimId || "",
-                item.firstName || "",
-                item.lastName || "",
-                item.email || "",
-                item.phoneNumber || "",
-                item.streetAddress || "",
-                item.addressLine2 || "",
-                item.state || "",
-                item.city || "",
-                item.pincode || "",
-                item.activationCode || "",
-                item.paymentStatus || "",
-                item.ottStatus || "",
-                item.ottCode || "",
-                item.paymentId || "",
-                item.razorpayOrderId || "",
-                item.amount?.toString() || "",
-                item.createdAt ? new Date(item.createdAt).toLocaleString("en-IN") : "",
-                item.updatedAt ? new Date(item.updatedAt).toLocaleString("en-IN") : "",
-              ]
-            } else if (table === "sales") {
-              return [
-                "Sales Records",
-                item.id || item._id || "",
-                item.activationCode || "",
-                item.product || "",
-                item.productSubCategory || "",
-                item.status || "",
-                item.claimedBy || "",
-                item.claimedDate ? new Date(item.claimedDate).toLocaleString("en-IN") : "",
-                item.createdAt ? new Date(item.createdAt).toLocaleString("en-IN") : "",
-                item.updatedAt ? new Date(item.updatedAt).toLocaleString("en-IN") : "",
-              ]
-            } else if (table === "keys") {
-              return [
-                "OTT Keys",
-                item.id || item._id || "",
-                item.activationCode || "",
-                item.product || "",
-                item.productSubCategory || "",
-                item.status || "",
-                item.assignedEmail || "",
-                item.assignedDate ? new Date(item.assignedDate).toLocaleString("en-IN") : "",
-                item.expiryDate ? new Date(item.expiryDate).toLocaleString("en-IN") : "",
-                item.duration || "",
-                item.createdAt ? new Date(item.createdAt).toLocaleString("en-IN") : "",
-                item.updatedAt ? new Date(item.updatedAt).toLocaleString("en-IN") : "",
-              ]
-            } else if (table === "transactions") {
-              return [
-                "Transactions",
-                item.id || "",
-                item.order_id || "",
-                (item.amount / 100).toString() || "",
-                item.currency || "",
-                item.status || "",
-                item.method || "",
-                item.email || "",
-                item.contact || "",
-                item.description || "",
-                item.created_at ? new Date(item.created_at * 1000).toLocaleString("en-IN") : "",
-                item.captured_at ? new Date(item.captured_at * 1000).toLocaleString("en-IN") : "",
-                item.fee ? (item.fee / 100).toString() : "",
-                item.tax ? (item.tax / 100).toString() : "",
-                item.error_code || "",
-                item.error_description || "",
-              ]
-            }
-            return []
-          })
-
-          if (allData.length === 0) {
-            // Add headers for the first table
-            allData.push([
-              "Table",
-              "ID/Claim ID",
-              "Code/Name",
-              "Product/Last Name",
-              "Category/Email",
-              "Status/Phone",
-              "Email/Address",
-              "Date/Address2",
-              "Expiry/State",
-              "Duration/City",
-              "Created/Pincode",
-              "Updated/Activation",
-              "Payment Status",
-              "OTT Status",
-              "OTT Code",
-              "Payment ID",
-              "Order ID",
-              "Amount",
-              "Created At",
-              "Updated At",
-            ])
-          }
-
-          allData.push(...tableData)
-          totalRecords += tableData.length
-        }
-      }
-
-      if (allData.length <= 1) {
-        setMessage("No data available to export")
-        return
-      }
-
-      // Create CSV content
-      const csvContent = allData.map((row) => row.map((cell) => `"${cell}"`).join(",")).join("\n")
-
-      // Download CSV file
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
-      const link = document.createElement("a")
-      const url = URL.createObjectURL(blob)
-      link.setAttribute("href", url)
-      link.setAttribute("download", `all_tables_export_${new Date().toISOString().split("T")[0]}.csv`)
-      link.style.visibility = "hidden"
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-
-      setMessage(`Successfully exported ${totalRecords} records from all tables`)
-    } catch (err: any) {
-      console.error("Export all error:", err)
-      setError(err.message || "Failed to export all data")
-    } finally {
-      setExporting(false)
+  const handleDeleteConfirm = async () => {
+    if (!recordToDelete || deletePassword !== "Tr!ckyH@ck3r#2025") {
+      setError("Invalid password. Please enter the correct admin password.")
+      toast({
+        title: "Invalid Password",
+        description: "Please enter the correct admin password to proceed.",
+        variant: "destructive",
+      })
+      return
     }
+
+    setDeleting(true)
+    setError("")
+
+    try {
+      const url = `/api/admin/delete?type=${recordToDelete.type}&id=${encodeURIComponent(recordToDelete.id)}&password=${encodeURIComponent(deletePassword)}`
+
+      const response = await fetch(url, {
+        method: "DELETE",
+      })
+
+      const result = await response.json()
+
+      if (response.ok) {
+        setMessage(result.message || "Record deleted successfully")
+        toast({
+          title: "Deletion Successful",
+          description: result.message || "Record deleted successfully.",
+        })
+        setDeleteDialogOpen(false)
+        setRecordToDelete(null)
+        setDeletePassword("")
+        // Refresh data
+        loadStats()
+        loadCurrentTabData()
+      } else {
+        setError(result.error || "Delete failed")
+        toast({
+          title: "Deletion Failed",
+          description: result.error || "Failed to delete record.",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Delete error:", error)
+      setError("Delete operation failed")
+      toast({
+        title: "Deletion Error",
+        description: "An unexpected error occurred during deletion.",
+        variant: "destructive",
+      })
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  // Manual assignment handlers
+  const handleManualAssignClick = async (claim: ClaimResponse) => {
+    setSelectedClaimForManualAssign(claim)
+    setSelectedKeyForManualAssign("")
+    setManualAssignPassword("")
+
+    // Load available keys
+    try {
+      const response = await fetch("/api/admin/keys?status=available&limit=100")
+      if (response.ok) {
+        const result = await response.json()
+        setAvailableKeys(result.data || [])
+      }
+    } catch (error) {
+      console.error("Failed to load available keys:", error)
+      setAvailableKeys([])
+    }
+
+    setManualAssignDialogOpen(true)
+  }
+
+  const handleManualAssignConfirm = async () => {
+    if (!selectedClaimForManualAssign || !selectedKeyForManualAssign || manualAssignPassword !== "Tr!ckyH@ck3r#2025") {
+      setError("Invalid input or password. Please select a key and enter the correct admin password.")
+      toast({
+        title: "Assignment Failed",
+        description: "Invalid input or password. Please select a key and enter the correct admin password.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setAssigning(true)
+    setError("")
+    setMessage("")
+
+    try {
+      const response = await fetch("/api/admin/manual-assign-key", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          claimId: selectedClaimForManualAssign._id || selectedClaimForManualAssign.id,
+          ottKeyId: selectedKeyForManualAssign,
+          adminPassword: manualAssignPassword,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (response.ok) {
+        setMessage(result.message || "OTT Key manually assigned successfully!")
+        toast({
+          title: "Assignment Successful",
+          description: result.message || "OTT Key manually assigned successfully!",
+        })
+        setManualAssignDialogOpen(false)
+        setSelectedClaimForManualAssign(null)
+        setSelectedKeyForManualAssign("")
+        setManualAssignPassword("")
+        // Refresh data
+        loadStats()
+        loadCurrentTabData()
+      } else {
+        setError(result.error || "Manual assignment failed.")
+        toast({
+          title: "Assignment Failed",
+          description: result.error || "Manual assignment failed.",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Manual assignment error:", error)
+      setError("An unexpected error occurred during manual assignment.")
+      toast({
+        title: "Assignment Error",
+        description: "An unexpected error occurred during manual assignment.",
+        variant: "destructive",
+      })
+    } finally {
+      setAssigning(false)
+    }
+  }
+
+  const syncTransactions = async () => {
+    setSyncingTransactions(true)
+    setError("")
+    setMessage("")
+
+    try {
+      const response = await fetch("/api/admin/razorpay-transactions?action=sync", {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setMessage(
+          `Successfully synced ${data.syncedCount} new transactions and updated ${data.updatedCount} existing transactions`,
+        )
+        loadCurrentTabData()
+        loadStats()
+      } else {
+        throw new Error(data.error || "Failed to sync transactions")
+      }
+    } catch (error) {
+      console.error("Error syncing transactions:", error)
+      setError(error instanceof Error ? error.message : "Failed to sync transactions")
+    } finally {
+      setSyncingTransactions(false)
+    }
+  }
+
+  const formatAmount = (amount: number) => {
+    return `₹${(amount / 100).toFixed(2)}`
+  }
+
+  const formatDateTimeIST = (dateString: string | undefined) => {
+    if (!dateString) return "-"
+
+    try {
+      const date = new Date(dateString)
+      // Convert to IST (UTC + 5:30)
+      const istDate = new Date(date.getTime() + 5.5 * 60 * 60 * 1000)
+
+      const dateStr = istDate.toISOString().split("T")[0] // YYYY-MM-DD
+      const timeStr = istDate.toISOString().split("T")[1].split(".")[0] // HH:MM:SS
+
+      return `${dateStr} ${timeStr}`
+    } catch (error) {
+      return "-"
+    }
+  }
+
+  // Utility functions
+  const getStatusBadge = (status: string) => {
+    if (!status) return <Badge variant="outline">UNKNOWN</Badge>
+
+    switch (status.toLowerCase()) {
+      case "paid":
+      case "delivered":
+      case "available":
+      case "claimed":
+      case "completed":
+        return <Badge className="bg-green-100 text-green-800 border-green-300">{status.toUpperCase()}</Badge>
+      case "pending":
+      case "assigned":
+      case "sold":
+      case "processing":
+        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300">{status.toUpperCase()}</Badge>
+      case "failed":
+      case "used":
+      case "expired":
+      case "already_claimed":
+      case "activation_code_not_found":
+        return <Badge className="bg-red-100 text-red-800 border-red-300">{status.toUpperCase()}</Badge>
+      default:
+        return <Badge variant="outline">{status.toUpperCase()}</Badge>
+    }
+  }
+
+  const formatDateTime = (dateString: string) => {
+    if (!dateString) return "N/A"
+    try {
+      const date = new Date(dateString)
+      return date.toLocaleString("en-IN", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      })
+    } catch (error) {
+      return "Invalid Date"
+    }
+  }
+
+  // Sortable table header component
+  const SortableHeader = ({ children, sortKey }: { children: React.ReactNode; sortKey: string }) => (
+    <TableHead
+      className="font-bold text-gray-800 cursor-pointer hover:bg-gray-100 select-none"
+      onClick={() => handleSort(sortKey)}
+    >
+      <div className="flex items-center">
+        {children}
+        {getSortIcon(sortKey)}
+      </div>
+    </TableHead>
+  )
+
+  // Pagination component
+  const PaginationControls = () => {
+    const currentPagination = pagination[activeTab as keyof typeof pagination]
+    const { page, totalPages, total } = currentPagination
+
+    if (totalPages <= 1) return null
+
+    const startItem = (page - 1) * ITEMS_PER_PAGE + 1
+    const endItem = Math.min(page * ITEMS_PER_PAGE, total)
+
+    return (
+      <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
+        <div className="text-sm text-gray-700">
+          Showing {startItem} to {endItem} of {total} entries
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handlePageChange(page - 1)}
+            disabled={page === 1}
+            className="flex items-center"
+          >
+            <ChevronLeft className="w-4 h-4 mr-1" />
+            Previous
+          </Button>
+
+          <div className="flex items-center space-x-1">
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              let pageNum
+              if (totalPages <= 5) {
+                pageNum = i + 1
+              } else if (page <= 3) {
+                pageNum = i + 1
+              } else if (page >= totalPages - 2) {
+                pageNum = totalPages - 4 + i
+              } else {
+                pageNum = page - 2 + i
+              }
+
+              return (
+                <Button
+                  key={pageNum}
+                  variant={page === pageNum ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handlePageChange(pageNum)}
+                  className="w-8 h-8 p-0"
+                >
+                  {pageNum}
+                </Button>
+              )
+            })}
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handlePageChange(page + 1)}
+            disabled={page === totalPages}
+            className="flex items-center"
+          >
+            Next
+            <ChevronRight className="w-4 h-4 ml-1" />
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handlePageChange(totalPages)}
+            disabled={page === totalPages}
+            className="flex items-center ml-2"
+          >
+            Last Record
+            <ChevronsRight className="w-4 h-4 ml-1" />
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   const [currentPage, setCurrentPage] = useState(1)
@@ -1099,6 +1030,7 @@ export default function AdminPage() {
         toast({
           title: "Manual Claim Failed",
           description: result.error || "Manual claim failed.",
+          variant: "destructive",
         })
       }
     } catch (error) {
@@ -1115,281 +1047,20 @@ export default function AdminPage() {
     }
   }
 
-  const SortableHeader = ({ sortKey, children }: { sortKey: string; children: React.ReactNode }) => {
-    const handleSortClick = () => {
-      handleSort(sortKey)
-    }
-
+  if (loading) {
     return (
-      <TableHead className="font-bold text-gray-800 cursor-pointer select-none" onClick={handleSortClick}>
-        <div className="flex items-center">
-          {children}
-          {getSortIcon(sortKey)}
+      <SidebarProvider>
+        <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex w-full">
+          <DashboardSidebar />
+          <SidebarInset className="flex-1 flex items-center justify-center w-full min-w-0">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-600 mx-auto mb-4"></div>
+              <p className="text-purple-600 text-lg font-medium">Loading dashboard...</p>
+              <p className="text-gray-500 text-sm mt-2">Connecting to systech_ott_platform database</p>
+            </div>
+          </SidebarInset>
         </div>
-      </TableHead>
-    )
-  }
-
-  const getStatusBadge = (status: string) => {
-    let color = "gray"
-    if (status === "paid" || status === "captured" || status === "available") color = "green"
-    if (status === "pending" || status === "authorized") color = "yellow"
-    if (status === "failed" || status === "refunded") color = "red"
-
-    return (
-      <Badge className={`bg-${color}-100 text-${color}-800 border border-${color}-400`}>{status.toUpperCase()}</Badge>
-    )
-  }
-
-  const formatDateTime = (dateString: string | undefined) => {
-    if (!dateString) return "-"
-    try {
-      const date = new Date(dateString)
-      return date.toLocaleDateString("en-IN", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    } catch (error) {
-      console.error("Error formatting date:", error)
-      return "-"
-    }
-  }
-
-  const handleDeleteClick = (type: string, id: string, name: string) => {
-    setRecordToDelete({ type, id, name })
-    setDeleteDialogOpen(true)
-  }
-
-  const handleManualAssignClick = (claim: ClaimResponse) => {
-    setSelectedClaimForManualAssign(claim)
-    setManualAssignDialogOpen(true)
-    loadAvailableKeys()
-  }
-
-  const loadAvailableKeys = async () => {
-    try {
-      const response = await fetch("/api/admin/keys?limit=1000&status=available")
-      const data = await response.json()
-      if (response.ok) {
-        setAvailableKeys(data.data)
-      } else {
-        console.error("Failed to load available keys:", data.error)
-        toast({
-          title: "Error Loading Keys",
-          description: data.error || "Failed to load available keys.",
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
-      console.error("Error loading available keys:", error)
-      toast({
-        title: "Error Loading Keys",
-        description: "Failed to load available keys due to a network error.",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const handleManualAssignSubmit = async () => {
-    if (!selectedClaimForManualAssign || !selectedKeyForManualAssign || !manualAssignPassword) {
-      setError("Please select a claim, a key, and enter the admin password.")
-      toast({
-        title: "Missing Information",
-        description: "Please select a claim, a key, and enter the admin password.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setAssigning(true)
-    setError("")
-    setMessage("")
-
-    try {
-      const response = await fetch("/api/admin/manual-assign", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          claimId: selectedClaimForManualAssign._id || selectedClaimForManualAssign.id,
-          ottKeyId: selectedKeyForManualAssign,
-          adminPassword: manualAssignPassword,
-        }),
-      })
-
-      const result = await response.json()
-
-      if (response.ok) {
-        setMessage(result.message || "Key assigned successfully!")
-        toast({
-          title: "Key Assigned",
-          description: result.message || "Key assigned successfully!",
-        })
-        setManualAssignDialogOpen(false)
-        setSelectedClaimForManualAssign(null)
-        setSelectedKeyForManualAssign("")
-        setManualAssignPassword("")
-        // Refresh data
-        loadStats()
-        loadCurrentTabData()
-      } else {
-        setError(result.error || "Key assignment failed.")
-        toast({
-          title: "Assignment Failed",
-          description: result.error || "Key assignment failed.",
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
-      console.error("Key assignment error:", error)
-      setError("Network error occurred during key assignment")
-      toast({
-        title: "Assignment Error",
-        description: "Network error occurred during key assignment",
-        variant: "destructive",
-      })
-    } finally {
-      setAssigning(false)
-    }
-  }
-
-  const syncTransactions = async () => {
-    setSyncingTransactions(true)
-    setError("")
-    setMessage("")
-
-    try {
-      const response = await fetch("/api/admin/sync-razorpay-transactions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      })
-
-      const result = await response.json()
-
-      if (response.ok) {
-        setMessage(result.message || "Transactions synced successfully!")
-        toast({
-          title: "Transactions Synced",
-          description: result.message || "Transactions synced successfully!",
-        })
-        // Refresh data
-        loadStats()
-        loadCurrentTabData()
-      } else {
-        setError(result.error || "Transaction sync failed.")
-        toast({
-          title: "Sync Failed",
-          description: result.error || "Transaction sync failed.",
-        })
-      }
-    } catch (error) {
-      console.error("Transaction sync error:", error)
-      setError("Network error occurred during transaction sync")
-      toast({
-        title: "Sync Error",
-        description: "Network error occurred during transaction sync",
-        variant: "destructive",
-      })
-    } finally {
-      setSyncingTransactions(false)
-    }
-  }
-
-  const formatAmount = (amount: number) => {
-    return (amount / 100).toLocaleString("en-IN", {
-      style: "currency",
-      currency: "INR",
-    })
-  }
-
-  const formatDateTimeIST = (timestamp: number | undefined) => {
-    if (!timestamp) return "-"
-
-    const date = new Date(timestamp * 1000) // Convert seconds to milliseconds
-    return date.toLocaleString("en-IN", {
-      timeZone: "Asia/Kolkata",
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    })
-  }
-
-  const PaginationControls = () => {
-    const currentPage = pagination[activeTab as keyof typeof pagination].page
-    const totalPages = pagination[activeTab as keyof typeof pagination].totalPages
-    const total = pagination[activeTab as keyof typeof pagination].total
-
-    const handlePreviousPage = () => {
-      if (currentPage > 1) {
-        handlePageChange(currentPage - 1)
-      }
-    }
-
-    const handleNextPage = () => {
-      if (currentPage < totalPages) {
-        handlePageChange(currentPage + 1)
-      }
-    }
-
-    return (
-      <div className="flex items-center justify-between px-4 py-3 sm:px-6 bg-white border-t border-gray-200 rounded-b-lg">
-        <div className="flex-1 flex justify-between sm:hidden">
-          <Button
-            onClick={handlePreviousPage}
-            disabled={currentPage === 1 || totalPages <= 1}
-            className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-          >
-            Previous
-          </Button>
-          <Button
-            onClick={handleNextPage}
-            disabled={currentPage === totalPages || totalPages <= 1}
-            className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-          >
-            Next
-          </Button>
-        </div>
-        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm text-gray-700">
-              Showing <span className="font-medium">{Math.max(1, (currentPage - 1) * ITEMS_PER_PAGE + 1)}</span> to{" "}
-              <span className="font-medium">{Math.min(currentPage * ITEMS_PER_PAGE, total)}</span> of{" "}
-              <span className="font-medium">{total}</span> results
-            </p>
-          </div>
-          <div>
-            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-              <Button
-                onClick={handlePreviousPage}
-                disabled={currentPage === 1 || totalPages <= 1}
-                className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-              >
-                <span className="sr-only">Previous</span>
-                <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-              </Button>
-              <Button
-                className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700"
-                disabled
-              >
-                Page {currentPage} of {Math.max(1, totalPages)}
-              </Button>
-              <Button
-                onClick={handleNextPage}
-                disabled={currentPage === totalPages || totalPages <= 1}
-                className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-              >
-                <span className="sr-only">Next</span>
-                <ChevronRight className="h-5 w-5" aria-hidden="true" />
-              </Button>
-            </nav>
-          </div>
-        </div>
-      </div>
+      </SidebarProvider>
     )
   }
 
@@ -1437,8 +1108,7 @@ export default function AdminPage() {
           </header>
 
           <div className="flex-1 overflow-auto">
-            
-
+            <div className="p-4 sm:p-6 max-w-7xl mx-auto">
               {/* Statistics Cards */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
                 <Card className="shadow-lg border-l-4 border-l-blue-500">
@@ -1615,16 +1285,58 @@ export default function AdminPage() {
                       </div>
                     </div>
                   )}
+
+                  <div className="mt-6 pt-4 sm:pt-6 border-t border-gray-200">
+                    <div className="flex items-center justify-between mb-3 sm:mb-4">
+                      <div>
+                        <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-1 sm:mb-2">
+                          📤 Export Data & Manual Actions
+                        </h3>
+                        <p className="text-gray-600 text-sm">
+                          Download data from systech_ott_platform database and perform manual operations
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-2 sm:gap-4">
+                      <Button
+                        onClick={() => exportData()}
+                        className="bg-purple-600 hover:bg-purple-700 text-xs sm:text-sm"
+                      >
+                        <DownloadIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                        Export All Data
+                      </Button>
+                      <Button
+                        onClick={() => exportData("claims")}
+                        className="bg-blue-600 hover:bg-blue-700 text-xs sm:text-sm"
+                      >
+                        <DownloadIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                        Export Claims
+                      </Button>
+                      <Button
+                        onClick={() => exportData("sales")}
+                        className="bg-green-600 hover:bg-green-700 text-xs sm:text-sm"
+                      >
+                        <DownloadIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                        Export Sales
+                      </Button>
+                      <Button
+                        onClick={() => exportData("keys")}
+                        className="bg-orange-600 hover:bg-orange-700 text-xs sm:text-sm"
+                      >
+                        <DownloadIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                        Export Keys
+                      </Button>
+                      <Button
+                        onClick={() => setManualClaimDialogOpen(true)}
+                        className="bg-red-600 hover:bg-red-700 text-xs sm:text-sm"
+                      >
+                        <PlusIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                        Manual Claim
+                      </Button>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
-
-              <div className="p-4 sm:p-6 max-w-7xl mx-auto">
-              <AdminExportPanel
-                onExport={exportData}
-                onExportAll={exportAllData}
-                exporting={exporting}
-                exportingTable={exportingTable}
-              />
 
               {/* Data Tables */}
               <Tabs value={activeTab} onValueChange={handleTabChange}>
@@ -1748,7 +1460,7 @@ export default function AdminPage() {
                               <SortableHeader sortKey="firstName">First Name</SortableHeader>
                               <SortableHeader sortKey="lastName">Last Name</SortableHeader>
                               <SortableHeader sortKey="email">Email</SortableHeader>
-                              <SortableHeader sortKey="phoneNumber">Phone Number</SortableHeader>
+                              <SortableHeader sortKey="phoneNumber">Phone</SortableHeader>
                               <SortableHeader sortKey="streetAddress">Street Address</SortableHeader>
                               <SortableHeader sortKey="addressLine2">Address Line 2</SortableHeader>
                               <SortableHeader sortKey="state">State</SortableHeader>
@@ -1900,6 +1612,128 @@ export default function AdminPage() {
                               <SortableHeader sortKey="product">Product</SortableHeader>
                               <SortableHeader sortKey="productSubCategory">Category</SortableHeader>
                               <SortableHeader sortKey="status">Status</SortableHeader>
+                              <SortableHeader sortKey="claimedBy">Claimed By</SortableHeader>
+                              <SortableHeader sortKey="claimedDate">Claimed Date</SortableHeader>
+                              <SortableHeader sortKey="createdAt">Created</SortableHeader>
+                              <SortableHeader sortKey="updatedAt">Updated</SortableHeader>
+                              <TableHead className="font-bold text-gray-800">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {currentData.sales.length > 0 ? (
+                              currentData.sales.map((sale, index) => (
+                                <TableRow
+                                  key={sale._id || sale.id}
+                                  className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                                >
+                                  <TableCell className="font-mono text-sm">{sale.activationCode || "N/A"}</TableCell>
+                                  <TableCell>{sale.product || "N/A"}</TableCell>
+                                  <TableCell>{sale.productSubCategory || "N/A"}</TableCell>
+                                  <TableCell>{getStatusBadge(sale.status)}</TableCell>
+                                  <TableCell>{sale.claimedBy || <span className="text-gray-400">-</span>}</TableCell>
+                                  <TableCell className="text-sm text-gray-600">
+                                    {formatDateTime(sale.claimedDate)}
+                                  </TableCell>
+                                  <TableCell className="text-sm text-gray-600">
+                                    {formatDateTime(sale.createdAt)}
+                                  </TableCell>
+                                  <TableCell className="text-sm text-gray-600">
+                                    {formatDateTime(sale.updatedAt)}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        handleDeleteClick(
+                                          "sales",
+                                          sale._id || sale.id,
+                                          sale.activationCode || "Unknown",
+                                        )
+                                      }
+                                      className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            ) : (
+                              <TableRow>
+                                <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                                  {searchLoading ? "Searching..." : "No sales data available"}
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                      <PaginationControls />
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="keys">
+                  <Card className="shadow-xl border-0">
+                    <CardHeader className="bg-gradient-to-r from-purple-50 to-violet-50 rounded-t-lg border-b">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <CardTitle className="text-xl sm:text-2xl font-bold text-gray-800">
+                            OTT Keys Inventory
+                          </CardTitle>
+                          <CardDescription className="text-sm sm:text-lg text-gray-600">
+                            OTT keys from systech_ott_platform.ottkeys collection
+                          </CardDescription>
+                        </div>
+                      </div>
+
+                      {/* Search and Filters */}
+                      <div className="mt-4 sm:mt-6 space-y-4">
+                        <div className="flex items-center space-x-2 sm:space-x-4">
+                          <div className="flex-1 relative">
+                            <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                            <Input
+                              placeholder="Search by activation code, product, category..."
+                              value={searchTerm}
+                              onChange={(e) => handleSearchChange(e.target.value)}
+                              className="pl-10 text-sm"
+                            />
+                          </div>
+                          {searchLoading && (
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+                          <div>
+                            <Label className="text-sm font-medium text-gray-700">Status</Label>
+                            <Select
+                              value={filters.keysStatus}
+                              onValueChange={(value) => handleFilterChange("keysStatus", value)}
+                            >
+                              <SelectTrigger className="text-sm">
+                                <SelectValue placeholder="All Status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Status</SelectItem>
+                                <SelectItem value="available">Available</SelectItem>
+                                <SelectItem value="assigned">Assigned</SelectItem>
+                                <SelectItem value="used">Used</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader className="bg-gray-50">
+                            <TableRow>
+                              <SortableHeader sortKey="activationCode">Activation Code</SortableHeader>
+                              <SortableHeader sortKey="product">Product</SortableHeader>
+                              <SortableHeader sortKey="productSubCategory">Category</SortableHeader>
+                              <SortableHeader sortKey="status">Status</SortableHeader>
                               <SortableHeader sortKey="assignedEmail">Assigned To</SortableHeader>
                               <SortableHeader sortKey="assignedDate">Assigned Date</SortableHeader>
                               <SortableHeader sortKey="createdAt">Created</SortableHeader>
@@ -2017,10 +1851,11 @@ export default function AdminPage() {
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="all">All Status</SelectItem>
-                                <SelectItem value="captured">Captured</SelectItem>
+                                <SelectItem value="created">Created</SelectItem>
                                 <SelectItem value="authorized">Authorized</SelectItem>
-                                <SelectItem value="failed">Failed</SelectItem>
+                                <SelectItem value="captured">Captured</SelectItem>
                                 <SelectItem value="refunded">Refunded</SelectItem>
+                                <SelectItem value="failed">Failed</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
