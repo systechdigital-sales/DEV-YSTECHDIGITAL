@@ -1171,7 +1171,7 @@ export default function AdminPage() {
                     value="transactions"
                     className="rounded-lg data-[state=active]:bg-purple-600 data-[state=active]:text-white text-sm sm:text-lg font-semibold"
                   >
-                    <span className="hidden sm:inline">Transactions ({stats.totalTransactions || 0})</span>
+                    <span className="hidden sm:inline">Transactions </span>
                     <span className="sm:hidden">Transactions</span>
                   </TabsTrigger>
                 </TabsList>
@@ -1682,8 +1682,6 @@ export default function AdminPage() {
                               <TableHead className="font-bold text-gray-800">Claim ID</TableHead>
                               <TableHead className="font-bold text-gray-800">Created Date</TableHead>
                               <TableHead className="font-bold text-gray-800">Created Time</TableHead>
-                              <TableHead className="font-bold text-gray-800">Captured Date</TableHead>
-                              <TableHead className="font-bold text-gray-800">Captured Time</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -1715,12 +1713,7 @@ export default function AdminPage() {
                                   <TableCell className="text-sm text-gray-600">
                                     {formatDateTimeIST(transaction.created_at)?.split(" ")[1] || "-"}
                                   </TableCell>
-                                  <TableCell className="text-sm text-gray-600">
-                                    {formatDateTimeIST(transaction.captured_at)?.split(" ")[0] || "-"}
-                                  </TableCell>
-                                  <TableCell className="text-sm text-gray-600">
-                                    {formatDateTimeIST(transaction.captured_at)?.split(" ")[1] || "-"}
-                                  </TableCell>
+
                                 </TableRow>
                               ))
                             ) : (
