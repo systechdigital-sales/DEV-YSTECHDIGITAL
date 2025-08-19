@@ -35,76 +35,120 @@ async function syncTransactions() {
     const count = 100 // Razorpay API limit per request
     let hasMore = true
 
+    const sixtyDaysAgo = new Date()
+    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60)
+    const fromTimestamp = Math.floor(sixtyDaysAgo.getTime() / 1000)
+
+    console.log("[v0] Syncing transactions from:", new Date(fromTimestamp * 1000))
+
     while (hasMore) {
-      const payments = await razorpay.payments.all({
-        count: count,
-        skip: skip,
-      })
+      try {
+        const payments = await razorpay.payments.all({
+          count: count,
+          skip: skip,
+          from: fromTimestamp,
+        })
 
-      allPayments.push(...payments.items)
+        allPayments.push(...payments.items)
+        hasMore = payments.items.length === count
+        skip += count
 
-      // Check if there are more payments to fetch
-      hasMore = payments.items.length === count
-      skip += count
-
-      // Add a small delay to avoid rate limiting
-      if (hasMore) {
-        await new Promise((resolve) => setTimeout(resolve, 100))
+        if (hasMore) {
+          await new Promise((resolve) => setTimeout(resolve, 200))
+        }
+      } catch (apiError) {
+        console.error("[v0] Razorpay API error:", apiError)
+        if (allPayments.length > 0) {
+          console.log("[v0] Continuing with partial data due to API error")
+          break
+        }
+        throw apiError
       }
     }
 
     let syncedCount = 0
     let updatedCount = 0
+    let errorCount = 0
 
     for (const payment of allPayments) {
-      const existingTransaction = await transactionsCollection.findOne({
-        razorpay_payment_id: payment.id,
-      })
-
-      const transactionData = {
-        razorpay_payment_id: payment.id,
-        razorpay_order_id: payment.order_id,
-        amount: payment.amount,
-        currency: payment.currency,
-        status: payment.status,
-        method: payment.method,
-        email: payment.email,
-        contact: payment.contact,
-        fee: payment.fee,
-        tax: payment.tax,
-        error_code: payment.error_code,
-        error_description: payment.error_description,
-        created_at: new Date(payment.created_at * 1000), // Convert Unix timestamp
-        captured_at: payment.captured_at ? new Date(payment.captured_at * 1000) : undefined,
-        updatedAt: new Date(),
-      }
-
-      if (existingTransaction) {
-        // Update existing transaction
-        await transactionsCollection.updateOne({ razorpay_payment_id: payment.id }, { $set: transactionData })
-        updatedCount++
-      } else {
-        // Insert new transaction
-        await transactionsCollection.insertOne({
-          ...transactionData,
-          createdAt: new Date(),
+      try {
+        const existingTransaction = await transactionsCollection.findOne({
+          razorpay_payment_id: payment.id,
         })
-        syncedCount++
+
+        const transactionData = {
+          razorpay_payment_id: payment.id,
+          razorpay_order_id: payment.order_id,
+          amount: payment.amount,
+          currency: payment.currency,
+          status: payment.status,
+          method: payment.method,
+          email: payment.email,
+          contact: payment.contact,
+          fee: payment.fee,
+          tax: payment.tax,
+          error_code: payment.error_code,
+          error_description: payment.error_description,
+          created_at: new Date(payment.created_at * 1000),
+          captured_at: payment.captured_at ? new Date(payment.captured_at * 1000) : undefined,
+          updatedAt: new Date(),
+          lastSyncAt: new Date(),
+          syncSource: "razorpay_api",
+        }
+
+        if (existingTransaction) {
+          await transactionsCollection.updateOne(
+            { razorpay_payment_id: payment.id },
+            {
+              $set: {
+                ...transactionData,
+                // Preserve claimId if it exists
+                ...(existingTransaction.claimId && { claimId: existingTransaction.claimId }),
+              },
+            },
+          )
+          updatedCount++
+        } else {
+          await transactionsCollection.insertOne({
+            ...transactionData,
+            createdAt: new Date(),
+          })
+          syncedCount++
+        }
+      } catch (paymentError) {
+        console.error("[v0] Error processing payment:", payment.id, paymentError)
+        errorCount++
+
+        await db.collection("sync_errors").insertOne({
+          razorpay_payment_id: payment.id,
+          error: paymentError.message,
+          timestamp: new Date(),
+          paymentData: payment,
+        })
       }
     }
 
-    // Try to match transactions with claims
     await matchTransactionsWithClaims()
+
+    await db.collection("sync_logs").insertOne({
+      timestamp: new Date(),
+      totalFetched: allPayments.length,
+      syncedCount,
+      updatedCount,
+      errorCount,
+      fromDate: new Date(fromTimestamp * 1000),
+    })
 
     return NextResponse.json({
       success: true,
-      message: `Synced ${syncedCount} new transactions, updated ${updatedCount} existing transactions from ${allPayments.length} total payments`,
+      message: `Synced ${syncedCount} new transactions, updated ${updatedCount} existing transactions from ${allPayments.length} total payments. ${errorCount} errors occurred.`,
       syncedCount,
       updatedCount,
       totalFetched: allPayments.length,
+      errorCount,
     })
   } catch (error) {
-    console.error("Error syncing transactions:", error)
+    console.error("[v0] Error syncing transactions:", error)
     return NextResponse.json({ error: "Failed to sync transactions from Razorpay" }, { status: 500 })
   }
 }
@@ -115,18 +159,70 @@ async function matchTransactionsWithClaims() {
     const transactionsCollection = db.collection("razorpay_transactions")
     const claimsCollection = db.collection("claims")
 
-    // Find transactions without claimId
     const unmatchedTransactions = await transactionsCollection
       .find({
-        claimId: { $exists: false },
+        $or: [{ claimId: { $exists: false } }, { claimId: null }, { claimId: "" }],
+        status: { $in: ["captured", "authorized"] }, // Include authorized payments
       })
       .toArray()
 
+    console.log("[v0] Found", unmatchedTransactions.length, "unmatched transactions")
+
+    let matchedCount = 0
+
     for (const transaction of unmatchedTransactions) {
-      // Try to find matching claim by razorpay_order_id
-      const matchingClaim = await claimsCollection.findOne({
-        razorpayOrderId: transaction.razorpay_order_id,
-      })
+      let matchingClaim = null
+
+      // Strategy 1: Match by razorpay_order_id
+      if (transaction.razorpay_order_id) {
+        matchingClaim = await claimsCollection.findOne({
+          razorpayOrderId: transaction.razorpay_order_id,
+        })
+      }
+
+      // Strategy 2: Match by paymentId
+      if (!matchingClaim && transaction.razorpay_payment_id) {
+        matchingClaim = await claimsCollection.findOne({
+          paymentId: transaction.razorpay_payment_id,
+        })
+      }
+
+      // Strategy 3: Match by email and contact with time proximity
+      if (!matchingClaim && transaction.email && transaction.contact) {
+        const transactionTime = transaction.created_at || transaction.createdAt
+        const timeWindow = 4 * 60 * 60 * 1000 // Increased to 4 hours
+
+        matchingClaim = await claimsCollection.findOne({
+          $and: [
+            { email: transaction.email },
+            {
+              $or: [{ phoneNumber: transaction.contact }, { phone: transaction.contact }],
+            },
+            { paymentStatus: "paid" },
+            {
+              createdAt: {
+                $gte: new Date(transactionTime.getTime() - timeWindow),
+                $lte: new Date(transactionTime.getTime() + timeWindow),
+              },
+            },
+          ],
+        })
+      }
+
+      if (!matchingClaim && transaction.email) {
+        const transactionTime = transaction.created_at || transaction.createdAt
+        const recentWindow = 2 * 60 * 60 * 1000 // 2 hours for email-only matching
+
+        matchingClaim = await claimsCollection.findOne({
+          email: transaction.email,
+          paymentStatus: "paid",
+          createdAt: {
+            $gte: new Date(transactionTime.getTime() - recentWindow),
+            $lte: new Date(transactionTime.getTime() + recentWindow),
+          },
+          $or: [{ razorpayOrderId: { $exists: false } }, { razorpayOrderId: null }, { razorpayOrderId: "" }],
+        })
+      }
 
       if (matchingClaim) {
         // Update transaction with claimId
@@ -136,14 +232,48 @@ async function matchTransactionsWithClaims() {
             $set: {
               claimId: matchingClaim.claimId,
               updatedAt: new Date(),
+              matchedAt: new Date(),
+              matchStrategy: getMatchStrategy(transaction, matchingClaim),
             },
           },
         )
+
+        const claimUpdates = {}
+        if (!matchingClaim.razorpayOrderId && transaction.razorpay_order_id) {
+          claimUpdates.razorpayOrderId = transaction.razorpay_order_id
+        }
+        if (!matchingClaim.paymentId && transaction.razorpay_payment_id) {
+          claimUpdates.paymentId = transaction.razorpay_payment_id
+        }
+
+        if (Object.keys(claimUpdates).length > 0) {
+          claimUpdates.updatedAt = new Date()
+          claimUpdates.matchedAt = new Date()
+
+          await claimsCollection.updateOne({ claimId: matchingClaim.claimId }, { $set: claimUpdates })
+        }
+
+        matchedCount++
+        console.log("[v0] Matched transaction", transaction.razorpay_payment_id, "with claim", matchingClaim.claimId)
       }
     }
+
+    console.log(`[v0] Successfully matched ${matchedCount} transactions with claims`)
   } catch (error) {
-    console.error("Error matching transactions with claims:", error)
+    console.error("[v0] Error matching transactions with claims:", error)
   }
+}
+
+function getMatchStrategy(transaction, claim) {
+  if (claim.razorpayOrderId === transaction.razorpay_order_id) return "order_id"
+  if (claim.paymentId === transaction.razorpay_payment_id) return "payment_id"
+  if (
+    claim.email === transaction.email &&
+    (claim.phoneNumber === transaction.contact || claim.phone === transaction.contact)
+  )
+    return "email_contact"
+  if (claim.email === transaction.email) return "email_only"
+  return "unknown"
 }
 
 async function getTransactions(request: NextRequest) {
