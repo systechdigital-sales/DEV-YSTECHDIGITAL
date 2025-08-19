@@ -92,3 +92,34 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* Adding CSS isolation for email template preview to prevent style conflicts */
+@layer components {
+  .email-template-container {
+    /* Create a new stacking context and isolate styles */
+    isolation: isolate;
+    contain: layout style;
+
+    /* Reset any inherited styles that might interfere */
+    all: initial;
+    font-family: inherit;
+
+    /* Ensure the email template styles don't leak out */
+    & * {
+      box-sizing: border-box;
+    }
+
+    /* Override any global styles that might interfere with email rendering */
+    & body {
+      margin: 0 !important;
+      padding: 0 !important;
+      background: transparent !important;
+    }
+
+    /* Prevent email template from affecting page layout */
+    & .container {
+      position: relative;
+      z-index: 1;
+    }
+  }
+}

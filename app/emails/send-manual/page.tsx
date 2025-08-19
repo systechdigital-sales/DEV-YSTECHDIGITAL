@@ -506,7 +506,12 @@ export default function SendManualEmailPage() {
                 {emailData.htmlBody ? (
                   <div
                     dangerouslySetInnerHTML={{ __html: emailData.htmlBody }}
-                    className="prose prose-sm max-w-none [&>*]:max-w-full [&_img]:max-w-full [&_table]:w-full [&_table]:table-auto"
+                    className="email-template-container prose prose-sm max-w-none [&>*]:max-w-full [&_img]:max-w-full [&_table]:w-full [&_table]:table-auto"
+                    style={{
+                      isolation: "isolate",
+                      contain: "layout style",
+                      overflow: "hidden",
+                    }}
                   />
                 ) : (
                   <div className="flex items-center justify-center h-full text-slate-500">
