@@ -38,6 +38,8 @@ export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db
   }
 }
 
+export const connectDB = connectToDatabase
+
 export async function getDatabase(): Promise<Db> {
   const { db } = await connectToDatabase()
   return db

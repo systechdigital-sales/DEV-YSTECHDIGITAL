@@ -27,6 +27,8 @@ import {
   ArrowUp,
   ArrowDown,
   Loader2,
+  PlusIcon,
+  CheckIcon,
 } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -36,6 +38,14 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/s
 import Image from "next/image"
 import { toast } from "@/hooks/use-toast"
 import { ChevronLeft, ChevronRight, ChevronsRight } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 // Reduced page size for better performance
 const ITEMS_PER_PAGE = 10
@@ -325,10 +335,21 @@ export default function AdminPage() {
   }
 
   const handleDateFilterChange = (field: "startDate" | "endDate", value: string) => {
-    setDateFilter((prev) => ({
-      ...prev,
-      [field]: value,
-    }))
+    setDateFilter((prev) => {
+      const newFilter = {
+        ...prev,
+        [field]: value,
+      }
+
+      // Trigger data reload when both dates are set or when clearing dates
+      if ((newFilter.startDate && newFilter.endDate) || (!newFilter.startDate && !newFilter.endDate)) {
+        setTimeout(() => {
+          loadCurrentTabData(1, searchTerm)
+        }, 100)
+      }
+
+      return newFilter
+    })
   }
 
   const clearDateFilter = () => {
@@ -336,6 +357,9 @@ export default function AdminPage() {
       startDate: "",
       endDate: "",
     })
+    setTimeout(() => {
+      loadCurrentTabData(1, searchTerm)
+    }, 100)
   }
 
   // Handle sort change
@@ -424,7 +448,6 @@ export default function AdminPage() {
     }
   }
 
-  // Export data handler
   const exportData = async (type?: "claims" | "sales" | "keys") => {
     try {
       setMessage("")
@@ -454,7 +477,7 @@ export default function AdminPage() {
         window.URL.revokeObjectURL(url)
         document.body.removeChild(a)
 
-        const successMessage = `${type ? type.charAt(0).toUpperCase() + type.slice(1) : "All"} data exported successfully`
+        const successMessage = `${type ? type.charAt(0).toUpperCase() + type.slice(1) : "All"} data exported successfully with all columns`
         setMessage(successMessage)
         toast({
           title: "Export Successful",
@@ -862,6 +885,107 @@ export default function AdminPage() {
     fetchClaims()
   }, [fetchClaims, dateFilter.startDate, dateFilter.endDate])
 
+  const [manualClaimDialogOpen, setManualClaimDialogOpen] = useState(false)
+  const [manualClaimData, setManualClaimData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phoneNumber: "",
+    streetAddress: "",
+    city: "",
+    state: "",
+    pincode: "",
+    activationCode: "",
+    adminPassword: "",
+  })
+  const [manualClaimLoading, setManualClaimLoading] = useState(false)
+
+  const handleManualClaimSubmit = async () => {
+    if (
+      !manualClaimData.firstName ||
+      !manualClaimData.email ||
+      !manualClaimData.activationCode ||
+      !manualClaimData.adminPassword
+    ) {
+      setError("Please fill in all required fields (Name, Email, Activation Code, Admin Password)")
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setManualClaimLoading(true)
+    setError("")
+    setMessage("")
+
+    try {
+      const response = await fetch("/api/admin/manual-claim", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          firstName: manualClaimData.firstName,
+          lastName: manualClaimData.lastName,
+          email: manualClaimData.email,
+          phoneNumber: manualClaimData.phoneNumber,
+          streetAddress: manualClaimData.streetAddress,
+          city: manualClaimData.city,
+          state: manualClaimData.state,
+          pincode: manualClaimData.pincode,
+          activationCode: manualClaimData.activationCode,
+          adminPassword: manualClaimData.adminPassword,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (response.ok) {
+        setMessage(result.message || "Manual claim processed successfully!")
+        toast({
+          title: "Manual Claim Successful",
+          description: result.message || "Manual claim processed successfully!",
+        })
+        setManualClaimDialogOpen(false)
+        setManualClaimData({
+          firstName: "",
+          lastName: "",
+          email: "",
+          phoneNumber: "",
+          streetAddress: "",
+          city: "",
+          state: "",
+          pincode: "",
+          activationCode: "",
+          adminPassword: "",
+        })
+        // Refresh data
+        loadStats()
+        loadCurrentTabData()
+      } else {
+        setError(result.error || "Manual claim failed.")
+        toast({
+          title: "Manual Claim Failed",
+          description: result.error || "Manual claim failed.",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Manual claim error:", error)
+      const errorMessage = "Network error occurred during manual claim"
+      setError(errorMessage)
+      toast({
+        title: "Manual Claim Error",
+        description: errorMessage,
+        variant: "destructive",
+      })
+    } finally {
+      setManualClaimLoading(false)
+    }
+  }
+
   if (loading) {
     return (
       <SidebarProvider>
@@ -1101,15 +1225,18 @@ export default function AdminPage() {
                     </div>
                   )}
 
-                  {/* Export Section */}
                   <div className="mt-6 pt-4 sm:pt-6 border-t border-gray-200">
                     <div className="flex items-center justify-between mb-3 sm:mb-4">
                       <div>
-                        <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-1 sm:mb-2">📤 Export Data</h3>
-                        <p className="text-gray-600 text-sm">Download data from systech_ott_platform database</p>
+                        <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-1 sm:mb-2">
+                          📤 Export Data & Manual Actions
+                        </h3>
+                        <p className="text-gray-600 text-sm">
+                          Download data from systech_ott_platform database and perform manual operations
+                        </p>
                       </div>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-2 sm:gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-2 sm:gap-4">
                       <Button
                         onClick={() => exportData()}
                         className="bg-purple-600 hover:bg-purple-700 text-xs sm:text-sm"
@@ -1137,6 +1264,13 @@ export default function AdminPage() {
                       >
                         <DownloadIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                         Export Keys
+                      </Button>
+                      <Button
+                        onClick={() => setManualClaimDialogOpen(true)}
+                        className="bg-red-600 hover:bg-red-700 text-xs sm:text-sm"
+                      >
+                        <PlusIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                        Manual Claim
                       </Button>
                     </div>
                   </div>
@@ -1713,7 +1847,6 @@ export default function AdminPage() {
                                   <TableCell className="text-sm text-gray-600">
                                     {formatDateTimeIST(transaction.created_at)?.split(" ")[1] || "-"}
                                   </TableCell>
-
                                 </TableRow>
                               ))
                             ) : (
@@ -1737,6 +1870,136 @@ export default function AdminPage() {
           </div>
         </SidebarInset>
       </div>
+
+      <Dialog open={manualClaimDialogOpen} onOpenChange={setManualClaimDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <PlusIcon className="h-5 w-5" />
+              Manual Claim Processing
+            </DialogTitle>
+            <DialogDescription>
+              Process a manual claim by filling in customer details and activation code
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="firstName">First Name *</Label>
+              <Input
+                id="firstName"
+                value={manualClaimData.firstName}
+                onChange={(e) => setManualClaimData((prev) => ({ ...prev, firstName: e.target.value }))}
+                placeholder="Enter first name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lastName">Last Name</Label>
+              <Input
+                id="lastName"
+                value={manualClaimData.lastName}
+                onChange={(e) => setManualClaimData((prev) => ({ ...prev, lastName: e.target.value }))}
+                placeholder="Enter last name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email *</Label>
+              <Input
+                id="email"
+                type="email"
+                value={manualClaimData.email}
+                onChange={(e) => setManualClaimData((prev) => ({ ...prev, email: e.target.value }))}
+                placeholder="Enter email address"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phoneNumber">Phone Number</Label>
+              <Input
+                id="phoneNumber"
+                value={manualClaimData.phoneNumber}
+                onChange={(e) => setManualClaimData((prev) => ({ ...prev, phoneNumber: e.target.value }))}
+                placeholder="Enter phone number"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="streetAddress">Street Address</Label>
+              <Input
+                id="streetAddress"
+                value={manualClaimData.streetAddress}
+                onChange={(e) => setManualClaimData((prev) => ({ ...prev, streetAddress: e.target.value }))}
+                placeholder="Enter street address"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="city">City</Label>
+              <Input
+                id="city"
+                value={manualClaimData.city}
+                onChange={(e) => setManualClaimData((prev) => ({ ...prev, city: e.target.value }))}
+                placeholder="Enter city"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="state">State</Label>
+              <Input
+                id="state"
+                value={manualClaimData.state}
+                onChange={(e) => setManualClaimData((prev) => ({ ...prev, state: e.target.value }))}
+                placeholder="Enter state"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="pincode">Pincode</Label>
+              <Input
+                id="pincode"
+                value={manualClaimData.pincode}
+                onChange={(e) => setManualClaimData((prev) => ({ ...prev, pincode: e.target.value }))}
+                placeholder="Enter pincode"
+              />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="activationCode">Activation Code *</Label>
+              <Input
+                id="activationCode"
+                value={manualClaimData.activationCode}
+                onChange={(e) => setManualClaimData((prev) => ({ ...prev, activationCode: e.target.value }))}
+                placeholder="Enter activation code"
+              />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="adminPassword">Admin Password *</Label>
+              <Input
+                id="adminPassword"
+                type="password"
+                value={manualClaimData.adminPassword}
+                onChange={(e) => setManualClaimData((prev) => ({ ...prev, adminPassword: e.target.value }))}
+                placeholder="Enter admin password"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setManualClaimDialogOpen(false)} disabled={manualClaimLoading}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleManualClaimSubmit}
+              disabled={manualClaimLoading}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {manualClaimLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <CheckIcon className="w-4 h-4 mr-2" />
+                  Process Manual Claim
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </SidebarProvider>
   )
 }

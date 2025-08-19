@@ -85,9 +85,10 @@ export default function EmailsPage() {
       setLoading(true)
       setError(null)
 
-      console.log("[v0] Fetching claims data for emails page...")
+      console.log("[v0] Fetching comprehensive claims data for emails page...")
 
-      const response = await fetch("/api/admin/claims", {
+      // Fetch claims with all email-related data
+      const response = await fetch("/api/admin/claims?limit=1000", {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -125,6 +126,14 @@ export default function EmailsPage() {
         claimsData = []
         console.log("[v0] No valid claims data found, using empty array")
       }
+
+      // Ensure all required email fields are present
+      claimsData = claimsData.map((claim) => ({
+        ...claim,
+        ottStatus: claim.ottStatus || claim.ottCodeStatus || "pending",
+        phoneNumber: claim.phoneNumber || claim.phone || "",
+        platform: claim.platform || "OTTplay",
+      }))
 
       if (claimsData.length > 0) {
         console.log("[v0] Sample claim data structure:", {
@@ -418,6 +427,13 @@ export default function EmailsPage() {
               >
                 <Download className="h-4 w-4" />
                 Export CSV
+              </Button>
+              <Button
+                onClick={() => window.open("/emails/send-manual", "_blank")}
+                className="gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg"
+              >
+                <Mail className="h-4 w-4" />
+                Send Manual Mail
               </Button>
             </div>
           </div>

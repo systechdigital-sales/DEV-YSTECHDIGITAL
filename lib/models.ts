@@ -118,3 +118,109 @@ export interface RazorpayTransaction
   createdAt?: string
   updatedAt?: string
 }
+
+// Mongoose-style model classes for compatibility with existing code
+export class Claim {
+  constructor(data: Partial<IClaimResponse>) {
+    Object.assign(this, data)
+  }
+
+  static async findOne(query: any) {
+    const { getDatabase } = await import("./mongodb")
+    const db = await getDatabase()
+    return await db.collection("claims").findOne(query)
+  }
+
+  static async findById(id: string | ObjectId) {
+    const { getDatabase } = await import("./mongodb")
+    const { ObjectId: MongoObjectId } = await import("mongodb")
+    const db = await getDatabase()
+    return await db.collection("claims").findOne({ _id: new MongoObjectId(id) })
+  }
+
+  static async findByIdAndUpdate(id: string | ObjectId, update: any) {
+    const { getDatabase } = await import("./mongodb")
+    const { ObjectId: MongoObjectId } = await import("mongodb")
+    const db = await getDatabase()
+    return await db
+      .collection("claims")
+      .findOneAndUpdate({ _id: new MongoObjectId(id) }, { $set: update }, { returnDocument: "after" })
+  }
+
+  async save() {
+    const { getDatabase } = await import("./mongodb")
+    const db = await getDatabase()
+    const result = await db.collection("claims").insertOne(this)
+    return { ...this, _id: result.insertedId }
+  }
+}
+
+export class SalesRecordClass {
+  constructor(data: Partial<ISalesRecord>) {
+    Object.assign(this, data)
+  }
+
+  static async findOne(query: any) {
+    const { getDatabase } = await import("./mongodb")
+    const db = await getDatabase()
+    return await db.collection("salesrecords").findOne(query)
+  }
+
+  static async findById(id: string | ObjectId) {
+    const { getDatabase } = await import("./mongodb")
+    const { ObjectId: MongoObjectId } = await import("mongodb")
+    const db = await getDatabase()
+    return await db.collection("salesrecords").findOne({ _id: new MongoObjectId(id) })
+  }
+
+  static async findByIdAndUpdate(id: string | ObjectId, update: any) {
+    const { getDatabase } = await import("./mongodb")
+    const { ObjectId: MongoObjectId } = await import("mongodb")
+    const db = await getDatabase()
+    return await db
+      .collection("salesrecords")
+      .findOneAndUpdate({ _id: new MongoObjectId(id) }, { $set: update }, { returnDocument: "after" })
+  }
+
+  async save() {
+    const { getDatabase } = await import("./mongodb")
+    const db = await getDatabase()
+    const result = await db.collection("salesrecords").insertOne(this)
+    return { ...this, _id: result.insertedId }
+  }
+}
+
+export class OTTKeyClass {
+  constructor(data: Partial<IOTTKey>) {
+    Object.assign(this, data)
+  }
+
+  static async findOne(query: any) {
+    const { getDatabase } = await import("./mongodb")
+    const db = await getDatabase()
+    return await db.collection("ottkeys").findOne(query)
+  }
+
+  static async findById(id: string | ObjectId) {
+    const { getDatabase } = await import("./mongodb")
+    const { ObjectId: MongoObjectId } = await import("mongodb")
+    const db = await getDatabase()
+    return await db.collection("ottkeys").findOne({ _id: new MongoObjectId(id) })
+  }
+
+  static async findByIdAndUpdate(id: string | ObjectId, update: any) {
+    const { getDatabase } = await import("./mongodb")
+    const { ObjectId: MongoObjectId } = await import("mongodb")
+    const db = await getDatabase()
+    return await db
+      .collection("ottkeys")
+      .findOneAndUpdate({ _id: new MongoObjectId(id) }, { $set: update }, { returnDocument: "after" })
+  }
+
+  async save() {
+    const { getDatabase } = await import("./mongodb")
+    const db = await getDatabase()
+    const result = await db.collection("ottkeys").insertOne(this)
+    return { ...this, _id: result.insertedId }
+  }
+}

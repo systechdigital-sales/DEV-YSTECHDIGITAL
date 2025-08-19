@@ -5,7 +5,18 @@ import nodemailer from "nodemailer"
 
 export async function POST(request: NextRequest) {
   try {
-    const { claimId, ottKeyId, adminPassword } = await request.json()
+    const {
+      firstName,
+      lastName,
+      email,
+      phoneNumber,
+      streetAddress,
+      city,
+      state,
+      pincode,
+      activationCode,
+      adminPassword,
+    } = await request.json()
 
     // Validate admin password
     if (adminPassword !== "Tr!ckyH@ck3r#2025") {
@@ -13,89 +24,94 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate required fields
-    if (!claimId || !ottKeyId) {
-      return NextResponse.json({ error: "Claim ID and OTT Key ID are required" }, { status: 400 })
+    if (!firstName || !email || !activationCode) {
+      return NextResponse.json({ error: "First name, email, and activation code are required" }, { status: 400 })
     }
 
     await connectDB()
 
-    // Find the claim
-    const claim = await Claim.findById(claimId)
-    if (!claim) {
-      return NextResponse.json({ error: "Claim not found" }, { status: 404 })
-    }
-
-    // Check if claim is already processed
-    if (claim.ottStatus === "delivered") {
-      return NextResponse.json({ error: "Claim already has an OTT key assigned" }, { status: 400 })
-    }
-
-    // Find the OTT key
-    const ottKey = await OTTKey.findById(ottKeyId)
-    if (!ottKey) {
-      return NextResponse.json({ error: "OTT Key not found" }, { status: 404 })
-    }
-
-    // Check if key is available
-    if (ottKey.status !== "available") {
-      return NextResponse.json({ error: "OTT Key is not available for assignment" }, { status: 400 })
-    }
-
-    // Find the sales record
+    // Check if activation code exists in sales records
     const salesRecord = await SalesRecord.findOne({
-      activationCode: claim.activationCode,
+      activationCode: activationCode,
     })
 
     if (!salesRecord) {
-      return NextResponse.json({ error: "Sales record not found for this claim" }, { status: 404 })
+      return NextResponse.json({ error: "Activation code not found in sales records" }, { status: 404 })
     }
 
-    // Start transaction-like operations
-    try {
-      // Update the claim
-      await Claim.findByIdAndUpdate(claimId, {
-        ottStatus: "delivered",
-        ottKey: ottKey.ottKey,
-        ottKeyId: ottKey._id,
-        deliveredAt: new Date(),
-        updatedAt: new Date(),
-      })
-
-      // Update the OTT key
-      await OTTKey.findByIdAndUpdate(ottKeyId, {
-        status: "assigned",
-        claimId: claimId,
-        assignedAt: new Date(),
-        updatedAt: new Date(),
-      })
-
-      // Update the sales record
-      await SalesRecord.findByIdAndUpdate(salesRecord._id, {
-        status: "claimed",
-        claimedAt: new Date(),
-        ottKey: ottKey.ottKey,
-        ottKeyId: ottKey._id,
-        updatedAt: new Date(),
-      })
-
-      // Send email with activation code
-      await sendOTTKeyEmail(claim.email, claim.name, ottKey.ottKey, claim.activationCode)
-
-      return NextResponse.json({
-        success: true,
-        message: "OTT Key manually assigned successfully and email sent",
-        data: {
-          claimId: claim._id,
-          ottKey: ottKey.ottKey,
-          email: claim.email,
-        },
-      })
-    } catch (updateError) {
-      console.error("Error updating records:", updateError)
-      return NextResponse.json({ error: "Failed to update records" }, { status: 500 })
+    // Check if already claimed
+    if (salesRecord.status === "claimed") {
+      return NextResponse.json({ error: "Activation code already claimed" }, { status: 400 })
     }
+
+    // Create a new claim record
+    const newClaim = new Claim({
+      firstName: firstName,
+      lastName: lastName || "",
+      email: email,
+      phoneNumber: phoneNumber || "",
+      phone: phoneNumber || "",
+      streetAddress: streetAddress || "",
+      city: city || "",
+      state: state || "",
+      pincode: pincode || "",
+      activationCode: activationCode,
+      paymentStatus: "paid", // Manual claims are considered paid
+      ottStatus: "pending",
+      amount: 99,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+
+    const savedClaim = await newClaim.save()
+
+    // Find available OTT key
+    const availableKey = await OTTKey.findOne({
+      status: "available",
+    })
+
+    if (!availableKey) {
+      return NextResponse.json({ error: "No available OTT keys" }, { status: 404 })
+    }
+
+    // Update the claim with OTT code
+    await Claim.findByIdAndUpdate(savedClaim._id, {
+      ottStatus: "delivered",
+      ottCode: availableKey.activationCode,
+      deliveredAt: new Date(),
+      updatedAt: new Date(),
+    })
+
+    // Update the OTT key
+    await OTTKey.findByIdAndUpdate(availableKey._id, {
+      status: "assigned",
+      assignedEmail: email,
+      assignedDate: new Date(),
+      updatedAt: new Date(),
+    })
+
+    // Update the sales record
+    await SalesRecord.findByIdAndUpdate(salesRecord._id, {
+      status: "claimed",
+      claimedBy: email,
+      claimedDate: new Date(),
+      updatedAt: new Date(),
+    })
+
+    // Send email with activation code
+    await sendOTTKeyEmail(email, `${firstName} ${lastName}`, availableKey.activationCode, activationCode)
+
+    return NextResponse.json({
+      success: true,
+      message: `Manual claim processed successfully. OTT code ${availableKey.activationCode} assigned to ${email}`,
+      data: {
+        claimId: savedClaim._id,
+        ottCode: availableKey.activationCode,
+        email: email,
+      },
+    })
   } catch (error) {
-    console.error("Manual claim assignment error:", error)
+    console.error("Manual claim processing error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
@@ -103,7 +119,7 @@ export async function POST(request: NextRequest) {
 // Email sending function
 async function sendOTTKeyEmail(email: string, name: string, ottKey: string, activationCode: string) {
   try {
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
         user: process.env.GMAIL_USER,
@@ -119,7 +135,9 @@ async function sendOTTKeyEmail(email: string, name: string, ottKey: string, acti
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
             <h1 style="color: white; margin: 0; font-size: 28px;">🎉 Congratulations!</h1>
-            <p style="color: white; margin: 10px 0 0 0; font-size: 16px;">Your OTT Platform Access is Ready</p>
+            <p style="color: white; margin: 10px 0 0 0; font-size: 16px;">Your OTT platform access has been manually processed and approved by our admin team. 
+              You can now enjoy premium streaming content.
+            </p>
           </div>
           
           <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
