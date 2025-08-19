@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
 import { sendEmail } from "@/lib/email"
+import { sendOTTCodeWhatsApp, sendFailureWhatsApp } from "@/lib/whatsapp"
 
 // Helper function to normalize activation codes for better matching
 const normalizeActivationCode = (code: string): string => {
@@ -71,12 +72,12 @@ export async function POST(request: NextRequest) {
     // STEP 1: Handle expired pending payments (older than 48 hours)
     console.log("📅 Step 1: Processing expired pending payments...")
     const expiredCutoff = new Date(Date.now() - 48 * 60 * 60 * 1000) // 48 hours ago
-    
+
     const expiredClaims = await claimsCollection
       .find({
         paymentStatus: "pending",
         createdAt: { $lt: expiredCutoff },
-        emailSent: { $ne: "expired" } // Only process if expired email not sent
+        emailSent: { $ne: "expired" }, // Only process if expired email not sent
       })
       .toArray()
 
@@ -92,7 +93,7 @@ export async function POST(request: NextRequest) {
               paymentStatus: "failed",
               failureReason: "Payment expired - exceeded 48 hour payment window",
               updatedAt: new Date(),
-              emailSent: "expired" // Mark that expired email was sent
+              emailSent: "expired", // Mark that expired email was sent
             },
           },
         )
@@ -112,7 +113,7 @@ export async function POST(request: NextRequest) {
     const paidClaims = await claimsCollection
       .find({
         paymentStatus: "paid",
-        ottStatus: "pending" // Only process pending, skip failed ones
+        ottStatus: "pending", // Only process pending, skip failed ones
       })
       .toArray()
 
@@ -168,9 +169,9 @@ export async function POST(request: NextRequest) {
         if (!salesRecord) {
           // Strategy 3: Normalized match
           const allSalesRecords = await salesCollection.find({}).toArray()
-          salesRecord = allSalesRecords.find((record) => 
-            normalizeActivationCode(record.activationCode) === normalizedSearchCode
-          ) || null
+          salesRecord =
+            allSalesRecords.find((record) => normalizeActivationCode(record.activationCode) === normalizedSearchCode) ||
+            null
         }
 
         if (!salesRecord) {
@@ -186,7 +187,7 @@ export async function POST(request: NextRequest) {
                   ottStatus: "failed",
                   failureReason: "Invalid activation code - not found in sales records",
                   updatedAt: new Date(),
-                  emailSent: "invalid_code_failed" // Mark that failure email was sent
+                  emailSent: "invalid_code_failed", // Mark that failure email was sent
                 },
               },
             )
@@ -221,7 +222,7 @@ export async function POST(request: NextRequest) {
                   ottStatus: "failed",
                   failureReason: "Activation code already claimed",
                   updatedAt: new Date(),
-                  emailSent: "duplicate_failed" // Mark that failure email was sent
+                  emailSent: "duplicate_failed", // Mark that failure email was sent
                 },
               },
             )
@@ -262,14 +263,14 @@ export async function POST(request: NextRequest) {
         // First try to find exact product match
         let availableKey = await keysCollection.findOne({
           status: "Available", // Note: your database uses "Available" with capital A
-          product: platform
+          product: platform,
         })
 
         // If no exact match, try case-insensitive product match
         if (!availableKey) {
           availableKey = await keysCollection.findOne({
             status: "Available",
-            product: { $regex: platform, $options: "i" }
+            product: { $regex: platform, $options: "i" },
           })
         }
 
@@ -279,8 +280,8 @@ export async function POST(request: NextRequest) {
             status: "Available",
             $or: [
               { product: { $regex: "ottplay", $options: "i" } },
-              { product: { $regex: "ott play", $options: "i" } }
-            ]
+              { product: { $regex: "ott play", $options: "i" } },
+            ],
           })
         }
 
@@ -288,7 +289,7 @@ export async function POST(request: NextRequest) {
         if (!availableKey) {
           console.log(`⚠️ No specific match found for ${platform}, looking for any available key...`)
           availableKey = await keysCollection.findOne({
-            status: "Available"
+            status: "Available",
           })
         }
 
@@ -305,7 +306,7 @@ export async function POST(request: NextRequest) {
                   ottStatus: "failed",
                   failureReason: "No available OTT keys",
                   updatedAt: new Date(),
-                  emailSent: "no_keys_failed" // Mark that failure email was sent
+                  emailSent: "no_keys_failed", // Mark that failure email was sent
                 },
               },
             )
@@ -353,7 +354,7 @@ export async function POST(request: NextRequest) {
                 ottCode: ottCode, // Store the activation code in ottCode field
                 platform: assignedPlatform,
                 updatedAt: new Date(),
-                emailSent: "success_delivered" // Mark that success email was sent
+                emailSent: "success_delivered", // Mark that success email was sent
               },
             },
           )
@@ -371,7 +372,6 @@ export async function POST(request: NextRequest) {
 
           console.log(`✅ Successfully processed claim: ${claim.claimId}`)
           successCount++
-
         } catch (transactionError) {
           console.error(`❌ Transaction failed for claim ${claim.claimId}:`, transactionError)
 
@@ -385,7 +385,7 @@ export async function POST(request: NextRequest) {
                   ottStatus: "failed",
                   failureReason: "Database transaction failed",
                   updatedAt: new Date(),
-                  emailSent: "transaction_failed" // Mark that failure email was sent
+                  emailSent: "transaction_failed", // Mark that failure email was sent
                 },
               },
             )
@@ -402,7 +402,6 @@ export async function POST(request: NextRequest) {
 
           failureCount++
         }
-
       } catch (claimError) {
         console.error(`❌ Error processing claim ${claim.claimId}:`, claimError)
 
@@ -416,7 +415,7 @@ export async function POST(request: NextRequest) {
                 ottStatus: "failed",
                 failureReason: `Processing error: ${claimError.message}`,
                 updatedAt: new Date(),
-                emailSent: "processing_failed" // Mark that failure email was sent
+                emailSent: "processing_failed", // Mark that failure email was sent
               },
             },
           )
@@ -591,6 +590,16 @@ async function sendSuccessEmail(claim: any, ottCode: string, platform: string) {
       `,
     })
 
+    if (claim.phoneNumber) {
+      console.log(`📱 Sending WhatsApp message to: ${claim.phoneNumber}`)
+      await sendOTTCodeWhatsApp(claim.phoneNumber, {
+        customerName,
+        ottCode,
+        platform,
+        claimId: claim.claimId,
+      })
+    }
+
     console.log(`📧 Success email sent to: ${claim.email}`)
   } catch (emailError) {
     console.error(`❌ Failed to send success email to ${claim.email}:`, emailError)
@@ -735,6 +744,11 @@ async function sendFailureEmail(claim: any, failureType: string, reason: string)
       subject: subject,
       html: emailContent,
     })
+
+    if (claim.phoneNumber) {
+      console.log(`📱 Sending failure WhatsApp message to: ${claim.phoneNumber}`)
+      await sendFailureWhatsApp(claim.phoneNumber, customerName, claim.claimId, reason)
+    }
 
     console.log(`📧 Failure email sent to: ${claim.email}`)
   } catch (emailError) {
