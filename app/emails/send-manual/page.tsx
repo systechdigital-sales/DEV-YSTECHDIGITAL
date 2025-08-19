@@ -282,10 +282,10 @@ export default function SendManualEmailPage() {
 </html>`
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white p-4 lg:p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
+        <div className="flex items-center gap-4 mb-6 lg:mb-8">
           <Link href="/emails">
             <Button variant="outline" size="sm" className="gap-2 bg-transparent">
               <ArrowLeft className="h-4 w-4" />
@@ -293,48 +293,50 @@ export default function SendManualEmailPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-3">
+            <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-3">
               <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg">
-                <Mail className="h-6 w-6 text-white" />
+                <Mail className="h-5 w-5 lg:h-6 lg:w-6 text-white" />
               </div>
               Send Manual Email
             </h1>
-            <p className="text-slate-600 mt-1">Compose and send custom emails to customers</p>
+            <p className="text-slate-600 mt-1 text-sm lg:text-base">Compose and send custom emails to customers</p>
           </div>
         </div>
 
         {/* Success/Error Messages */}
         {message && (
-          <Alert className="mb-6 border-green-200 bg-green-50">
+          <Alert className="mb-4 lg:mb-6 border-green-200 bg-green-50">
             <CheckCircle className="h-4 w-4 text-green-600" />
             <AlertDescription className="text-green-800">{message}</AlertDescription>
           </Alert>
         )}
 
         {error && (
-          <Alert className="mb-6 border-red-200 bg-red-50">
+          <Alert className="mb-4 lg:mb-6 border-red-200 bg-red-50">
             <AlertCircle className="h-4 w-4 text-red-600" />
             <AlertDescription className="text-red-800">{error}</AlertDescription>
           </Alert>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="flex flex-col xl:grid xl:grid-cols-2 gap-6 lg:gap-8">
           {/* Email Composer */}
-          <Card className="shadow-lg border-0 bg-white">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+          <Card className="shadow-lg border-0 bg-white w-full">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-lg">
                 <Mail className="h-5 w-5" />
                 Compose Email
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-sm">
                 Fill in the email details. From address is fixed as sales.systechdigital@gmail.com
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="template">Email Template</Label>
+                <Label htmlFor="template" className="text-sm font-medium">
+                  Email Template
+                </Label>
                 <Select value={selectedTemplate} onValueChange={handleTemplateSelect}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select a template" />
                   </SelectTrigger>
                   <SelectContent>
@@ -345,11 +347,11 @@ export default function SendManualEmailPage() {
               </div>
 
               {selectedTemplate === "ott-code" && (
-                <div className="space-y-4 p-4 bg-blue-50 rounded-lg border">
-                  <h4 className="font-medium text-blue-900">Template Data</h4>
-                  <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-3 p-3 lg:p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <h4 className="font-medium text-blue-900 text-sm">Template Data</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <Label htmlFor="customerName" className="text-sm">
+                      <Label htmlFor="customerName" className="text-xs font-medium">
                         Customer Name
                       </Label>
                       <Input
@@ -357,11 +359,11 @@ export default function SendManualEmailPage() {
                         placeholder="John Doe"
                         value={templateData.customerName}
                         onChange={(e) => handleTemplateDataChange("customerName", e.target.value)}
-                        className="h-8"
+                        className="h-8 text-sm"
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label htmlFor="ottCode" className="text-sm">
+                      <Label htmlFor="ottCode" className="text-xs font-medium">
                         OTT Code
                       </Label>
                       <Input
@@ -369,11 +371,11 @@ export default function SendManualEmailPage() {
                         placeholder="ABC123XYZ"
                         value={templateData.ottCode}
                         onChange={(e) => handleTemplateDataChange("ottCode", e.target.value)}
-                        className="h-8"
+                        className="h-8 text-sm"
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label htmlFor="platform" className="text-sm">
+                      <Label htmlFor="platform" className="text-xs font-medium">
                         Platform
                       </Label>
                       <Input
@@ -381,11 +383,11 @@ export default function SendManualEmailPage() {
                         placeholder="Netflix Premium"
                         value={templateData.platform}
                         onChange={(e) => handleTemplateDataChange("platform", e.target.value)}
-                        className="h-8"
+                        className="h-8 text-sm"
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label htmlFor="claimId" className="text-sm">
+                      <Label htmlFor="claimId" className="text-xs font-medium">
                         Claim ID
                       </Label>
                       <Input
@@ -393,11 +395,11 @@ export default function SendManualEmailPage() {
                         placeholder="CLAIM-123456"
                         value={templateData.claimId}
                         onChange={(e) => handleTemplateDataChange("claimId", e.target.value)}
-                        className="h-8"
+                        className="h-8 text-sm"
                       />
                     </div>
-                    <div className="space-y-1 col-span-2">
-                      <Label htmlFor="activationCode" className="text-sm">
+                    <div className="space-y-1 sm:col-span-2">
+                      <Label htmlFor="activationCode" className="text-xs font-medium">
                         Original Activation Code
                       </Label>
                       <Input
@@ -405,7 +407,7 @@ export default function SendManualEmailPage() {
                         placeholder="ORIG-CODE-123"
                         value={templateData.activationCode}
                         onChange={(e) => handleTemplateDataChange("activationCode", e.target.value)}
-                        className="h-8"
+                        className="h-8 text-sm"
                       />
                     </div>
                   </div>
@@ -413,39 +415,49 @@ export default function SendManualEmailPage() {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="from">From (Fixed)</Label>
-                <Input id="from" value="sales.systechdigital@gmail.com" disabled className="bg-slate-50" />
+                <Label htmlFor="from" className="text-sm font-medium">
+                  From (Fixed)
+                </Label>
+                <Input id="from" value="sales.systechdigital@gmail.com" disabled className="bg-slate-50 text-sm" />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="to">To Email Address *</Label>
+                <Label htmlFor="to" className="text-sm font-medium">
+                  To Email Address *
+                </Label>
                 <Input
                   id="to"
                   type="email"
                   placeholder="customer@example.com"
                   value={emailData.to}
                   onChange={(e) => setEmailData((prev) => ({ ...prev, to: e.target.value }))}
+                  className="text-sm"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="subject">Subject *</Label>
+                <Label htmlFor="subject" className="text-sm font-medium">
+                  Subject *
+                </Label>
                 <Input
                   id="subject"
                   placeholder="Enter email subject"
                   value={emailData.subject}
                   onChange={(e) => setEmailData((prev) => ({ ...prev, subject: e.target.value }))}
+                  className="text-sm"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="htmlBody">HTML Body *</Label>
+                <Label htmlFor="htmlBody" className="text-sm font-medium">
+                  HTML Body *
+                </Label>
                 <Textarea
                   id="htmlBody"
                   placeholder="Enter HTML email content"
                   value={emailData.htmlBody}
                   onChange={(e) => setEmailData((prev) => ({ ...prev, htmlBody: e.target.value }))}
-                  className="min-h-[400px] font-mono text-sm"
+                  className="min-h-[250px] lg:min-h-[300px] font-mono text-xs resize-y"
                 />
               </div>
 
@@ -470,24 +482,27 @@ export default function SendManualEmailPage() {
           </Card>
 
           {/* Email Preview */}
-          <Card className="shadow-lg border-0 bg-white">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+          <Card className="shadow-lg border-0 bg-white w-full">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-lg">
                 <Eye className="h-5 w-5" />
                 Email Preview
               </CardTitle>
-              <CardDescription>Live preview of how your email will look</CardDescription>
+              <CardDescription className="text-sm">Live preview of how your email will look</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="border rounded-lg p-4 bg-slate-50 min-h-[500px]">
+              <div className="border rounded-lg p-3 lg:p-4 bg-slate-50 min-h-[400px] lg:min-h-[500px] max-h-[600px] overflow-auto">
                 {emailData.htmlBody ? (
-                  <div dangerouslySetInnerHTML={{ __html: emailData.htmlBody }} className="prose prose-sm max-w-none" />
+                  <div
+                    dangerouslySetInnerHTML={{ __html: emailData.htmlBody }}
+                    className="prose prose-sm max-w-none [&>*]:max-w-full [&_img]:max-w-full [&_table]:w-full [&_table]:table-auto"
+                  />
                 ) : (
                   <div className="flex items-center justify-center h-full text-slate-500">
                     <div className="text-center">
-                      <Eye className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>Email preview will appear here</p>
-                      <p className="text-sm">Start typing HTML content to see the preview</p>
+                      <Eye className="h-8 w-8 lg:h-12 lg:w-12 mx-auto mb-4 opacity-50" />
+                      <p className="text-sm lg:text-base">Email preview will appear here</p>
+                      <p className="text-xs lg:text-sm">Start typing HTML content to see the preview</p>
                     </div>
                   </div>
                 )}
