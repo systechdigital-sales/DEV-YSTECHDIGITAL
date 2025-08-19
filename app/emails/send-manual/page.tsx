@@ -318,11 +318,11 @@ export default function SendManualEmailPage() {
           </Alert>
         )}
 
-        <div className="flex flex-col xl:grid xl:grid-cols-2 gap-6 lg:gap-8">
+        <div className="flex flex-col lg:grid lg:grid-cols-2 gap-6 lg:gap-8 xl:gap-10">
           {/* Email Composer */}
           <Card className="shadow-lg border-0 bg-white w-full">
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2 text-lg">
+            <CardHeader className="pb-4 lg:pb-6">
+              <CardTitle className="flex items-center gap-2 text-lg lg:text-xl">
                 <Mail className="h-5 w-5" />
                 Compose Email
               </CardTitle>
@@ -330,13 +330,13 @@ export default function SendManualEmailPage() {
                 Fill in the email details. From address is fixed as sales.systechdigital@gmail.com
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 lg:space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="template" className="text-sm font-medium">
                   Email Template
                 </Label>
                 <Select value={selectedTemplate} onValueChange={handleTemplateSelect}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="w-full h-10">
                     <SelectValue placeholder="Select a template" />
                   </SelectTrigger>
                   <SelectContent>
@@ -347,59 +347,66 @@ export default function SendManualEmailPage() {
               </div>
 
               {selectedTemplate === "ott-code" && (
-                <div className="space-y-3 p-3 lg:p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <h4 className="font-medium text-blue-900 text-sm">Template Data</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label htmlFor="customerName" className="text-xs font-medium">
-                        Customer Name
-                      </Label>
-                      <Input
-                        id="customerName"
-                        placeholder="John Doe"
-                        value={templateData.customerName}
-                        onChange={(e) => handleTemplateDataChange("customerName", e.target.value)}
-                        className="h-8 text-sm"
-                      />
+                <div className="space-y-4 p-4 lg:p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-200 shadow-sm">
+                  <h4 className="font-semibold text-blue-900 text-base flex items-center gap-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    Template Data
+                  </h4>
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 lg:gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="customerName" className="text-sm font-medium text-slate-700">
+                          Customer Name
+                        </Label>
+                        <Input
+                          id="customerName"
+                          placeholder="John Doe"
+                          value={templateData.customerName}
+                          onChange={(e) => handleTemplateDataChange("customerName", e.target.value)}
+                          className="h-10 text-sm border-blue-200 focus:border-blue-400 focus:ring-blue-400"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="ottCode" className="text-sm font-medium text-slate-700">
+                          OTT Code
+                        </Label>
+                        <Input
+                          id="ottCode"
+                          placeholder="ABC123XYZ"
+                          value={templateData.ottCode}
+                          onChange={(e) => handleTemplateDataChange("ottCode", e.target.value)}
+                          className="h-10 text-sm border-blue-200 focus:border-blue-400 focus:ring-blue-400"
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="ottCode" className="text-xs font-medium">
-                        OTT Code
-                      </Label>
-                      <Input
-                        id="ottCode"
-                        placeholder="ABC123XYZ"
-                        value={templateData.ottCode}
-                        onChange={(e) => handleTemplateDataChange("ottCode", e.target.value)}
-                        className="h-8 text-sm"
-                      />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 lg:gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="platform" className="text-sm font-medium text-slate-700">
+                          Platform
+                        </Label>
+                        <Input
+                          id="platform"
+                          placeholder="Netflix Premium"
+                          value={templateData.platform}
+                          onChange={(e) => handleTemplateDataChange("platform", e.target.value)}
+                          className="h-10 text-sm border-blue-200 focus:border-blue-400 focus:ring-blue-400"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="claimId" className="text-sm font-medium text-slate-700">
+                          Claim ID
+                        </Label>
+                        <Input
+                          id="claimId"
+                          placeholder="CLAIM-123456"
+                          value={templateData.claimId}
+                          onChange={(e) => handleTemplateDataChange("claimId", e.target.value)}
+                          className="h-10 text-sm border-blue-200 focus:border-blue-400 focus:ring-blue-400"
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="platform" className="text-xs font-medium">
-                        Platform
-                      </Label>
-                      <Input
-                        id="platform"
-                        placeholder="Netflix Premium"
-                        value={templateData.platform}
-                        onChange={(e) => handleTemplateDataChange("platform", e.target.value)}
-                        className="h-8 text-sm"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="claimId" className="text-xs font-medium">
-                        Claim ID
-                      </Label>
-                      <Input
-                        id="claimId"
-                        placeholder="CLAIM-123456"
-                        value={templateData.claimId}
-                        onChange={(e) => handleTemplateDataChange("claimId", e.target.value)}
-                        className="h-8 text-sm"
-                      />
-                    </div>
-                    <div className="space-y-1 sm:col-span-2">
-                      <Label htmlFor="activationCode" className="text-xs font-medium">
+                    <div className="space-y-2">
+                      <Label htmlFor="activationCode" className="text-sm font-medium text-slate-700">
                         Original Activation Code
                       </Label>
                       <Input
@@ -407,7 +414,7 @@ export default function SendManualEmailPage() {
                         placeholder="ORIG-CODE-123"
                         value={templateData.activationCode}
                         onChange={(e) => handleTemplateDataChange("activationCode", e.target.value)}
-                        className="h-8 text-sm"
+                        className="h-10 text-sm border-blue-200 focus:border-blue-400 focus:ring-blue-400"
                       />
                     </div>
                   </div>
@@ -418,7 +425,7 @@ export default function SendManualEmailPage() {
                 <Label htmlFor="from" className="text-sm font-medium">
                   From (Fixed)
                 </Label>
-                <Input id="from" value="sales.systechdigital@gmail.com" disabled className="bg-slate-50 text-sm" />
+                <Input id="from" value="sales.systechdigital@gmail.com" disabled className="bg-slate-50 text-sm h-10" />
               </div>
 
               <div className="space-y-2">
@@ -431,7 +438,7 @@ export default function SendManualEmailPage() {
                   placeholder="customer@example.com"
                   value={emailData.to}
                   onChange={(e) => setEmailData((prev) => ({ ...prev, to: e.target.value }))}
-                  className="text-sm"
+                  className="text-sm h-10"
                 />
               </div>
 
@@ -444,7 +451,7 @@ export default function SendManualEmailPage() {
                   placeholder="Enter email subject"
                   value={emailData.subject}
                   onChange={(e) => setEmailData((prev) => ({ ...prev, subject: e.target.value }))}
-                  className="text-sm"
+                  className="text-sm h-10"
                 />
               </div>
 
@@ -457,14 +464,14 @@ export default function SendManualEmailPage() {
                   placeholder="Enter HTML email content"
                   value={emailData.htmlBody}
                   onChange={(e) => setEmailData((prev) => ({ ...prev, htmlBody: e.target.value }))}
-                  className="min-h-[250px] lg:min-h-[300px] font-mono text-xs resize-y"
+                  className="min-h-[200px] lg:min-h-[250px] xl:min-h-[300px] font-mono text-xs resize-y"
                 />
               </div>
 
               <Button
                 onClick={handleSendEmail}
                 disabled={sending || !emailData.to || !emailData.subject || !emailData.htmlBody}
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                className="w-full h-11 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-sm font-medium"
               >
                 {sending ? (
                   <>
@@ -483,15 +490,15 @@ export default function SendManualEmailPage() {
 
           {/* Email Preview */}
           <Card className="shadow-lg border-0 bg-white w-full">
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2 text-lg">
+            <CardHeader className="pb-4 lg:pb-6">
+              <CardTitle className="flex items-center gap-2 text-lg lg:text-xl">
                 <Eye className="h-5 w-5" />
                 Email Preview
               </CardTitle>
               <CardDescription className="text-sm">Live preview of how your email will look</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="border rounded-lg p-3 lg:p-4 bg-slate-50 min-h-[400px] lg:min-h-[500px] max-h-[600px] overflow-auto">
+              <div className="border rounded-xl p-4 lg:p-6 bg-slate-50 min-h-[400px] lg:min-h-[500px] xl:min-h-[600px] max-h-[70vh] overflow-auto shadow-inner">
                 {emailData.htmlBody ? (
                   <div
                     dangerouslySetInnerHTML={{ __html: emailData.htmlBody }}
@@ -500,9 +507,9 @@ export default function SendManualEmailPage() {
                 ) : (
                   <div className="flex items-center justify-center h-full text-slate-500">
                     <div className="text-center">
-                      <Eye className="h-8 w-8 lg:h-12 lg:w-12 mx-auto mb-4 opacity-50" />
-                      <p className="text-sm lg:text-base">Email preview will appear here</p>
-                      <p className="text-xs lg:text-sm">Start typing HTML content to see the preview</p>
+                      <Eye className="h-12 w-12 lg:h-16 lg:w-16 mx-auto mb-4 opacity-30" />
+                      <p className="text-base lg:text-lg font-medium mb-2">Email preview will appear here</p>
+                      <p className="text-sm text-slate-400">Start typing HTML content to see the preview</p>
                     </div>
                   </div>
                 )}
