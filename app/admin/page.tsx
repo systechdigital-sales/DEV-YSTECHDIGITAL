@@ -46,6 +46,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { XIcon } from "lucide-react"
 
 // Reduced page size for better performance
 const ITEMS_PER_PAGE = 10
@@ -176,6 +177,16 @@ export default function AdminPage() {
   const [availableKeys, setAvailableKeys] = useState<OTTKey[]>([])
 
   const [syncingTransactions, setSyncingTransactions] = useState(false)
+
+  const [activationCodeStatus, setActivationCodeStatus] = useState<{
+    isValid: boolean | null
+    message: string
+    isChecking: boolean
+  }>({
+    isValid: null,
+    message: "",
+    isChecking: false,
+  })
 
   // Check authentication on mount
   useEffect(() => {
@@ -896,21 +907,70 @@ export default function AdminPage() {
     state: "",
     pincode: "",
     activationCode: "",
+    paymentStatus: "",
+    paymentId: "",
+    razorpayId: "",
     adminPassword: "",
   })
   const [manualClaimLoading, setManualClaimLoading] = useState(false)
+
+  const validateActivationCode = async (code: string) => {
+    if (!code.trim()) {
+      setActivationCodeStatus({
+        isValid: null,
+        message: "",
+        isChecking: false,
+      })
+      return
+    }
+
+    setActivationCodeStatus((prev) => ({ ...prev, isChecking: true }))
+
+    try {
+      const response = await fetch("/api/admin/validate-activation-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ activationCode: code }),
+      })
+
+      const result = await response.json()
+
+      setActivationCodeStatus({
+        isValid: result.isValid,
+        message: result.message,
+        isChecking: false,
+      })
+    } catch (error) {
+      setActivationCodeStatus({
+        isValid: false,
+        message: "Error validating activation code",
+        isChecking: false,
+      })
+    }
+  }
 
   const handleManualClaimSubmit = async () => {
     if (
       !manualClaimData.firstName ||
       !manualClaimData.email ||
       !manualClaimData.activationCode ||
-      !manualClaimData.adminPassword
+      !manualClaimData.adminPassword ||
+      !manualClaimData.paymentStatus
     ) {
-      setError("Please fill in all required fields (Name, Email, Activation Code, Admin Password)")
+      setError("Please fill in all required fields (Name, Email, Activation Code, Payment Status, Admin Password)")
       toast({
         title: "Validation Error",
         description: "Please fill in all required fields",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (activationCodeStatus.isValid !== true) {
+      setError("Please enter a valid and available activation code")
+      toast({
+        title: "Invalid Activation Code",
+        description: "The activation code is not valid or already claimed",
         variant: "destructive",
       })
       return
@@ -927,15 +987,13 @@ export default function AdminPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          firstName: manualClaimData.firstName,
-          lastName: manualClaimData.lastName,
+          customerName: `${manualClaimData.firstName} ${manualClaimData.lastName}`.trim(),
           email: manualClaimData.email,
-          phoneNumber: manualClaimData.phoneNumber,
-          streetAddress: manualClaimData.streetAddress,
-          city: manualClaimData.city,
-          state: manualClaimData.state,
-          pincode: manualClaimData.pincode,
+          phone: manualClaimData.phoneNumber,
           activationCode: manualClaimData.activationCode,
+          paymentStatus: manualClaimData.paymentStatus,
+          paymentId: manualClaimData.paymentId,
+          razorpayId: manualClaimData.razorpayId,
           adminPassword: manualClaimData.adminPassword,
         }),
       })
@@ -959,6 +1017,9 @@ export default function AdminPage() {
           state: "",
           pincode: "",
           activationCode: "",
+          paymentStatus: "",
+          paymentId: "",
+          razorpayId: "",
           adminPassword: "",
         })
         // Refresh data
@@ -1879,7 +1940,8 @@ export default function AdminPage() {
               Manual Claim Processing
             </DialogTitle>
             <DialogDescription>
-              Process a manual claim by filling in customer details and activation code
+              Process a manual claim by filling in customer details and activation code. The activation code will be
+              validated against available sales records.
             </DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
@@ -1958,13 +2020,85 @@ export default function AdminPage() {
             </div>
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="activationCode">Activation Code *</Label>
-              <Input
-                id="activationCode"
-                value={manualClaimData.activationCode}
-                onChange={(e) => setManualClaimData((prev) => ({ ...prev, activationCode: e.target.value }))}
-                placeholder="Enter activation code"
-              />
+              <div className="space-y-2">
+                <Input
+                  id="activationCode"
+                  value={manualClaimData.activationCode}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    setManualClaimData((prev) => ({ ...prev, activationCode: value }))
+                    clearTimeout(window.activationCodeTimeout)
+                    window.activationCodeTimeout = setTimeout(() => {
+                      validateActivationCode(value)
+                    }, 500)
+                  }}
+                  placeholder="Enter activation code (will be validated)"
+                  className={
+                    activationCodeStatus.isValid === true
+                      ? "border-green-500 focus:border-green-500"
+                      : activationCodeStatus.isValid === false
+                        ? "border-red-500 focus:border-red-500"
+                        : ""
+                  }
+                />
+                {activationCodeStatus.isChecking && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Validating activation code...
+                  </div>
+                )}
+                {activationCodeStatus.isValid === true && (
+                  <div className="flex items-center gap-2 text-sm text-green-600">
+                    <CheckIcon className="w-4 h-4" />
+                    {activationCodeStatus.message}
+                  </div>
+                )}
+                {activationCodeStatus.isValid === false && (
+                  <div className="flex items-center gap-2 text-sm text-red-600">
+                    <XIcon className="w-4 h-4" />
+                    {activationCodeStatus.message}
+                  </div>
+                )}
+              </div>
             </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="paymentStatus">Payment Status *</Label>
+              <Select
+                value={manualClaimData.paymentStatus}
+                onValueChange={(value) => setManualClaimData((prev) => ({ ...prev, paymentStatus: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select payment status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PAID">PAID</SelectItem>
+                  <SelectItem value="PENDING">PENDING</SelectItem>
+                  <SelectItem value="FAILED">FAILED</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {manualClaimData.paymentStatus === "PAID" && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="paymentId">Payment ID *</Label>
+                  <Input
+                    id="paymentId"
+                    value={manualClaimData.paymentId}
+                    onChange={(e) => setManualClaimData((prev) => ({ ...prev, paymentId: e.target.value }))}
+                    placeholder="Enter payment ID"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="razorpayId">Razorpay ID *</Label>
+                  <Input
+                    id="razorpayId"
+                    value={manualClaimData.razorpayId}
+                    onChange={(e) => setManualClaimData((prev) => ({ ...prev, razorpayId: e.target.value }))}
+                    placeholder="Enter Razorpay ID"
+                  />
+                </div>
+              </>
+            )}
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="adminPassword">Admin Password *</Label>
               <Input
