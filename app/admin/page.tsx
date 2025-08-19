@@ -3,11 +3,18 @@
 import type React from "react"
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
+  Upload,
+  DownloadIcon,
+  AlertCircle,
+  CheckCircle,
   Users,
   Key,
   DollarSign,
@@ -15,27 +22,20 @@ import {
   RefreshCw,
   Trash2,
   Send,
+  SearchIcon,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  Plus,
+  Loader2,
 } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { ClaimResponse, SalesRecord, OTTKey } from "@/lib/models"
 import { DashboardSidebar } from "@/components/dashboard-sidebar"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import Image from "next/image"
 import { toast } from "@/hooks/use-toast"
 import { ChevronLeft, ChevronRight, ChevronsRight } from "lucide-react"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
 
 // Reduced page size for better performance
 const ITEMS_PER_PAGE = 10
@@ -167,46 +167,6 @@ export default function AdminPage() {
 
   const [syncingTransactions, setSyncingTransactions] = useState(false)
 
-  // Manual assignment states
-  const [showManualAssign, setShowManualAssign] = useState(false)
-  const [selectedClaim, setSelectedClaim] = useState<ClaimResponse | null>(null)
-  const [manualAssignForm, setManualAssignForm] = useState({
-    ottKey: "",
-    ottCode: "",
-  })
-  const [isAssigning, setIsAssigning] = useState(false)
-
-  const [showManualEntry, setShowManualEntry] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [manualEntryForm, setManualEntryForm] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    streetAddress: "",
-    addressLine2: "",
-    city: "",
-    state: "",
-    postalCode: "",
-    country: "India",
-    purchaseType: "online",
-    activationCode: "",
-    purchaseDate: "",
-    invoiceNumber: "",
-    sellerName: "",
-    paymentStatus: "pending",
-    paymentId: "",
-    billFileName: "",
-    razorpayOrderId: "",
-  })
-
-  const [transactionStatusCounts, setTransactionStatusCounts] = useState({
-    total: 0,
-    captured: 0,
-    failed: 0,
-    pending: 0,
-  })
-
   // Check authentication on mount
   useEffect(() => {
     const isAuthenticated = sessionStorage.getItem("adminAuthenticated")
@@ -286,12 +246,6 @@ export default function AdminPage() {
                 totalPages: Math.ceil((data.count || 0) / ITEMS_PER_PAGE),
               },
             }))
-            setTransactionStatusCounts({
-              captured: data.statusCounts?.captured || 0,
-              failed: data.statusCounts?.failed || 0,
-              pending: data.statusCounts?.pending || 0,
-              total: data.count || 0,
-            })
           } else {
             setCurrentData((prev) => ({
               ...prev,
@@ -336,7 +290,7 @@ export default function AdminPage() {
     console.log("[v0] Page change to:", page)
     setPagination((prev) => ({
       ...prev,
-      [activeTab as keyof typeof prev]: { ...prev[activeTab as keyof typeof prev], page },
+      [activeTab]: { ...prev[activeTab as keyof typeof prev], page },
     }))
     loadCurrentTabData(page, searchTerm)
   }
@@ -908,84 +862,6 @@ export default function AdminPage() {
     fetchClaims()
   }, [fetchClaims, dateFilter.startDate, dateFilter.endDate])
 
-  const handleManualEntrySubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-
-    try {
-      const response = await fetch("/api/admin/manual-claim", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(manualEntryForm),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        await fetch("/api/admin/send-claim-email", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email: manualEntryForm.email,
-            name: `${manualEntryForm.firstName} ${manualEntryForm.lastName}`,
-            activationCode: manualEntryForm.activationCode,
-            ottCode: data.ottCode || "Will be assigned soon",
-          }),
-        })
-
-        toast({
-          title: "Success",
-          description: "Claim created successfully and email sent",
-        })
-        setShowManualEntry(false)
-        setManualEntryForm({
-          firstName: "",
-          lastName: "",
-          email: "",
-          phone: "",
-          streetAddress: "",
-          addressLine2: "",
-          city: "",
-          state: "",
-          postalCode: "",
-          country: "India",
-          purchaseType: "online",
-          activationCode: "",
-          purchaseDate: "",
-          invoiceNumber: "",
-          sellerName: "",
-          paymentStatus: "pending",
-          paymentId: "",
-          billFileName: "",
-          razorpayOrderId: "",
-        })
-        // Refresh claims data
-        if (activeTab === "claims") {
-          loadCurrentTabData()
-        }
-      } else {
-        toast({
-          title: "Error",
-          description: data.error || "Failed to create claim",
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
-      console.error("Error creating manual claim:", error)
-      toast({
-        title: "Error",
-        description: "Network error occurred",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   if (loading) {
     return (
       <SidebarProvider>
@@ -1089,9 +965,10 @@ export default function AdminPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-xs sm:text-sm font-medium text-gray-600">OTT Keys</p>
-                        <p className="text-lg sm:text-3xl font-bold text-gray-900">{stats.totalKeys}</p>
+                        <p className="text-lg sm:text-3xl font-bold">{stats.totalKeys}</p>
                         <p className="text-xs sm:text-sm text-gray-500">
-                          {stats.availableKeys} available • {stats.assignedKeys} assigned • {stats.usedKeys} used
+                          {Number(stats?.totalKeys || 0) - Number(stats?.assignedKeys || 0)} available •{" "}
+                          {stats?.assignedKeys || 0} assigned
                         </p>
                       </div>
                       <div className="p-2 sm:p-3 bg-purple-100 rounded-full">
@@ -1101,728 +978,771 @@ export default function AdminPage() {
                   </CardContent>
                 </Card>
 
-                <Card className="shadow-lg border-l-4 border-l-red-500">
+                <Card className="shadow-lg border-l-4 border-l-orange-500">
                   <CardContent className="p-3 sm:p-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-xs sm:text-sm font-medium text-gray-600">Transactions</p>
-                        <p className="text-lg sm:text-3xl font-bold text-gray-900">{stats.totalTransactions}</p>
-                        <p className="text-xs sm:text-sm text-gray-500">
-                          {stats.successfulTransactions} successful • {stats.failedTransactions} failed
+                        <p className="text-xs sm:text-sm font-medium text-gray-600">Success Rate</p>
+                        <p className="text-lg sm:text-3xl font-bold text-gray-900">
+                          {stats.totalClaims > 0 ? Math.round((stats.paidClaims / stats.totalClaims) * 100) : 0}%
                         </p>
+                        <p className="text-xs sm:text-sm text-gray-500">Payment success</p>
                       </div>
-                      <div className="p-2 sm:p-3 bg-red-100 rounded-full">
-                        <FileSpreadsheet className="w-4 h-4 sm:w-8 sm:h-8 text-red-600" />
+                      <div className="p-2 sm:p-3 bg-orange-100 rounded-full">
+                        <CheckCircle className="w-4 h-4 sm:w-8 sm:h-8 text-orange-600" />
                       </div>
                     </div>
                   </CardContent>
                 </Card>
               </div>
 
-              {/* Tabs */}
-              <Tabs value={activeTab} onValueChange={handleTabChange}>
-                <TabsList className="grid w-full grid-cols-2 md:grid-cols-5">
-                  <TabsTrigger value="claims">Claims</TabsTrigger>
-                  <TabsTrigger value="sales">Sales</TabsTrigger>
-                  <TabsTrigger value="keys">Keys</TabsTrigger>
-                  <TabsTrigger value="transactions">Transactions ({transactionStatusCounts.total})</TabsTrigger>
-                  <TabsTrigger value="manual-entry">Manual Entry</TabsTrigger>
-                </TabsList>
-                <TabsContent value="claims">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-medium">Claims Management</h3>
+              {/* Messages */}
+              {message && (
+                <Alert className="mb-3 sm:mb-6 border-green-200 bg-green-50">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <AlertTitle className="text-green-800">Success</AlertTitle>
+                  <AlertDescription className="text-green-700">{message}</AlertDescription>
+                </Alert>
+              )}
+
+              {error && (
+                <Alert variant="destructive" className="mb-3 sm:mb-6">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Error</AlertTitle>
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              {/* File Upload Section */}
+              <Card className="mb-4 sm:mb-8 shadow-lg">
+                <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-t-lg border-b">
+                  <CardTitle className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center">
+                    <Upload className="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3 text-blue-600" />
+                    Data Management
+                  </CardTitle>
+                  <CardDescription className="text-sm sm:text-lg text-gray-600">
+                    Upload Excel files (.xlsx, .xls) or CSV files and export data from systech_ott_platform
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-4 sm:p-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
+                    {/* Sales Upload */}
+                    <div className="space-y-3 sm:space-y-4">
+                      <div className="bg-blue-50 p-4 sm:p-6 rounded-xl border border-blue-200">
+                        <h3 className="text-lg sm:text-xl font-semibold text-blue-900 mb-3 sm:mb-4 flex items-center">
+                          <FileSpreadsheet className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" /> Activation Code Upload
+                        </h3>
+                        <p className="text-blue-800 mb-3 sm:mb-4 text-sm">Upload Excel/CSV file to collection</p>
+                        <div className="space-y-2 sm:space-y-3">
+                          <Label htmlFor="sales-file" className="text-blue-900 font-medium text-xs sm:text-sm">
+                            Select Sales File (.xlsx, .xls, .csv)
+                          </Label>
+                          <Input
+                            id="sales-file"
+                            type="file"
+                            accept=".xlsx,.xls,.csv"
+                            onChange={(e) => handleFileUpload(e, "sales")}
+                            disabled={uploading}
+                            className="border-blue-300 focus:border-blue-500 text-xs"
+                          />
+                          <div className="text-sm text-blue-700 bg-blue-100 p-3 rounded-lg">
+                            <p className="font-medium mb-2">📋 Required columns:</p>
+                            <ul className="list-disc list-inside space-y-1">
+                              <li>Product Sub Category</li>
+                              <li>Product</li>
+                              <li>Activation Code</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Keys Upload */}
+                    <div className="space-y-3 sm:space-y-4">
+                      <div className="bg-green-50 p-4 sm:p-6 rounded-xl border border-green-200">
+                        <h3 className="text-lg sm:text-xl font-semibold text-green-900 mb-3 sm:mb-4 flex items-center">
+                          <Key className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" /> OTT Keys Upload
+                        </h3>
+                        <p className="text-green-800 mb-3 sm:mb-4 text-sm">
+                          Upload Excel/CSV file to ottkeys collection
+                        </p>
+                        <div className="space-y-2 sm:space-y-3">
+                          <Label htmlFor="keys-file" className="text-green-900 font-medium text-xs sm:text-sm">
+                            Select Keys File (.xlsx, .xls, .csv)
+                          </Label>
+                          <Input
+                            id="keys-file"
+                            type="file"
+                            accept=".xlsx,.xls,.csv"
+                            onChange={(e) => handleFileUpload(e, "keys")}
+                            disabled={uploading}
+                            className="border-green-300 focus:border-green-500 text-xs"
+                          />
+                          <div className="text-sm text-green-700 bg-green-100 p-3 rounded-lg">
+                            <p className="font-medium mb-2">📋 Required columns:</p>
+                            <ul className="list-disc list-inside space-y-1">
+                              <li>Product Sub Category</li>
+                              <li>Product</li>
+                              <li>Activation Code</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Upload Status */}
+                  {uploading && (
+                    <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <div className="flex items-center">
+                        <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-b-2 border-yellow-600 mr-2 sm:mr-3"></div>
+                        <span className="text-yellow-800 font-medium text-sm">Uploading file... Please wait.</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Export Section */}
+                  <div className="mt-6 pt-4 sm:pt-6 border-t border-gray-200">
+                    <div className="flex items-center justify-between mb-3 sm:mb-4">
+                      <div>
+                        <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-1 sm:mb-2">📤 Export Data</h3>
+                        <p className="text-gray-600 text-sm">Download data from systech_ott_platform database</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-2 sm:gap-4">
                       <Button
-                        onClick={() => setShowManualEntry(true)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                        onClick={() => exportData()}
+                        className="bg-purple-600 hover:bg-purple-700 text-xs sm:text-sm"
                       >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Manual Claim
+                        <DownloadIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                        Export All Data
+                      </Button>
+                      <Button
+                        onClick={() => exportData("claims")}
+                        className="bg-blue-600 hover:bg-blue-700 text-xs sm:text-sm"
+                      >
+                        <DownloadIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                        Export Claims
+                      </Button>
+                      <Button
+                        onClick={() => exportData("sales")}
+                        className="bg-green-600 hover:bg-green-700 text-xs sm:text-sm"
+                      >
+                        <DownloadIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                        Export Sales
+                      </Button>
+                      <Button
+                        onClick={() => exportData("keys")}
+                        className="bg-orange-600 hover:bg-orange-700 text-xs sm:text-sm"
+                      >
+                        <DownloadIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                        Export Keys
                       </Button>
                     </div>
-
-                    {/* Claims Table */}
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <SortableHeader sortKey="name">Name</SortableHeader>
-                          <SortableHeader sortKey="email">Email</SortableHeader>
-                          <SortableHeader sortKey="paymentStatus">Payment Status</SortableHeader>
-                          <SortableHeader sortKey="ottStatus">OTT Status</SortableHeader>
-                          <SortableHeader sortKey="createdAt">Created At</SortableHeader>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {currentData.claims.map((claim) => (
-                          <TableRow key={claim._id}>
-                            <TableCell>{claim.name}</TableCell>
-                            <TableCell>{claim.email}</TableCell>
-                            <TableCell>{getStatusBadge(claim.paymentStatus)}</TableCell>
-                            <TableCell>{getStatusBadge(claim.ottStatus)}</TableCell>
-                            <TableCell>{formatDateTimeIST(claim.createdAt)}</TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => handleDeleteClick("claims", claim._id, claim.name)}
-                                className="flex items-center"
-                              >
-                                <Trash2 className="w-4 h-4 mr-1" />
-                                Delete
-                              </Button>
-                              <Button
-                                variant="default"
-                                size="sm"
-                                onClick={() => handleManualAssignClick(claim)}
-                                className="flex items-center ml-2"
-                              >
-                                <Send className="w-4 h-4 mr-1" />
-                                Assign Key
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                    <PaginationControls />
                   </div>
-                </TabsContent>
-                <TabsContent value="sales">
-                  {/* Sales Table */}
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <SortableHeader sortKey="name">Name</SortableHeader>
-                        <SortableHeader sortKey="email">Email</SortableHeader>
-                        <SortableHeader sortKey="amount">Amount</SortableHeader>
-                        <SortableHeader sortKey="salesStatus">Sales Status</SortableHeader>
-                        <SortableHeader sortKey="createdAt">Created At</SortableHeader>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {currentData.sales.map((sale) => (
-                        <TableRow key={sale._id}>
-                          <TableCell>{sale.name}</TableCell>
-                          <TableCell>{sale.email}</TableCell>
-                          <TableCell>{formatAmount(sale.amount)}</TableCell>
-                          <TableCell>{getStatusBadge(sale.salesStatus)}</TableCell>
-                          <TableCell>{formatDateTimeIST(sale.createdAt)}</TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleDeleteClick("sales", sale._id, sale.name)}
-                              className="flex items-center"
-                            >
-                              <Trash2 className="w-4 h-4 mr-1" />
-                              Delete
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                  <PaginationControls />
-                </TabsContent>
-                <TabsContent value="keys">
-                  {/* Keys Table */}
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <SortableHeader sortKey="key">Key</SortableHeader>
-                        <SortableHeader sortKey="status">Status</SortableHeader>
-                        <SortableHeader sortKey="createdAt">Created At</SortableHeader>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {currentData.keys.map((key) => (
-                        <TableRow key={key._id}>
-                          <TableCell>{key.key}</TableCell>
-                          <TableCell>{getStatusBadge(key.status)}</TableCell>
-                          <TableCell>{formatDateTimeIST(key.createdAt)}</TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleDeleteClick("keys", key._id, key.key)}
-                              className="flex items-center"
-                            >
-                              <Trash2 className="w-4 h-4 mr-1" />
-                              Delete
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                  <PaginationControls />
-                </TabsContent>
-                <TabsContent value="transactions">
-                  {/* Status Counts Display */}
-                  <div className="mb-4 flex flex-wrap gap-2">
-                    <Badge className="bg-green-100 text-green-800 border-green-300">
-                      CAPTURED: {transactionStatusCounts.captured}
-                    </Badge>
-                    <Badge className="bg-red-100 text-red-800 border-red-300">
-                      FAILED: {transactionStatusCounts.failed}
-                    </Badge>
-                    <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300">
-                      PENDING: {transactionStatusCounts.pending}
-                    </Badge>
-                  </div>
-                  {/* Transactions Table */}
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <SortableHeader sortKey="orderId">Order ID</SortableHeader>
-                        <SortableHeader sortKey="amount">Amount</SortableHeader>
-                        <SortableHeader sortKey="status">Status</SortableHeader>
-                        <SortableHeader sortKey="createdAt">Created At</SortableHeader>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {currentData.transactions.map((transaction) => (
-                        <TableRow key={transaction.id}>
-                          <TableCell>{transaction.id}</TableCell>
-                          <TableCell>{formatAmount(transaction.amount)}</TableCell>
-                          <TableCell>{getStatusBadge(transaction.status)}</TableCell>
-                          <TableCell>{formatDateTimeIST(transaction.createdAt)}</TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleDeleteClick("transactions", transaction.id, transaction.id)}
-                              className="flex items-center"
-                            >
-                              <Trash2 className="w-4 h-4 mr-1" />
-                              Delete
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                  <PaginationControls />
-                </TabsContent>
+                </CardContent>
+              </Card>
 
-                <TabsContent value="manual-entry">
-                  <div className="space-y-6">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-medium">Create New Claim Record</h3>
-                    </div>
+              {/* Data Tables */}
+              <Tabs value={activeTab} onValueChange={handleTabChange}>
+                <TabsList className="grid grid-cols-4 mb-4 sm:mb-6 bg-white shadow-lg rounded-xl p-1 h-12 sm:h-14">
+                  <TabsTrigger
+                    value="claims"
+                    className="rounded-lg data-[state=active]:bg-purple-600 data-[state=active]:text-white text-sm sm:text-lg font-semibold"
+                  >
+                    <span className="hidden sm:inline">Claims ({stats.totalClaims})</span>
+                    <span className="sm:hidden">Claims</span>
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="sales"
+                    className="rounded-lg data-[state=active]:bg-purple-600 data-[state=active]:text-white text-sm sm:text-lg font-semibold"
+                  >
+                    <span className="hidden sm:inline">Redemption ({stats.totalSales})</span>
+                    <span className="sm:hidden">Sales</span>
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="keys"
+                    className="rounded-lg data-[state=active]:bg-purple-600 data-[state=active]:text-white text-sm sm:text-lg font-semibold"
+                  >
+                    <span className="hidden sm:inline">OTT Keys ({stats.totalKeys})</span>
+                    <span className="sm:hidden">Keys</span>
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="transactions"
+                    className="rounded-lg data-[state=active]:bg-purple-600 data-[state=active]:text-white text-sm sm:text-lg font-semibold"
+                  >
+                    <span className="hidden sm:inline">Transactions ({stats.totalTransactions || 0})</span>
+                    <span className="sm:hidden">Transactions</span>
+                  </TabsTrigger>
+                </TabsList>
 
-                    <form onSubmit={handleManualEntrySubmit} className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Personal Information */}
-                        <div className="space-y-4">
-                          <h4 className="font-medium text-sm text-gray-700">Personal Information</h4>
-                          <div>
-                            <label className="block text-sm font-medium mb-1">First Name *</label>
-                            <input
-                              type="text"
-                              required
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              value={manualEntryForm.firstName}
-                              onChange={(e) => setManualEntryForm({ ...manualEntryForm, firstName: e.target.value })}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium mb-1">Last Name *</label>
-                            <input
-                              type="text"
-                              required
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              value={manualEntryForm.lastName}
-                              onChange={(e) => setManualEntryForm({ ...manualEntryForm, lastName: e.target.value })}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium mb-1">Email *</label>
-                            <input
-                              type="email"
-                              required
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              value={manualEntryForm.email}
-                              onChange={(e) => setManualEntryForm({ ...manualEntryForm, email: e.target.value })}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium mb-1">Phone *</label>
-                            <input
-                              type="tel"
-                              required
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              value={manualEntryForm.phone}
-                              onChange={(e) => setManualEntryForm({ ...manualEntryForm, phone: e.target.value })}
-                            />
-                          </div>
-                        </div>
-
-                        {/* Address Information */}
-                        <div className="space-y-4">
-                          <h4 className="font-medium text-sm text-gray-700">Address Information</h4>
-                          <div>
-                            <label className="block text-sm font-medium mb-1">Street Address *</label>
-                            <input
-                              type="text"
-                              required
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              value={manualEntryForm.streetAddress}
-                              onChange={(e) =>
-                                setManualEntryForm({ ...manualEntryForm, streetAddress: e.target.value })
-                              }
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium mb-1">Address Line 2</label>
-                            <input
-                              type="text"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              value={manualEntryForm.addressLine2}
-                              onChange={(e) => setManualEntryForm({ ...manualEntryForm, addressLine2: e.target.value })}
-                            />
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <label className="block text-sm font-medium mb-1">City *</label>
-                              <input
-                                type="text"
-                                required
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                value={manualEntryForm.city}
-                                onChange={(e) => setManualEntryForm({ ...manualEntryForm, city: e.target.value })}
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium mb-1">State *</label>
-                              <input
-                                type="text"
-                                required
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                value={manualEntryForm.state}
-                                onChange={(e) => setManualEntryForm({ ...manualEntryForm, state: e.target.value })}
-                              />
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <label className="block text-sm font-medium mb-1">Postal Code *</label>
-                              <input
-                                type="text"
-                                required
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                value={manualEntryForm.postalCode}
-                                onChange={(e) => setManualEntryForm({ ...manualEntryForm, postalCode: e.target.value })}
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium mb-1">Country *</label>
-                              <select
-                                required
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                value={manualEntryForm.country}
-                                onChange={(e) => setManualEntryForm({ ...manualEntryForm, country: e.target.value })}
-                              >
-                                <option value="India">India</option>
-                                <option value="USA">USA</option>
-                                <option value="UK">UK</option>
-                                <option value="Canada">Canada</option>
-                              </select>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Purchase Information */}
-                      <div className="space-y-4">
-                        <h4 className="font-medium text-sm text-gray-700">Purchase Information</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium mb-1">Purchase Type *</label>
-                            <select
-                              required
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              value={manualEntryForm.purchaseType}
-                              onChange={(e) => setManualEntryForm({ ...manualEntryForm, purchaseType: e.target.value })}
-                            >
-                              <option value="online">Online</option>
-                              <option value="offline">Offline</option>
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium mb-1">Activation Code *</label>
-                            <input
-                              type="text"
-                              required
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              value={manualEntryForm.activationCode}
-                              onChange={(e) =>
-                                setManualEntryForm({ ...manualEntryForm, activationCode: e.target.value })
-                              }
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium mb-1">Purchase Date *</label>
-                            <input
-                              type="date"
-                              required
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              value={manualEntryForm.purchaseDate}
-                              onChange={(e) => setManualEntryForm({ ...manualEntryForm, purchaseDate: e.target.value })}
-                            />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium mb-1">Invoice Number</label>
-                            <input
-                              type="text"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              value={manualEntryForm.invoiceNumber}
-                              onChange={(e) =>
-                                setManualEntryForm({ ...manualEntryForm, invoiceNumber: e.target.value })
-                              }
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium mb-1">Seller Name</label>
-                            <input
-                              type="text"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              value={manualEntryForm.sellerName}
-                              onChange={(e) => setManualEntryForm({ ...manualEntryForm, sellerName: e.target.value })}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Payment Information */}
-                      <div className="space-y-4">
-                        <h4 className="font-medium text-sm text-gray-700">Payment Information</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium mb-1">Payment Status</label>
-                            <select
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              value={manualEntryForm.paymentStatus}
-                              onChange={(e) =>
-                                setManualEntryForm({ ...manualEntryForm, paymentStatus: e.target.value })
-                              }
-                            >
-                              <option value="pending">Pending</option>
-                              <option value="success">Success</option>
-                              <option value="failed">Failed</option>
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium mb-1">Payment ID</label>
-                            <input
-                              type="text"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              value={manualEntryForm.paymentId}
-                              onChange={(e) => setManualEntryForm({ ...manualEntryForm, paymentId: e.target.value })}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium mb-1">Razorpay Order ID</label>
-                            <input
-                              type="text"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              value={manualEntryForm.razorpayOrderId}
-                              onChange={(e) =>
-                                setManualEntryForm({ ...manualEntryForm, razorpayOrderId: e.target.value })
-                              }
-                            />
-                          </div>
-                        </div>
+                <TabsContent value="claims">
+                  <Card className="shadow-xl border-0">
+                    <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-lg border-b">
+                      <div className="flex justify-between items-center">
                         <div>
-                          <label className="block text-sm font-medium mb-1">Bill File Name</label>
-                          <input
-                            type="text"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            value={manualEntryForm.billFileName}
-                            onChange={(e) => setManualEntryForm({ ...manualEntryForm, billFileName: e.target.value })}
-                          />
+                          <CardTitle className="text-xl sm:text-2xl font-bold text-gray-800">
+                            Claims Management
+                          </CardTitle>
+                          <CardDescription className="text-sm sm:text-lg text-gray-600">
+                            Customer claims from systech_ott_platform.claims collection
+                          </CardDescription>
                         </div>
                       </div>
 
-                      <div className="flex gap-4 pt-4">
-                        <Button type="submit" disabled={isLoading}>
-                          {isLoading ? "Creating..." : "Create Claim"}
-                        </Button>
+                      {/* Search and Filters */}
+                      <div className="mt-4 sm:mt-6 space-y-4">
+                        <div className="flex items-center space-x-2 sm:space-x-4">
+                          <div className="flex-1 relative">
+                            <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                            <Input
+                              placeholder="Search by name, email, phone, activation code..."
+                              value={searchTerm}
+                              onChange={(e) => handleSearchChange(e.target.value)}
+                              className="pl-10 text-sm"
+                            />
+                          </div>
+                          {searchLoading && (
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                          <div>
+                            <Label className="text-sm font-medium text-gray-700">Start Date</Label>
+                            <Input
+                              type="date"
+                              value={dateFilter.startDate}
+                              onChange={(e) => handleDateFilterChange("startDate", e.target.value)}
+                              className="text-sm"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-sm font-medium text-gray-700">End Date</Label>
+                            <Input
+                              type="date"
+                              value={dateFilter.endDate}
+                              onChange={(e) => handleDateFilterChange("endDate", e.target.value)}
+                              className="text-sm"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-sm font-medium text-gray-700">Payment Status</Label>
+                            <Select
+                              value={filters.paymentStatus}
+                              onValueChange={(value) => handleFilterChange("paymentStatus", value)}
+                            >
+                              <SelectTrigger className="text-sm">
+                                <SelectValue placeholder="All Payment Status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Payment Status</SelectItem>
+                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="paid">Paid</SelectItem>
+                                <SelectItem value="failed">Failed</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="flex items-end">
+                            <Button
+                              onClick={clearDateFilter}
+                              variant="outline"
+                              className="w-full text-sm bg-transparent"
+                              disabled={!dateFilter.startDate && !dateFilter.endDate}
+                            >
+                              Clear Dates
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader className="bg-gray-50">
+                            <TableRow>
+                              <SortableHeader sortKey="claimId">Claim ID</SortableHeader>
+                              <SortableHeader sortKey="firstName">First Name</SortableHeader>
+                              <SortableHeader sortKey="lastName">Last Name</SortableHeader>
+                              <SortableHeader sortKey="email">Email</SortableHeader>
+                              <SortableHeader sortKey="phoneNumber">Phone</SortableHeader>
+                              <SortableHeader sortKey="streetAddress">Street Address</SortableHeader>
+                              <SortableHeader sortKey="addressLine2">Address Line 2</SortableHeader>
+                              <SortableHeader sortKey="state">State</SortableHeader>
+                              <SortableHeader sortKey="city">City</SortableHeader>
+                              <SortableHeader sortKey="pincode">Pincode</SortableHeader>
+                              <SortableHeader sortKey="activationCode">Activation Code</SortableHeader>
+                              <SortableHeader sortKey="paymentStatus">Payment Status</SortableHeader>
+                              <SortableHeader sortKey="ottStatus">OTT Status</SortableHeader>
+                              <SortableHeader sortKey="ottCode">OTT Code</SortableHeader>
+                              <SortableHeader sortKey="paymentId">Payment ID</SortableHeader>
+                              <SortableHeader sortKey="razorpayOrderId">Razorpay Order ID</SortableHeader>
+                              <SortableHeader sortKey="amount">Amount</SortableHeader>
+                              <SortableHeader sortKey="createdAt">Created</SortableHeader>
+                              <SortableHeader sortKey="updatedAt">Updated</SortableHeader>
+                              <TableHead className="font-bold text-gray-800">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {currentData.claims.length > 0 ? (
+                              currentData.claims.map((claim, index) => (
+                                <TableRow
+                                  key={claim._id || claim.id}
+                                  className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                                >
+                                  <TableCell className="font-mono text-sm">{claim.claimId || "N/A"}</TableCell>
+                                  <TableCell className="font-medium">{claim.firstName || "N/A"}</TableCell>
+                                  <TableCell className="font-medium">{claim.lastName || "N/A"}</TableCell>
+                                  <TableCell>{claim.email || "N/A"}</TableCell>
+                                  <TableCell>{claim.phoneNumber || "N/A"}</TableCell>
+                                  <TableCell className="max-w-xs truncate" title={claim.streetAddress || "N/A"}>
+                                    {claim.streetAddress || "N/A"}
+                                  </TableCell>
+                                  <TableCell className="max-w-xs truncate" title={claim.addressLine2 || "N/A"}>
+                                    {claim.addressLine2 || "N/A"}
+                                  </TableCell>
+                                  <TableCell>{claim.state || "N/A"}</TableCell>
+                                  <TableCell>{claim.city || "N/A"}</TableCell>
+                                  <TableCell>{claim.pincode || "N/A"}</TableCell>
+                                  <TableCell className="font-mono text-sm">{claim.activationCode || "N/A"}</TableCell>
+                                  <TableCell>{getStatusBadge(claim.paymentStatus)}</TableCell>
+                                  <TableCell>{getStatusBadge(claim.ottStatus)}</TableCell>
+                                  <TableCell className="font-mono text-sm">
+                                    {claim.ottCode || <span className="text-gray-400">-</span>}
+                                  </TableCell>
+                                  <TableCell className="font-mono text-xs">{claim.paymentId || "N/A"}</TableCell>
+                                  <TableCell className="font-mono text-xs">{claim.razorpayOrderId || "N/A"}</TableCell>
+                                  <TableCell className="font-semibold">₹{claim.amount || 99}</TableCell>
+                                  <TableCell className="text-sm text-gray-600">
+                                    {formatDateTime(claim.createdAt)}
+                                  </TableCell>
+                                  <TableCell className="text-sm text-gray-600">
+                                    {formatDateTime(claim.updatedAt)}
+                                  </TableCell>
+                                  <TableCell className="flex gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        handleDeleteClick("claims", claim._id || claim.id, claim.email || "Unknown")
+                                      }
+                                      className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleManualAssignClick(claim)}
+                                      disabled={claim.ottStatus === "delivered" || claim.paymentStatus !== "paid"}
+                                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200"
+                                    >
+                                      <Send className="w-4 h-4" />
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            ) : (
+                              <TableRow>
+                                <TableCell colSpan={20} className="text-center py-8 text-gray-500">
+                                  {searchLoading ? "Searching..." : "No claims data available"}
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                      <PaginationControls />
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="sales">
+                  <Card className="shadow-xl border-0">
+                    <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-t-lg border-b">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <CardTitle className="text-xl sm:text-2xl font-bold text-gray-800">
+                            Redemption Records
+                          </CardTitle>
+                          <CardDescription className="text-sm sm:text-lg text-gray-600">
+                            Sales data from systech_ott_platform.salesrecords collection
+                          </CardDescription>
+                        </div>
+                      </div>
+
+                      {/* Search and Filters */}
+                      <div className="mt-4 sm:mt-6 space-y-4">
+                        <div className="flex items-center space-x-2 sm:space-x-4">
+                          <div className="flex-1 relative">
+                            <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                            <Input
+                              placeholder="Search by activation code, product, category..."
+                              value={searchTerm}
+                              onChange={(e) => handleSearchChange(e.target.value)}
+                              className="pl-10 text-sm"
+                            />
+                          </div>
+                          {searchLoading && (
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+                          <div>
+                            <Label className="text-sm font-medium text-gray-700">Status</Label>
+                            <Select
+                              value={filters.salesStatus}
+                              onValueChange={(value) => handleFilterChange("salesStatus", value)}
+                            >
+                              <SelectTrigger className="text-sm">
+                                <SelectValue placeholder="All Status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Status</SelectItem>
+                                <SelectItem value="available">Available</SelectItem>
+                                <SelectItem value="claimed">Claimed</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader className="bg-gray-50">
+                            <TableRow>
+                              <SortableHeader sortKey="activationCode">Activation Code</SortableHeader>
+                              <SortableHeader sortKey="product">Product</SortableHeader>
+                              <SortableHeader sortKey="productSubCategory">Category</SortableHeader>
+                              <SortableHeader sortKey="status">Status</SortableHeader>
+                              <SortableHeader sortKey="claimedBy">Claimed By</SortableHeader>
+                              <SortableHeader sortKey="claimedDate">Claimed Date</SortableHeader>
+                              <SortableHeader sortKey="createdAt">Created</SortableHeader>
+                              <SortableHeader sortKey="updatedAt">Updated</SortableHeader>
+                              <TableHead className="font-bold text-gray-800">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {currentData.sales.length > 0 ? (
+                              currentData.sales.map((sale, index) => (
+                                <TableRow
+                                  key={sale._id || sale.id}
+                                  className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                                >
+                                  <TableCell className="font-mono text-sm">{sale.activationCode || "N/A"}</TableCell>
+                                  <TableCell>{sale.product || "N/A"}</TableCell>
+                                  <TableCell>{sale.productSubCategory || "N/A"}</TableCell>
+                                  <TableCell>{getStatusBadge(sale.status)}</TableCell>
+                                  <TableCell>{sale.claimedBy || <span className="text-gray-400">-</span>}</TableCell>
+                                  <TableCell className="text-sm text-gray-600">
+                                    {formatDateTime(sale.claimedDate)}
+                                  </TableCell>
+                                  <TableCell className="text-sm text-gray-600">
+                                    {formatDateTime(sale.createdAt)}
+                                  </TableCell>
+                                  <TableCell className="text-sm text-gray-600">
+                                    {formatDateTime(sale.updatedAt)}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        handleDeleteClick(
+                                          "sales",
+                                          sale._id || sale.id,
+                                          sale.activationCode || "Unknown",
+                                        )
+                                      }
+                                      className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            ) : (
+                              <TableRow>
+                                <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                                  {searchLoading ? "Searching..." : "No sales data available"}
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                      <PaginationControls />
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="keys">
+                  <Card className="shadow-xl border-0">
+                    <CardHeader className="bg-gradient-to-r from-purple-50 to-violet-50 rounded-t-lg border-b">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <CardTitle className="text-xl sm:text-2xl font-bold text-gray-800">
+                            OTT Keys Inventory
+                          </CardTitle>
+                          <CardDescription className="text-sm sm:text-lg text-gray-600">
+                            OTT keys from systech_ott_platform.ottkeys collection
+                          </CardDescription>
+                        </div>
+                      </div>
+
+                      {/* Search and Filters */}
+                      <div className="mt-4 sm:mt-6 space-y-4">
+                        <div className="flex items-center space-x-2 sm:space-x-4">
+                          <div className="flex-1 relative">
+                            <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                            <Input
+                              placeholder="Search by activation code, product, category..."
+                              value={searchTerm}
+                              onChange={(e) => handleSearchChange(e.target.value)}
+                              className="pl-10 text-sm"
+                            />
+                          </div>
+                          {searchLoading && (
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+                          <div>
+                            <Label className="text-sm font-medium text-gray-700">Status</Label>
+                            <Select
+                              value={filters.keysStatus}
+                              onValueChange={(value) => handleFilterChange("keysStatus", value)}
+                            >
+                              <SelectTrigger className="text-sm">
+                                <SelectValue placeholder="All Status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Status</SelectItem>
+                                <SelectItem value="available">Available</SelectItem>
+                                <SelectItem value="assigned">Assigned</SelectItem>
+                                <SelectItem value="used">Used</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader className="bg-gray-50">
+                            <TableRow>
+                              <SortableHeader sortKey="activationCode">Activation Code</SortableHeader>
+                              <SortableHeader sortKey="product">Product</SortableHeader>
+                              <SortableHeader sortKey="productSubCategory">Category</SortableHeader>
+                              <SortableHeader sortKey="status">Status</SortableHeader>
+                              <SortableHeader sortKey="assignedEmail">Assigned To</SortableHeader>
+                              <SortableHeader sortKey="assignedDate">Assigned Date</SortableHeader>
+                              <SortableHeader sortKey="createdAt">Created</SortableHeader>
+                              <SortableHeader sortKey="updatedAt">Updated</SortableHeader>
+                              <TableHead className="font-bold text-gray-800">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {currentData.keys.length > 0 ? (
+                              currentData.keys.map((key, index) => (
+                                <TableRow
+                                  key={key._id || key.id}
+                                  className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                                >
+                                  <TableCell className="font-mono text-sm">{key.activationCode || "N/A"}</TableCell>
+                                  <TableCell>{key.product || "N/A"}</TableCell>
+                                  <TableCell>{key.productSubCategory || "N/A"}</TableCell>
+                                  <TableCell>{getStatusBadge(key.status)}</TableCell>
+                                  <TableCell>{key.assignedEmail || <span className="text-gray-400">-</span>}</TableCell>
+                                  <TableCell className="text-sm text-gray-600">
+                                    {formatDateTime(key.assignedDate)}
+                                  </TableCell>
+                                  <TableCell className="text-sm text-gray-600">
+                                    {formatDateTime(key.createdAt)}
+                                  </TableCell>
+                                  <TableCell className="text-sm text-gray-600">
+                                    {formatDateTime(key.updatedAt)}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        handleDeleteClick("keys", key._id || key.id, key.activationCode || "Unknown")
+                                      }
+                                      className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            ) : (
+                              <TableRow>
+                                <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                                  {searchLoading ? "Searching..." : "No keys data available"}
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                      <PaginationControls />
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="transactions">
+                  <Card className="shadow-xl border-0">
+                    <CardHeader className="bg-gradient-to-r from-orange-50 to-red-50 rounded-t-lg border-b">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <CardTitle className="text-xl sm:text-2xl font-bold text-gray-800">
+                            Razorpay Transactions
+                          </CardTitle>
+                          <CardDescription className="text-sm sm:text-lg text-gray-600">
+                            Payment transactions from Razorpay API
+                          </CardDescription>
+                        </div>
                         <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() =>
-                            setManualEntryForm({
-                              firstName: "",
-                              lastName: "",
-                              email: "",
-                              phone: "",
-                              streetAddress: "",
-                              addressLine2: "",
-                              city: "",
-                              state: "",
-                              postalCode: "",
-                              country: "India",
-                              purchaseType: "online",
-                              activationCode: "",
-                              purchaseDate: "",
-                              invoiceNumber: "",
-                              sellerName: "",
-                              paymentStatus: "pending",
-                              paymentId: "",
-                              billFileName: "",
-                              razorpayOrderId: "",
-                            })
-                          }
+                          onClick={syncTransactions}
+                          disabled={syncingTransactions}
+                          className="bg-orange-600 hover:bg-orange-700 text-white"
                         >
-                          Reset Form
+                          {syncingTransactions ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Syncing...
+                            </>
+                          ) : (
+                            <>
+                              <RefreshCw className="w-4 h-4 mr-2" />
+                              Sync from Razorpay
+                            </>
+                          )}
                         </Button>
                       </div>
-                    </form>
-                  </div>
+
+                      {/* Search and Filters */}
+                      <div className="mt-4 sm:mt-6 space-y-4">
+                        <div className="flex items-center space-x-2 sm:space-x-4">
+                          <div className="flex-1 relative">
+                            <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                            <Input
+                              placeholder="Search by payment ID, order ID, email..."
+                              value={searchTerm}
+                              onChange={(e) => handleSearchChange(e.target.value)}
+                              className="pl-10 text-sm"
+                            />
+                          </div>
+                          {searchLoading && (
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+                          <div>
+                            <Label className="text-sm font-medium text-gray-700">Transaction Status</Label>
+                            <Select
+                              value={filters.transactionsStatus}
+                              onValueChange={(value) => handleFilterChange("transactionsStatus", value)}
+                            >
+                              <SelectTrigger className="text-sm">
+                                <SelectValue placeholder="All Status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Status</SelectItem>
+                                <SelectItem value="created">Created</SelectItem>
+                                <SelectItem value="authorized">Authorized</SelectItem>
+                                <SelectItem value="captured">Captured</SelectItem>
+                                <SelectItem value="refunded">Refunded</SelectItem>
+                                <SelectItem value="failed">Failed</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader className="bg-gray-50">
+                            <TableRow>
+                              <TableHead className="font-bold text-gray-800">Payment ID</TableHead>
+                              <TableHead className="font-bold text-gray-800">Order ID</TableHead>
+                              <TableHead className="font-bold text-gray-800">Amount</TableHead>
+                              <TableHead className="font-bold text-gray-800">Status</TableHead>
+                              <TableHead className="font-bold text-gray-800">Method</TableHead>
+                              <TableHead className="font-bold text-gray-800">Email</TableHead>
+                              <TableHead className="font-bold text-gray-800">Contact</TableHead>
+                              <TableHead className="font-bold text-gray-800">Claim ID</TableHead>
+                              <TableHead className="font-bold text-gray-800">Created Date</TableHead>
+                              <TableHead className="font-bold text-gray-800">Created Time</TableHead>
+                              <TableHead className="font-bold text-gray-800">Captured Date</TableHead>
+                              <TableHead className="font-bold text-gray-800">Captured Time</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {currentData.transactions.length > 0 ? (
+                              currentData.transactions.map((transaction, index) => (
+                                <TableRow
+                                  key={transaction._id || transaction.id}
+                                  className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                                >
+                                  <TableCell className="font-mono text-sm">
+                                    {transaction.razorpay_payment_id || "N/A"}
+                                  </TableCell>
+                                  <TableCell className="font-mono text-sm">
+                                    {transaction.razorpay_order_id || "N/A"}
+                                  </TableCell>
+                                  <TableCell className="font-semibold">
+                                    {formatAmount(transaction.amount || 0)}
+                                  </TableCell>
+                                  <TableCell>{getStatusBadge(transaction.status)}</TableCell>
+                                  <TableCell>{transaction.method || "N/A"}</TableCell>
+                                  <TableCell>{transaction.email || "N/A"}</TableCell>
+                                  <TableCell>{transaction.contact || "N/A"}</TableCell>
+                                  <TableCell className="font-mono text-sm">
+                                    {transaction.claimId || <span className="text-gray-400">-</span>}
+                                  </TableCell>
+                                  <TableCell className="text-sm text-gray-600">
+                                    {formatDateTimeIST(transaction.created_at)?.split(" ")[0] || "-"}
+                                  </TableCell>
+                                  <TableCell className="text-sm text-gray-600">
+                                    {formatDateTimeIST(transaction.created_at)?.split(" ")[1] || "-"}
+                                  </TableCell>
+                                  <TableCell className="text-sm text-gray-600">
+                                    {formatDateTimeIST(transaction.captured_at)?.split(" ")[0] || "-"}
+                                  </TableCell>
+                                  <TableCell className="text-sm text-gray-600">
+                                    {formatDateTimeIST(transaction.captured_at)?.split(" ")[1] || "-"}
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            ) : (
+                              <TableRow>
+                                <TableCell colSpan={12} className="text-center py-8 text-gray-500">
+                                  {searchLoading
+                                    ? "Searching..."
+                                    : "No transactions data available. Click 'Sync from Razorpay' to fetch transactions."}
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                      <PaginationControls />
+                    </CardContent>
+                  </Card>
                 </TabsContent>
               </Tabs>
             </div>
           </div>
         </SidebarInset>
-
-        <Dialog open={showManualEntry} onOpenChange={setShowManualEntry}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Create Manual Claim</DialogTitle>
-              <DialogDescription>
-                Fill in all the required information to create a new claim record manually.
-              </DialogDescription>
-            </DialogHeader>
-
-            <form onSubmit={handleManualEntrySubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Personal Information */}
-                <div className="space-y-4">
-                  <h4 className="font-medium text-sm text-gray-700 border-b pb-2">Personal Information</h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-1">First Name *</label>
-                      <Input
-                        type="text"
-                        required
-                        value={manualEntryForm.firstName}
-                        onChange={(e) => setManualEntryForm({ ...manualEntryForm, firstName: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Last Name *</label>
-                      <Input
-                        type="text"
-                        required
-                        value={manualEntryForm.lastName}
-                        onChange={(e) => setManualEntryForm({ ...manualEntryForm, lastName: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Email *</label>
-                    <Input
-                      type="email"
-                      required
-                      value={manualEntryForm.email}
-                      onChange={(e) => setManualEntryForm({ ...manualEntryForm, email: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Phone *</label>
-                    <Input
-                      type="tel"
-                      required
-                      value={manualEntryForm.phone}
-                      onChange={(e) => setManualEntryForm({ ...manualEntryForm, phone: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                {/* Address Information */}
-                <div className="space-y-4">
-                  <h4 className="font-medium text-sm text-gray-700 border-b pb-2">Address Information</h4>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Street Address *</label>
-                    <Input
-                      type="text"
-                      required
-                      value={manualEntryForm.streetAddress}
-                      onChange={(e) => setManualEntryForm({ ...manualEntryForm, streetAddress: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Address Line 2</label>
-                    <Input
-                      type="text"
-                      value={manualEntryForm.addressLine2}
-                      onChange={(e) => setManualEntryForm({ ...manualEntryForm, addressLine2: e.target.value })}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-1">City *</label>
-                      <Input
-                        type="text"
-                        required
-                        value={manualEntryForm.city}
-                        onChange={(e) => setManualEntryForm({ ...manualEntryForm, city: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">State *</label>
-                      <Input
-                        type="text"
-                        required
-                        value={manualEntryForm.state}
-                        onChange={(e) => setManualEntryForm({ ...manualEntryForm, state: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Postal Code *</label>
-                      <Input
-                        type="text"
-                        required
-                        value={manualEntryForm.postalCode}
-                        onChange={(e) => setManualEntryForm({ ...manualEntryForm, postalCode: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Country *</label>
-                      <select
-                        required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={manualEntryForm.country}
-                        onChange={(e) => setManualEntryForm({ ...manualEntryForm, country: e.target.value })}
-                      >
-                        <option value="India">India</option>
-                        <option value="USA">USA</option>
-                        <option value="UK">UK</option>
-                        <option value="Canada">Canada</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Purchase Information */}
-              <div className="space-y-4">
-                <h4 className="font-medium text-sm text-gray-700 border-b pb-2">Purchase Information</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Purchase Type *</label>
-                    <select
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={manualEntryForm.purchaseType}
-                      onChange={(e) => setManualEntryForm({ ...manualEntryForm, purchaseType: e.target.value })}
-                    >
-                      <option value="online">Online</option>
-                      <option value="offline">Offline</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Activation Code *</label>
-                    <Input
-                      type="text"
-                      required
-                      value={manualEntryForm.activationCode}
-                      onChange={(e) => setManualEntryForm({ ...manualEntryForm, activationCode: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Purchase Date *</label>
-                    <Input
-                      type="date"
-                      required
-                      value={manualEntryForm.purchaseDate}
-                      onChange={(e) => setManualEntryForm({ ...manualEntryForm, purchaseDate: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Invoice Number</label>
-                    <Input
-                      type="text"
-                      value={manualEntryForm.invoiceNumber}
-                      onChange={(e) => setManualEntryForm({ ...manualEntryForm, invoiceNumber: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Seller Name</label>
-                    <Input
-                      type="text"
-                      value={manualEntryForm.sellerName}
-                      onChange={(e) => setManualEntryForm({ ...manualEntryForm, sellerName: e.target.value })}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Payment Information */}
-              <div className="space-y-4">
-                <h4 className="font-medium text-sm text-gray-700 border-b pb-2">Payment Information</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Payment Status</label>
-                    <select
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={manualEntryForm.paymentStatus}
-                      onChange={(e) => setManualEntryForm({ ...manualEntryForm, paymentStatus: e.target.value })}
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="success">Success</option>
-                      <option value="failed">Failed</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Payment ID</label>
-                    <Input
-                      type="text"
-                      value={manualEntryForm.paymentId}
-                      onChange={(e) => setManualEntryForm({ ...manualEntryForm, paymentId: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Razorpay Order ID</label>
-                    <Input
-                      type="text"
-                      value={manualEntryForm.razorpayOrderId}
-                      onChange={(e) => setManualEntryForm({ ...manualEntryForm, razorpayOrderId: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Bill File Name</label>
-                  <Input
-                    type="text"
-                    value={manualEntryForm.billFileName}
-                    onChange={(e) => setManualEntryForm({ ...manualEntryForm, billFileName: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setShowManualEntry(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? "Creating..." : "Create Claim"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
       </div>
     </SidebarProvider>
   )
