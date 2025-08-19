@@ -30,16 +30,33 @@ async function syncTransactions() {
     const { db } = await connectToDatabase()
     const transactionsCollection = db.collection("razorpay_transactions")
 
-    // Fetch payments from Razorpay (last 100 payments)
-    const payments = await razorpay.payments.all({
-      count: 100,
-      skip: 0,
-    })
+    const allPayments = []
+    let skip = 0
+    const count = 100 // Razorpay API limit per request
+    let hasMore = true
+
+    while (hasMore) {
+      const payments = await razorpay.payments.all({
+        count: count,
+        skip: skip,
+      })
+
+      allPayments.push(...payments.items)
+
+      // Check if there are more payments to fetch
+      hasMore = payments.items.length === count
+      skip += count
+
+      // Add a small delay to avoid rate limiting
+      if (hasMore) {
+        await new Promise((resolve) => setTimeout(resolve, 100))
+      }
+    }
 
     let syncedCount = 0
     let updatedCount = 0
 
-    for (const payment of payments.items) {
+    for (const payment of allPayments) {
       const existingTransaction = await transactionsCollection.findOne({
         razorpay_payment_id: payment.id,
       })
@@ -81,9 +98,10 @@ async function syncTransactions() {
 
     return NextResponse.json({
       success: true,
-      message: `Synced ${syncedCount} new transactions, updated ${updatedCount} existing transactions`,
+      message: `Synced ${syncedCount} new transactions, updated ${updatedCount} existing transactions from ${allPayments.length} total payments`,
       syncedCount,
       updatedCount,
+      totalFetched: allPayments.length,
     })
   } catch (error) {
     console.error("Error syncing transactions:", error)
@@ -133,7 +151,7 @@ async function getTransactions() {
     const { db } = await connectToDatabase()
     const transactionsCollection = db.collection("razorpay_transactions")
 
-    const transactions = await transactionsCollection.find({}).sort({ created_at: -1 }).limit(100).toArray()
+    const transactions = await transactionsCollection.find({}).sort({ created_at: -1 }).toArray()
 
     // Convert ObjectId to string and format dates
     const formattedTransactions = transactions.map((transaction) => ({
@@ -151,6 +169,7 @@ async function getTransactions() {
       success: true,
       transactions: formattedTransactions,
       count: formattedTransactions.length,
+      totalRecords: formattedTransactions.length,
     })
   } catch (error) {
     console.error("Error fetching transactions:", error)
