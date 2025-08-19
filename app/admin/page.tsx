@@ -26,6 +26,7 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Loader2,
 } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -59,6 +60,9 @@ interface Stats {
   assignedKeys: number
   usedKeys: number
   totalKeys: number
+  totalTransactions: number
+  successfulTransactions: number
+  failedTransactions: number
 }
 
 interface SortConfig {
@@ -71,6 +75,7 @@ interface FilterConfig {
   ottStatus: string
   salesStatus: string
   keysStatus: string
+  transactionsStatus: string
 }
 
 export default function AdminPage() {
@@ -87,10 +92,12 @@ export default function AdminPage() {
     claims: ClaimResponse[]
     sales: SalesRecord[]
     keys: OTTKey[]
+    transactions: any[]
   }>({
     claims: [],
     sales: [],
     keys: [],
+    transactions: [],
   })
 
   // Pagination state
@@ -98,6 +105,7 @@ export default function AdminPage() {
     claims: { page: 1, total: 0, totalPages: 0 },
     sales: { page: 1, total: 0, totalPages: 0 },
     keys: { page: 1, total: 0, totalPages: 0 },
+    transactions: { page: 1, total: 0, totalPages: 0 },
   })
 
   // Search state
@@ -110,6 +118,7 @@ export default function AdminPage() {
     ottStatus: "all",
     salesStatus: "all",
     keysStatus: "all",
+    transactionsStatus: "all",
   })
 
   const [dateFilter, setDateFilter] = useState({
@@ -137,6 +146,9 @@ export default function AdminPage() {
     assignedKeys: 0,
     usedKeys: 0,
     totalKeys: 0,
+    totalTransactions: 0,
+    successfulTransactions: 0,
+    failedTransactions: 0,
   })
 
   // Dialog states
@@ -152,6 +164,8 @@ export default function AdminPage() {
   const [manualAssignPassword, setManualAssignPassword] = useState("")
   const [assigning, setAssigning] = useState(false)
   const [availableKeys, setAvailableKeys] = useState<OTTKey[]>([])
+
+  const [syncingTransactions, setSyncingTransactions] = useState(false)
 
   // Check authentication on mount
   useEffect(() => {
@@ -198,73 +212,60 @@ export default function AdminPage() {
           page: page.toString(),
           limit: ITEMS_PER_PAGE.toString(),
           search: search,
-          sortBy: sortConfig.key,
-          sortOrder: sortConfig.direction,
+          ...(activeTab === "transactions"
+            ? {}
+            : {
+                sort: sortConfig.key,
+                order: sortConfig.direction,
+                paymentStatus: filters.paymentStatus,
+                ottStatus: filters.ottStatus,
+                salesStatus: filters.salesStatus,
+                keysStatus: filters.keysStatus,
+                transactionsStatus: filters.transactionsStatus,
+                startDate: dateFilter.startDate,
+                endDate: dateFilter.endDate,
+              }),
         })
 
-        if (dateFilter.startDate) {
-          params.append("startDate", dateFilter.startDate)
-        }
-        if (dateFilter.endDate) {
-          params.append("endDate", dateFilter.endDate)
-        }
+        const endpoint = activeTab === "transactions" ? "/api/admin/razorpay-transactions" : `/api/admin/${activeTab}`
 
-        if (activeTab === "claims") {
-          if (filters.paymentStatus !== "all") {
-            params.append("paymentStatus", filters.paymentStatus)
-            console.log("[v0] Adding paymentStatus filter:", filters.paymentStatus)
-          }
-          if (filters.ottStatus !== "all") {
-            params.append("ottStatus", filters.ottStatus)
-            console.log("[v0] Adding ottStatus filter:", filters.ottStatus)
-          }
-        } else if (activeTab === "sales") {
-          if (filters.salesStatus !== "all") {
-            params.append("status", filters.salesStatus)
-            console.log("[v0] Adding salesStatus filter:", filters.salesStatus)
-          }
-        } else if (activeTab === "keys") {
-          if (filters.keysStatus !== "all") {
-            params.append("status", filters.keysStatus)
-            console.log("[v0] Adding keysStatus filter:", filters.keysStatus)
-          }
-        }
-
-        console.log("[v0] API URL:", `/api/admin/${activeTab}?${params}`)
-        const response = await fetch(`/api/admin/${activeTab}?${params}`, {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-        })
+        const response = await fetch(`${endpoint}?${params}`)
+        const data = await response.json()
 
         if (response.ok) {
-          const result: PaginatedResponse<any> = await response.json()
-          console.log("[v0] API Response:", result)
-
-          setCurrentData((prev) => ({
-            ...prev,
-            [activeTab]: result.data || [],
-          }))
-
-          setPagination((prev) => ({
-            ...prev,
-            [activeTab]: {
-              page: result.page || 1,
-              total: result.total || 0,
-              totalPages: result.totalPages || 0,
-            },
-          }))
+          if (activeTab === "transactions") {
+            setCurrentData((prev) => ({
+              ...prev,
+              transactions: data.transactions || [],
+            }))
+            setPagination((prev) => ({
+              ...prev,
+              transactions: {
+                page: page,
+                total: data.count || 0,
+                totalPages: Math.ceil((data.count || 0) / ITEMS_PER_PAGE),
+              },
+            }))
+          } else {
+            setCurrentData((prev) => ({
+              ...prev,
+              [activeTab]: data.data || [],
+            }))
+            setPagination((prev) => ({
+              ...prev,
+              [activeTab]: {
+                page: data.page || 1,
+                total: data.total || 0,
+                totalPages: data.totalPages || 1,
+              },
+            }))
+          }
         } else {
-          throw new Error(`Failed to load ${activeTab} data`)
+          throw new Error(data.error || "Failed to load data")
         }
       } catch (error) {
         console.error(`Error loading ${activeTab} data:`, error)
         setError(`Failed to load ${activeTab} data`)
-
-        // Set empty data on error
-        setCurrentData((prev) => ({
-          ...prev,
-          [activeTab]: [],
-        }))
       } finally {
         setSearchLoading(false)
         setLoading(false)
@@ -626,6 +627,57 @@ export default function AdminPage() {
       })
     } finally {
       setAssigning(false)
+    }
+  }
+
+  const syncTransactions = async () => {
+    setSyncingTransactions(true)
+    setError("")
+    setMessage("")
+
+    try {
+      const response = await fetch("/api/admin/razorpay-transactions?action=sync", {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setMessage(
+          `Successfully synced ${data.syncedCount} new transactions and updated ${data.updatedCount} existing transactions`,
+        )
+        loadCurrentTabData()
+        loadStats()
+      } else {
+        throw new Error(data.error || "Failed to sync transactions")
+      }
+    } catch (error) {
+      console.error("Error syncing transactions:", error)
+      setError(error instanceof Error ? error.message : "Failed to sync transactions")
+    } finally {
+      setSyncingTransactions(false)
+    }
+  }
+
+  const formatAmount = (amount: number) => {
+    return `₹${(amount / 100).toFixed(2)}`
+  }
+
+  const formatDateTimeIST = (dateString: string | undefined) => {
+    if (!dateString) return "-"
+
+    try {
+      const date = new Date(dateString)
+      // Convert to IST (UTC + 5:30)
+      const istDate = new Date(date.getTime() + 5.5 * 60 * 60 * 1000)
+
+      const dateStr = istDate.toISOString().split("T")[0] // YYYY-MM-DD
+      const timeStr = istDate.toISOString().split("T")[1].split(".")[0] // HH:MM:SS
+
+      return `${dateStr} ${timeStr}`
+    } catch (error) {
+      return "-"
     }
   }
 
@@ -1093,7 +1145,7 @@ export default function AdminPage() {
 
               {/* Data Tables */}
               <Tabs value={activeTab} onValueChange={handleTabChange}>
-                <TabsList className="grid grid-cols-3 mb-4 sm:mb-6 bg-white shadow-lg rounded-xl p-1 h-12 sm:h-14">
+                <TabsList className="grid grid-cols-4 mb-4 sm:mb-6 bg-white shadow-lg rounded-xl p-1 h-12 sm:h-14">
                   <TabsTrigger
                     value="claims"
                     className="rounded-lg data-[state=active]:bg-purple-600 data-[state=active]:text-white text-sm sm:text-lg font-semibold"
@@ -1114,6 +1166,13 @@ export default function AdminPage() {
                   >
                     <span className="hidden sm:inline">OTT Keys ({stats.totalKeys})</span>
                     <span className="sm:hidden">Keys</span>
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="transactions"
+                    className="rounded-lg data-[state=active]:bg-purple-600 data-[state=active]:text-white text-sm sm:text-lg font-semibold"
+                  >
+                    <span className="hidden sm:inline">Transactions ({stats.totalTransactions || 0})</span>
+                    <span className="sm:hidden">Transactions</span>
                   </TabsTrigger>
                 </TabsList>
 
@@ -1526,6 +1585,150 @@ export default function AdminPage() {
                               <TableRow>
                                 <TableCell colSpan={9} className="text-center py-8 text-gray-500">
                                   {searchLoading ? "Searching..." : "No keys data available"}
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                      <PaginationControls />
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="transactions">
+                  <Card className="shadow-xl border-0">
+                    <CardHeader className="bg-gradient-to-r from-orange-50 to-red-50 rounded-t-lg border-b">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <CardTitle className="text-xl sm:text-2xl font-bold text-gray-800">
+                            Razorpay Transactions
+                          </CardTitle>
+                          <CardDescription className="text-sm sm:text-lg text-gray-600">
+                            Payment transactions from Razorpay API
+                          </CardDescription>
+                        </div>
+                        <Button
+                          onClick={syncTransactions}
+                          disabled={syncingTransactions}
+                          className="bg-orange-600 hover:bg-orange-700 text-white"
+                        >
+                          {syncingTransactions ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Syncing...
+                            </>
+                          ) : (
+                            <>
+                              <RefreshCw className="w-4 h-4 mr-2" />
+                              Sync from Razorpay
+                            </>
+                          )}
+                        </Button>
+                      </div>
+
+                      {/* Search and Filters */}
+                      <div className="mt-4 sm:mt-6 space-y-4">
+                        <div className="flex items-center space-x-2 sm:space-x-4">
+                          <div className="flex-1 relative">
+                            <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                            <Input
+                              placeholder="Search by payment ID, order ID, email..."
+                              value={searchTerm}
+                              onChange={(e) => handleSearchChange(e.target.value)}
+                              className="pl-10 text-sm"
+                            />
+                          </div>
+                          {searchLoading && (
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+                          <div>
+                            <Label className="text-sm font-medium text-gray-700">Transaction Status</Label>
+                            <Select
+                              value={filters.transactionsStatus}
+                              onValueChange={(value) => handleFilterChange("transactionsStatus", value)}
+                            >
+                              <SelectTrigger className="text-sm">
+                                <SelectValue placeholder="All Status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Status</SelectItem>
+                                <SelectItem value="created">Created</SelectItem>
+                                <SelectItem value="authorized">Authorized</SelectItem>
+                                <SelectItem value="captured">Captured</SelectItem>
+                                <SelectItem value="refunded">Refunded</SelectItem>
+                                <SelectItem value="failed">Failed</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader className="bg-gray-50">
+                            <TableRow>
+                              <TableHead className="font-bold text-gray-800">Payment ID</TableHead>
+                              <TableHead className="font-bold text-gray-800">Order ID</TableHead>
+                              <TableHead className="font-bold text-gray-800">Amount</TableHead>
+                              <TableHead className="font-bold text-gray-800">Status</TableHead>
+                              <TableHead className="font-bold text-gray-800">Method</TableHead>
+                              <TableHead className="font-bold text-gray-800">Email</TableHead>
+                              <TableHead className="font-bold text-gray-800">Contact</TableHead>
+                              <TableHead className="font-bold text-gray-800">Claim ID</TableHead>
+                              <TableHead className="font-bold text-gray-800">Created Date</TableHead>
+                              <TableHead className="font-bold text-gray-800">Created Time</TableHead>
+                              <TableHead className="font-bold text-gray-800">Captured Date</TableHead>
+                              <TableHead className="font-bold text-gray-800">Captured Time</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {currentData.transactions.length > 0 ? (
+                              currentData.transactions.map((transaction, index) => (
+                                <TableRow
+                                  key={transaction._id || transaction.id}
+                                  className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                                >
+                                  <TableCell className="font-mono text-sm">
+                                    {transaction.razorpay_payment_id || "N/A"}
+                                  </TableCell>
+                                  <TableCell className="font-mono text-sm">
+                                    {transaction.razorpay_order_id || "N/A"}
+                                  </TableCell>
+                                  <TableCell className="font-semibold">
+                                    {formatAmount(transaction.amount || 0)}
+                                  </TableCell>
+                                  <TableCell>{getStatusBadge(transaction.status)}</TableCell>
+                                  <TableCell>{transaction.method || "N/A"}</TableCell>
+                                  <TableCell>{transaction.email || "N/A"}</TableCell>
+                                  <TableCell>{transaction.contact || "N/A"}</TableCell>
+                                  <TableCell className="font-mono text-sm">
+                                    {transaction.claimId || <span className="text-gray-400">-</span>}
+                                  </TableCell>
+                                  <TableCell className="text-sm text-gray-600">
+                                    {formatDateTimeIST(transaction.created_at)?.split(" ")[0] || "-"}
+                                  </TableCell>
+                                  <TableCell className="text-sm text-gray-600">
+                                    {formatDateTimeIST(transaction.created_at)?.split(" ")[1] || "-"}
+                                  </TableCell>
+                                  <TableCell className="text-sm text-gray-600">
+                                    {formatDateTimeIST(transaction.captured_at)?.split(" ")[0] || "-"}
+                                  </TableCell>
+                                  <TableCell className="text-sm text-gray-600">
+                                    {formatDateTimeIST(transaction.captured_at)?.split(" ")[1] || "-"}
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            ) : (
+                              <TableRow>
+                                <TableCell colSpan={12} className="text-center py-8 text-gray-500">
+                                  {searchLoading
+                                    ? "Searching..."
+                                    : "No transactions data available. Click 'Sync from Razorpay' to fetch transactions."}
                                 </TableCell>
                               </TableRow>
                             )}

@@ -54,6 +54,29 @@ export interface IOTTKey {
   updatedAt?: Date
 }
 
+export interface IRazorpayTransaction {
+  _id?: ObjectId
+  razorpay_payment_id: string
+  razorpay_order_id: string
+  razorpay_signature?: string
+  amount: number // Amount in paise
+  currency: string
+  status: "created" | "authorized" | "captured" | "refunded" | "failed"
+  method?: string // payment method used
+  email?: string
+  contact?: string
+  fee?: number
+  tax?: number
+  error_code?: string
+  error_description?: string
+  created_at: Date // Razorpay's created timestamp
+  captured_at?: Date
+  refunded_at?: Date
+  claimId?: string // Link to our claims collection
+  createdAt?: Date // Our database timestamp
+  updatedAt?: Date
+}
+
 // Client-side interfaces (mapping _id to id string)
 export interface ClaimResponse extends Omit<IClaimResponse, "_id" | "createdAt" | "updatedAt"> {
   pincode: string
@@ -83,4 +106,15 @@ export interface OTTKey extends Omit<IOTTKey, "_id" | "createdAt" | "updatedAt" 
   updatedAt?: string
   assignedDate?: string
   assignedTo?: string
+}
+
+export interface RazorpayTransaction
+  extends Omit<IRazorpayTransaction, "_id" | "createdAt" | "updatedAt" | "created_at" | "captured_at" | "refunded_at"> {
+  _id: string
+  id: string
+  created_at: string
+  captured_at?: string
+  refunded_at?: string
+  createdAt?: string
+  updatedAt?: string
 }
