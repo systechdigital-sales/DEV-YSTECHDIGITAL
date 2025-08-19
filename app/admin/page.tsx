@@ -257,14 +257,14 @@ export default function AdminPage() {
           if (activeTab === "transactions") {
             setCurrentData((prev) => ({
               ...prev,
-              transactions: data.transactions || [],
+              transactions: data.data || [],
             }))
             setPagination((prev) => ({
               ...prev,
               transactions: {
-                page: page,
-                total: data.count || 0,
-                totalPages: Math.ceil((data.count || 0) / ITEMS_PER_PAGE),
+                page: data.page || page,
+                total: data.total || 0,
+                totalPages: data.totalPages || Math.ceil((data.total || 0) / ITEMS_PER_PAGE),
               },
             }))
           } else {

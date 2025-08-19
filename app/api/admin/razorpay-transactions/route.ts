@@ -206,7 +206,9 @@ async function getTransactions(request: NextRequest) {
     }))
 
     return NextResponse.json({
+      transactions: formattedTransactions,
       data: formattedTransactions,
+      count: total,
       total,
       page,
       totalPages,
@@ -216,7 +218,9 @@ async function getTransactions(request: NextRequest) {
     console.error("Error fetching transactions:", error)
     return NextResponse.json(
       {
+        transactions: [],
         data: [],
+        count: 0,
         total: 0,
         page: 1,
         totalPages: 0,
