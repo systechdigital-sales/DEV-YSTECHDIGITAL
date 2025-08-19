@@ -1475,7 +1475,7 @@ export default function AdminPage() {
                               <SortableHeader sortKey="amount">Amount</SortableHeader>
                               <SortableHeader sortKey="createdAt">Created</SortableHeader>
                               <SortableHeader sortKey="updatedAt">Updated</SortableHeader>
-                              {/* <TableHead className="font-bold text-gray-800">Actions</TableHead> */}
+                              <TableHead className="font-bold text-gray-800">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -1514,27 +1514,27 @@ export default function AdminPage() {
                                   <TableCell className="text-sm text-gray-600">
                                     {formatDateTime(claim.updatedAt)}
                                   </TableCell>
-                                  // <TableCell className="flex gap-2">
-                                  //   <Button
-                                  //     variant="outline"
-                                  //     size="sm"
-                                  //     onClick={() =>
-                                  //       handleDeleteClick("claims", claim._id || claim.id, claim.email || "Unknown")
-                                  //     }
-                                  //     className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                                  //   >
-                                  //     <Trash2 className="w-4 h-4" />
-                                  //   </Button>
-                                  //   <Button
-                                  //     variant="outline"
-                                  //     size="sm"
-                                  //     onClick={() => handleManualAssignClick(claim)}
-                                  //     disabled={claim.ottStatus === "delivered" || claim.paymentStatus !== "paid"}
-                                  //     className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200"
-                                  //   >
-                                  //     <Send className="w-4 h-4" />
-                                  //   </Button>
-                                  // </TableCell>
+                                  <TableCell className="flex gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        handleDeleteClick("claims", claim._id || claim.id, claim.email || "Unknown")
+                                      }
+                                      className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleManualAssignClick(claim)}
+                                      disabled={claim.ottStatus === "delivered" || claim.paymentStatus !== "paid"}
+                                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200"
+                                    >
+                                      <Send className="w-4 h-4" />
+                                    </Button>
+                                  </TableCell>
                                 </TableRow>
                               ))
                             ) : (
@@ -1616,7 +1616,7 @@ export default function AdminPage() {
                               <SortableHeader sortKey="claimedDate">Claimed Date</SortableHeader>
                               <SortableHeader sortKey="createdAt">Created</SortableHeader>
                               <SortableHeader sortKey="updatedAt">Updated</SortableHeader>
-                              {/* <TableHead className="font-bold text-gray-800">Actions</TableHead> */}
+                              <TableHead className="font-bold text-gray-800">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -1640,22 +1640,22 @@ export default function AdminPage() {
                                   <TableCell className="text-sm text-gray-600">
                                     {formatDateTime(sale.updatedAt)}
                                   </TableCell>
-                                  // <TableCell>
-                                  //   <Button
-                                  //     variant="outline"
-                                  //     size="sm"
-                                  //     onClick={() =>
-                                  //       handleDeleteClick(
-                                  //         "sales",
-                                  //         sale._id || sale.id,
-                                  //         sale.activationCode || "Unknown",
-                                  //       )
-                                  //     }
-                                  //     className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                                  //   >
-                                  //     <Trash2 className="w-4 h-4" />
-                                  //   </Button>
-                                  // </TableCell>
+                                  <TableCell>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        handleDeleteClick(
+                                          "sales",
+                                          sale._id || sale.id,
+                                          sale.activationCode || "Unknown",
+                                        )
+                                      }
+                                      className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </TableCell>
                                 </TableRow>
                               ))
                             ) : (
@@ -1738,7 +1738,7 @@ export default function AdminPage() {
                               <SortableHeader sortKey="assignedDate">Assigned Date</SortableHeader>
                               <SortableHeader sortKey="createdAt">Created</SortableHeader>
                               <SortableHeader sortKey="updatedAt">Updated</SortableHeader>
-                              {/* <TableHead className="font-bold text-gray-800">Actions</TableHead> */}
+                              <TableHead className="font-bold text-gray-800">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -1762,7 +1762,7 @@ export default function AdminPage() {
                                   <TableCell className="text-sm text-gray-600">
                                     {formatDateTime(key.updatedAt)}
                                   </TableCell>
-                                  {/* <TableCell>
+                                  <TableCell>
                                     <Button
                                       variant="outline"
                                       size="sm"
@@ -1773,7 +1773,7 @@ export default function AdminPage() {
                                     >
                                       <Trash2 className="w-4 h-4" />
                                     </Button>
-                                  </TableCell> */}
+                                  </TableCell>
                                 </TableRow>
                               ))
                             ) : (
