@@ -46,6 +46,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { XIcon } from "lucide-react"
+import { AdminExportPanel } from "@/components/admin-export-panel"
 
 // Reduced page size for better performance
 const ITEMS_PER_PAGE = 10
@@ -1281,7 +1282,6 @@ export default function AdminPage() {
         toast({
           title: "Sync Failed",
           description: result.error || "Transaction sync failed.",
-          variant: "destructive",
         })
       }
     } catch (error) {
@@ -1447,6 +1447,13 @@ export default function AdminPage() {
 
           <div className="flex-1 overflow-auto">
             <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+              <AdminExportPanel
+                onExport={exportData}
+                onExportAll={exportAllData}
+                exporting={exporting}
+                exportingTable={exportingTable}
+              />
+
               {/* Statistics Cards */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
                 <Card className="shadow-lg border-l-4 border-l-blue-500">
