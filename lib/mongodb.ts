@@ -30,7 +30,7 @@ export default clientPromise
 export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db }> {
   try {
     const client = await clientPromise
-    const db = client.db("systech_ott_platform")
+    const db = client.db("dev-env")
     return { client, db }
   } catch (error) {
     console.error("Failed to connect to database:", error)
