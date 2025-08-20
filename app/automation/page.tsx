@@ -825,6 +825,88 @@ export default function AutomationPage() {
                       </Button>
                     </div>
 
+                    <Separator className="my-4" />
+
+                    <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                      <h4 className="font-semibold text-green-900 mb-2 flex items-center">
+                        <Key className="w-4 h-4 mr-2" />
+                        Manual Claims Processing (Specific)
+                      </h4>
+                      <p className="text-sm text-green-700 mb-3">
+                        Process claims with <strong>paymentStatus = "paid"</strong> and{" "}
+                        <strong>ottStatus = "pending"</strong> by matching activation codes with sales records
+                      </p>
+
+                      <div className="bg-white p-3 rounded border border-green-200 mb-3">
+                        <h5 className="font-medium text-green-900 mb-2">Detailed Process Steps:</h5>
+                        <ul className="text-xs text-green-700 space-y-1">
+                          <li>
+                            • <strong>Step 1:</strong> Query claims collection for paymentStatus="paid" AND
+                            ottStatus="pending"
+                          </li>
+                          <li>
+                            • <strong>Step 2:</strong> For each claim, search salesrecords collection for matching
+                            activationCode
+                          </li>
+                          <li>
+                            • <strong>Step 3:</strong> Verify activation code is available (status != "claimed")
+                          </li>
+                          <li>
+                            • <strong>Step 4:</strong> Update salesrecords: set status="claimed" and
+                            claimedBy=customer_email
+                          </li>
+                          <li>
+                            • <strong>Step 5:</strong> Find available OTT key from ottkeys collection
+                            (status="available")
+                          </li>
+                          <li>
+                            • <strong>Step 6:</strong> Update ottkeys: set status="assigned", assignedEmail,
+                            assignedDate
+                          </li>
+                          <li>
+                            • <strong>Step 7:</strong> Update claims: set ottStatus="delivered", ottCode=assigned_key
+                          </li>
+                          <li>
+                            • <strong>Step 8:</strong> Send success email with OTT code to customer
+                          </li>
+                        </ul>
+                      </div>
+
+                      <div className="bg-yellow-50 p-3 rounded border border-yellow-200 mb-3">
+                        <h5 className="font-medium text-yellow-900 mb-1">Database Operations:</h5>
+                        <ul className="text-xs text-yellow-700 space-y-1">
+                          <li>
+                            • <strong>Claims Collection:</strong> Find paid claims with pending OTT status
+                          </li>
+                          <li>
+                            • <strong>SalesRecords Collection:</strong> Match activation codes and update claimedBy
+                            field
+                          </li>
+                          <li>
+                            • <strong>OTTKeys Collection:</strong> Assign available keys to customers
+                          </li>
+                        </ul>
+                      </div>
+
+                      <Button
+                        onClick={runManualAutomation}
+                        disabled={isProcessing}
+                        className="w-full bg-green-600 hover:bg-green-700 text-white"
+                      >
+                        {isProcessing ? (
+                          <>
+                            <RotateCcw className="w-4 h-4 mr-2 animate-spin" />
+                            Processing Claims with Sales Records...
+                          </>
+                        ) : (
+                          <>
+                            <Key className="w-4 h-4 mr-2" />
+                            Process Claims → Match Sales Records → Assign OTT Keys
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
                     {isProcessing && (
                       <div className="space-y-2">
                         <div className="flex justify-between text-sm">
