@@ -11,7 +11,17 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Shield, Database, AlertTriangle, CheckCircle, XCircle, Download, RefreshCw, Wrench } from "lucide-react"
+import {
+  Shield,
+  Database,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  Download,
+  RefreshCw,
+  Wrench,
+  FolderSyncIcon as Sync,
+} from "lucide-react"
 import Image from "next/image"
 
 interface ComparisonData {
@@ -63,6 +73,8 @@ export default function DataComparisonPage() {
   const [isLoadingData, setIsLoadingData] = useState(false)
   const [isRecovering, setIsRecovering] = useState(false)
   const [recoveryResult, setRecoveryResult] = useState<string>("")
+  const [isSyncing, setIsSyncing] = useState(false)
+  const [syncResult, setSyncResult] = useState<string>("")
 
   useEffect(() => {
     const adminAuth = sessionStorage.getItem("adminAuthenticated")
@@ -140,6 +152,35 @@ export default function DataComparisonPage() {
       setError("Failed to run data recovery script")
     } finally {
       setIsRecovering(false)
+    }
+  }
+
+  const syncPaymentStatus = async () => {
+    setIsSyncing(true)
+    setSyncResult("")
+    setError("")
+
+    try {
+      const response = await fetch("/api/admin/sync-payment-status", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setSyncResult(data.message)
+        await loadComparisonData()
+      } else {
+        setError(data.message || "Payment sync failed")
+      }
+    } catch (error) {
+      console.error("Error syncing payment status:", error)
+      setError("Failed to sync payment status")
+    } finally {
+      setIsSyncing(false)
     }
   }
 
@@ -270,6 +311,15 @@ export default function DataComparisonPage() {
             </div>
             <div className="flex items-center space-x-4">
               <Button
+                onClick={syncPaymentStatus}
+                disabled={isSyncing || isLoadingData}
+                variant="outline"
+                className="bg-blue-500/20 border-blue-300/50 text-white hover:bg-blue-500/30"
+              >
+                {isSyncing ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Sync className="w-4 h-4 mr-2" />}
+                {isSyncing ? "Syncing..." : "Sync Payment Status"}
+              </Button>
+              <Button
                 onClick={runDataRecovery}
                 disabled={isRecovering || isLoadingData}
                 variant="outline"
@@ -308,6 +358,13 @@ export default function DataComparisonPage() {
       </header>
 
       <div className="max-w-7xl mx-auto p-6">
+        {syncResult && (
+          <Alert className="mb-6 bg-blue-50 border-blue-200">
+            <CheckCircle className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-blue-800">{syncResult}</AlertDescription>
+          </Alert>
+        )}
+
         {recoveryResult && (
           <Alert className="mb-6 bg-green-50 border-green-200">
             <CheckCircle className="h-4 w-4 text-green-600" />

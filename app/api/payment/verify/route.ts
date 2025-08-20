@@ -41,9 +41,11 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      const secret = process.env.RAZORPAY_KEY_SECRET
-      if (!secret) {
-        console.error("[v0] Razorpay secret key not configured")
+      const razorpayKeyId = process.env.RAZORPAY_KEY_ID
+      const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET
+
+      if (!razorpayKeySecret || !razorpayKeyId) {
+        console.error("[v0] Razorpay credentials not configured")
         return NextResponse.json(
           {
             success: false,
@@ -53,8 +55,40 @@ export async function POST(request: NextRequest) {
         )
       }
 
+      // Verify payment with Razorpay API
+      let razorpayPaymentData = null
+      try {
+        const auth = Buffer.from(`${razorpayKeyId}:${razorpayKeySecret}`).toString("base64")
+        const razorpayResponse = await fetch(`https://api.razorpay.com/v1/payments/${razorpay_payment_id}`, {
+          headers: {
+            Authorization: `Basic ${auth}`,
+            "Content-Type": "application/json",
+          },
+        })
+
+        if (razorpayResponse.ok) {
+          razorpayPaymentData = await razorpayResponse.json()
+          console.log("[v0] Razorpay payment status:", razorpayPaymentData.status)
+
+          // If payment is not captured in Razorpay, fail the verification
+          if (razorpayPaymentData.status !== "captured") {
+            console.error("[v0] Payment not captured in Razorpay:", razorpayPaymentData.status)
+            return NextResponse.json(
+              {
+                success: false,
+                error: `Payment status is ${razorpayPaymentData.status}, not captured`,
+              },
+              { status: 400 },
+            )
+          }
+        }
+      } catch (apiError) {
+        console.error("[v0] Failed to verify with Razorpay API:", apiError)
+        // Continue with signature verification as fallback
+      }
+
       const body_string = razorpay_order_id + "|" + razorpay_payment_id
-      const expectedSignature = crypto.createHmac("sha256", secret).update(body_string).digest("hex")
+      const expectedSignature = crypto.createHmac("sha256", razorpayKeySecret).update(body_string).digest("hex")
 
       const isAuthentic = expectedSignature === razorpay_signature
 
@@ -115,6 +149,9 @@ export async function POST(request: NextRequest) {
                 ottStatus: "pending",
                 verificationAttempt: retryCount + 1,
                 verificationTimestamp: new Date(),
+                razorpayStatus: razorpayPaymentData?.status || "captured",
+                razorpayAmount: razorpayPaymentData?.amount || 9900,
+                lastSyncedAt: new Date(),
               },
             },
             { session },
@@ -135,7 +172,7 @@ export async function POST(request: NextRequest) {
             razorpay_order_id: razorpay_order_id,
             razorpay_signature: razorpay_signature,
             claimId: claimId,
-            amount: 9900,
+            amount: razorpayPaymentData?.amount || 9900,
             currency: "INR",
             status: "captured",
             email: claim.email,
@@ -148,6 +185,8 @@ export async function POST(request: NextRequest) {
             verificationTimestamp: new Date(),
             customerName: `${claim.firstName} ${claim.lastName}`,
             source: "payment_verification",
+            razorpayData: razorpayPaymentData,
+            lastSyncedAt: new Date(),
           }
 
           transactionInsertResult = await transactionsCollection.updateOne(
