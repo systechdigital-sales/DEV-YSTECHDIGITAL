@@ -3,10 +3,9 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, CreditCard, Shield, CheckCircle, AlertCircle, RefreshCw, X, Lock, Star, Clock } from "lucide-react"
+import { Loader2, CreditCard, Shield, AlertCircle, RefreshCw, X, Lock, Star, Clock } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { json } from "stream/consumers"
 
 declare global {
   interface Window {
@@ -118,29 +117,10 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
       })
 
       const data = await response.json()
-      if (data.success) {
-        // Update claim payment status after successful verification
-        await fetch("/api/payment/update-claim-status", {
-          method: "PATCH", // Your backend expects POST, not PATCH
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            claimId,
-            paymentId: data.paymentId,
-            orderId: data.orderId,
-            razorpayPaymentId: data.paymentId, // If you want to store Razorpay payment ID
-            razorpayOrderId: data.orderId,     // If you want to store Razorpay order ID
-            paymentStatus: "paid",
-          }),
-        })
-      }
-   
 
       if (!response.ok || !data.success) {
         throw new Error(data.error || "Payment verification failed")
       }
-      
 
       return data
     } catch (error) {
@@ -160,7 +140,6 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
       setError(null)
       setPaymentError(null)
 
-      // Create order
       const orderData = await createOrder()
 
       const options = {
@@ -182,32 +161,31 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
           try {
             console.log("Payment successful, verifying...", response)
 
-            // Verify payment signature only
             const verificationResult = await verifyPayment({
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
-              razorpay_status: response.razorpay_status
             })
 
-            
+            console.log("Payment verification successful:", verificationResult)
 
-            // Redirect to success page with transaction details
             const successUrl = new URL("/payment/success", window.location.origin)
             successUrl.searchParams.set("payment_id", response.razorpay_payment_id)
             successUrl.searchParams.set("order_id", response.razorpay_order_id)
-            successUrl.searchParams.set("transaction_id", response.razorpay_payment_id) // Use payment ID as transaction ID
+            successUrl.searchParams.set("transaction_id", response.razorpay_payment_id)
             successUrl.searchParams.set("customerName", customerName)
             successUrl.searchParams.set("customerEmail", customerEmail)
             successUrl.searchParams.set("customerPhone", customerPhone)
             successUrl.searchParams.set("claimId", claimId)
             successUrl.searchParams.set("amount", PAYMENT_AMOUNT.toString())
+            successUrl.searchParams.set("status", "success")
 
-            window.location.href = successUrl.toString()
+            window.location.replace(successUrl.toString())
           } catch (error) {
             console.error("Payment verification failed:", error)
             setPaymentError(error instanceof Error ? error.message : "Payment verification failed")
             setShowErrorDialog(true)
+            setLoading(false)
           }
         },
         modal: {
@@ -292,7 +270,6 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
       <div className="w-full max-w-lg">
-        {/* Header */}
         <div className="text-center mb-8">
           <div className="w-20 h-20 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
             <CreditCard className="w-10 h-10 text-white" />
@@ -301,13 +278,11 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
           <p className="text-gray-600">Secure payment processing for your OTT subscription</p>
         </div>
 
-        {/* Main Payment Card */}
         <Card className="shadow-2xl border-0 mb-6">
           <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-t-lg">
             <CardTitle className="text-center text-xl font-semibold">Payment Summary</CardTitle>
           </CardHeader>
           <CardContent className="p-8">
-            {/* Customer Details */}
             <div className="space-y-4 mb-8">
               <div className="flex items-center justify-between py-2 border-b border-gray-100">
                 <span className="text-gray-600 font-medium">Customer Name</span>
@@ -327,7 +302,6 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
               </div>
             </div>
 
-            {/* Pricing */}
             <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-6 mb-8">
               <div className="flex items-center justify-between mb-4">
                 <span className="text-lg font-medium text-gray-700">Processing Fee</span>
@@ -336,10 +310,8 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
                   <div className="text-sm text-gray-500">One-time payment</div>
                 </div>
               </div>
-              
             </div>
 
-            {/* Features */}
             <div className="grid grid-cols-1 gap-4 mb-8">
               <div className="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg">
                 <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
@@ -370,7 +342,6 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
               </div>
             </div>
 
-            {/* Payment Button */}
             <Button
               onClick={handlePayment}
               disabled={loading}
@@ -390,7 +361,6 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
               )}
             </Button>
 
-            {/* Security Badge */}
             <div className="flex items-center justify-center space-x-2 mt-6 text-sm text-gray-500">
               <Shield className="w-4 h-4" />
               <span>Secured by</span>
@@ -401,7 +371,6 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
           </CardContent>
         </Card>
 
-        {/* Trust Indicators */}
         <div className="text-center space-y-2 text-sm text-gray-500">
           <div className="flex items-center justify-center space-x-4">
             <div className="flex items-center space-x-1">
@@ -417,7 +386,6 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
         </div>
       </div>
 
-      {/* Error Dialog */}
       <Dialog open={showErrorDialog} onOpenChange={setShowErrorDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
