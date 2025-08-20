@@ -29,6 +29,7 @@ const emailTemplates = {
       <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
           <!-- Header -->
           <tr>
+              <!-- Changed white text to black for Outlook compatibility -->
               <td style="background-color: #3b82f6; color: #000000; padding: 30px; text-align: center;">
                   <h1 style="margin: 0; font-size: 28px; font-weight: bold; color: #000000;">📋 Order Placed Successfully!</h1>
                   <p style="margin: 10px 0 0 0; font-size: 16px; color: #000000;">Your OTT code claim has been submitted</p>
@@ -38,6 +39,7 @@ const emailTemplates = {
           <!-- Content -->
           <tr>
               <td style="padding: 30px;">
+                  <!-- Changed white text to black for Outlook compatibility -->
                   <div style="background-color: #3b82f6; color: #000000; padding: 12px 24px; border-radius: 25px; display: inline-block; margin: 20px 0; font-weight: bold;">✅ Order Confirmed</div>
                   
                   <p style="font-size: 16px; margin-bottom: 20px;">Dear ${data.customerName},</p>
@@ -150,7 +152,7 @@ const emailTemplates = {
       <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
           <!-- Header -->
           <tr>
-              <!-- Changed white text to black for Outlook compatibility -->
+              <!-- Ensured white text is black for Outlook compatibility -->
               <td style="background-color: #10b981; color: #000000; padding: 30px; text-align: center;">
                   <h1 style="margin: 0; font-size: 28px; font-weight: bold; color: #000000;">🎉 Payment Successful!</h1>
                   <p style="margin: 10px 0 0 0; font-size: 16px; color: #000000;">Your OTT code claim is being processed</p>
@@ -160,7 +162,7 @@ const emailTemplates = {
           <!-- Content -->
           <tr>
               <td style="padding: 30px;">
-                  <!-- Changed white text to black for Outlook compatibility -->
+                  <!-- Ensured white text is black for Outlook compatibility -->
                   <div style="background-color: #10b981; color: #000000; padding: 12px 24px; border-radius: 25px; display: inline-block; margin: 20px 0; font-weight: bold;">✅ Payment Confirmed</div>
                   
                   <p style="font-size: 16px; margin-bottom: 20px;">Dear ${data.customerName},</p>
@@ -277,7 +279,7 @@ const emailTemplates = {
       <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
           <!-- Header -->
           <tr>
-              <!-- Changed white text to black for Outlook compatibility -->
+              <!-- Ensured white text is black for Outlook compatibility -->
               <td style="background-color: #8b5cf6; color: #000000; padding: 30px; text-align: center;">
                   <h1 style="margin: 0; font-size: 28px; font-weight: bold; color: #000000;">🎉 Your OTT Code is Ready!</h1>
                   <p style="margin: 10px 0 0 0; font-size: 16px; color: #000000;">Enjoy your premium subscription</p>
@@ -287,7 +289,7 @@ const emailTemplates = {
           <!-- Content -->
           <tr>
               <td style="padding: 30px;">
-                  <!-- Changed white text to black for Outlook compatibility -->
+                  <!-- Ensured white text is black for Outlook compatibility -->
                   <div style="background-color: #8b5cf6; color: #000000; padding: 12px 24px; border-radius: 25px; display: inline-block; margin: 20px 0; font-weight: bold;">✅ Code Delivered</div>
                   
                   <p style="font-size: 16px; margin-bottom: 20px;">Dear ${data.customerName},</p>
@@ -296,19 +298,19 @@ const emailTemplates = {
                       Fantastic news! Your OTT subscription claim has been processed successfully. Here's your premium activation code:
                   </p>
                   
-                  <!-- Changed white text to black for Outlook compatibility -->
+                  <!-- Ensured white text is black for Outlook compatibility -->
                   <div style="background-color: #f59e0b; color: #000000; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: bold; margin: 15px 0; display: inline-block;">${data.platform || "OTT Platform"}</div>
                   
                   <!-- OTT Code Section -->
                   <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #667eea; margin: 25px 0; border-radius: 12px;">
                       <tr>
                           <td style="padding: 30px; text-align: center;">
-                              <!-- Changed white text to black for Outlook compatibility -->
+                              <!-- Ensured white text is black for Outlook compatibility -->
                               <p style="color: #000000; margin: 0 0 15px 0; font-size: 16px;">Your Activation Code</p>
                               <table width="100%" cellpadding="0" cellspacing="0" style="background-color: rgba(255,255,255,0.9); border-radius: 10px; border: 2px solid #000000;">
                                   <tr>
                                       <td style="padding: 20px; text-align: center;">
-                                          <!-- Changed white text to black for Outlook compatibility -->
+                                          <!-- Ensured white text is black for Outlook compatibility -->
                                           <h1 style="color: #000000; margin: 0; font-size: 36px; font-weight: bold; letter-spacing: 3px; font-family: 'Courier New', monospace;">${data.ottCode}</h1>
                                       </td>
                                   </tr>
@@ -419,7 +421,7 @@ const emailTemplates = {
       <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
           <!-- Header -->
           <tr>
-              <!-- Changed white text to black for Outlook compatibility -->
+              <!-- Ensured white text is black for Outlook compatibility -->
               <td style="background-color: #f59e0b; color: #000000; padding: 30px; text-align: center;">
                   <h1 style="margin: 0; font-size: 28px; font-weight: bold; color: #000000;">⚠️ Processing Issue Detected</h1>
                   <p style="margin: 10px 0 0 0; font-size: 16px; color: #000000;">Your OTT code claim needs attention</p>
@@ -429,7 +431,7 @@ const emailTemplates = {
           <!-- Content -->
           <tr>
               <td style="padding: 30px;">
-                  <!-- Changed white text to black for Outlook compatibility -->
+                  <!-- Ensured white text is black for Outlook compatibility -->
                   <div style="background-color: #f59e0b; color: #000000; padding: 12px 24px; border-radius: 25px; display: inline-block; margin: 20px 0; font-weight: bold;">🔄 Action Required</div>
                   
                   <p style="font-size: 16px; margin-bottom: 20px;">Dear ${data.customerName},</p>
@@ -508,7 +510,7 @@ const emailTemplates = {
                               <p style="margin: 0 0 10px 0; color: #166534;"><strong>Email:</strong> sales.systechdigital@gmail.com</p>
                               <p style="margin: 0 0 10px 0; color: #166534;"><strong>WhatsApp:</strong> +91 7709803412</p>
                               <p style="margin: 0 0 10px 0; color: #166534;"><strong>Reference Number:</strong> ${data.claimId}</p>
-                              <p style="margin: 0; color: #166534;"><strong>Priority Code:</strong> URGENT-OTT-${data.claimId?.slice(-6) || "000000"}</p>
+                              <p style="margin: 0 0 10px 0; color: #166534;"><strong>Priority Code:</strong> URGENT-OTT-${data.claimId?.slice(-6) || "000000"}</p>
                           </td>
                       </tr>
                   </table>
@@ -560,7 +562,7 @@ const emailTemplates = {
       <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
           <!-- Header -->
           <tr>
-              <!-- Changed white text to black for Outlook compatibility -->
+              <!-- Ensured white text is black for Outlook compatibility -->
               <td style="background-color: #1e40af; color: #000000; padding: 30px; text-align: center;">
                   <h1 style="margin: 0; font-size: 28px; font-weight: bold; color: #000000;">SYSTECH DIGITAL</h1>
                   <p style="font-size: 18px; margin-top: 10px; color: #000000;">Your Secure Login Code</p>
@@ -627,7 +629,7 @@ const emailTemplates = {
       <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto;">
           <!-- Header -->
           <tr>
-              <!-- Changed white text to black for Outlook compatibility -->
+              <!-- Ensured white text is black for Outlook compatibility -->
               <td style="background-color: #f59e0b; color: #000000; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
                   <h1 style="color: #000000;">⚠️ Processing Update Required</h1>
                   <p style="color: #000000;">Your OTT code claim needs attention</p>
@@ -637,7 +639,7 @@ const emailTemplates = {
           <!-- Content -->
           <tr>
               <td style="background-color: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
-                  <!-- Changed white text to black for Outlook compatibility -->
+                  <!-- Ensured white text is black for Outlook compatibility -->
                   <div style="background-color: #f59e0b; color: #000000; padding: 10px 20px; border-radius: 25px; display: inline-block; margin: 20px 0;">🔄 Processing Update</div>
                   
                   <p>Dear ${data.customerName},</p>
