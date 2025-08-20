@@ -35,104 +35,74 @@ export default function SendManualEmailPage() {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Your OTT Code is Ready!</title>
-    <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f0f9ff; }
-        .container { background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); overflow: hidden; }
-        .header { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; padding: 30px; text-align: center; }
-        .header h1 { margin: 0; font-size: 28px; font-weight: bold; }
-        .content { padding: 30px; }
-        .success-badge { background: #8b5cf6; color: white; padding: 12px 24px; border-radius: 25px; display: inline-block; margin: 20px 0; font-weight: bold; }
-        .ott-code-section { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px; margin: 25px 0; text-align: center; }
-        .ott-code-label { color: white; margin: 0 0 15px 0; font-size: 16px; opacity: 0.9; }
-        .ott-code-box { background: rgba(255,255,255,0.2); padding: 20px; border-radius: 10px; border: 2px dashed rgba(255,255,255,0.5); }
-        .ott-code { color: white; margin: 0; font-size: 36px; font-weight: bold; letter-spacing: 3px; font-family: 'Courier New', monospace; }
-        .platform-badge { background: #f59e0b; color: white; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: bold; margin: 15px 0; display: inline-block; }
-        .instructions-section { background: #f0f9ff; padding: 25px; border-radius: 10px; margin: 25px 0; border-left: 4px solid #3b82f6; }
-        .instructions-section h3 { color: #1e40af; margin: 0 0 20px 0; }
-        .instructions-section ol { color: #1e40af; line-height: 1.8; margin: 0; padding-left: 20px; }
-        .instructions-section li { margin-bottom: 8px; }
-        .details-section { background: #f8fafc; padding: 20px; margin: 20px 0; border-radius: 8px; }
-        .detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0; }
-        .detail-row:last-child { border-bottom: none; }
-        .detail-label { font-weight: bold; color: #4a5568; }
-        .detail-value { color: #2d3748; font-family: 'Courier New', monospace; }
-        .important-note { background: #fef3c7; border: 1px solid #f59e0b; padding: 20px; border-radius: 8px; margin: 20px 0; }
-        .important-note h4 { color: #92400e; margin: 0 0 10px 0; }
-        .important-note p { margin: 8px 0; color: #78350f; line-height: 1.5; }
-        .important-note p:first-of-type { margin-top: 0; }
-        .important-note p:last-of-type { margin-bottom: 0; }
-        .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb; padding-top: 20px; }
-        .content p { margin: 16px 0; }
-        .content p:first-child { margin-top: 0; }
-    </style>
 </head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>🎉 Your OTT Code is Ready!</h1>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f0f9ff;">
+    <div style="background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); overflow: hidden;">
+        <div style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; padding: 30px; text-align: center;">
+            <h1 style="margin: 0; font-size: 28px; font-weight: bold;">🎉 Your OTT Code is Ready!</h1>
             <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Enjoy your premium subscription</p>
         </div>
         
-        <div class="content">
-            <div class="success-badge">✅ Code Delivered</div>
+        <div style="padding: 30px;">
+            <div style="background: #8b5cf6; color: white; padding: 12px 24px; border-radius: 25px; display: inline-block; margin: 20px 0; font-weight: bold;">✅ Code Delivered</div>
             
-            <p style="font-size: 16px; margin-bottom: 20px;">Dear {{customerName}},</p>
+            <p style="font-size: 16px; margin: 0 0 20px 0;">Dear {{customerName}},</p>
             
-            <p style="color: #374151; line-height: 1.6;">
+            <p style="color: #374151; line-height: 1.6; margin: 16px 0;">
                 Fantastic news! Your OTT subscription claim has been processed successfully. Here's your premium activation code:
             </p>
             
-            <div class="platform-badge">{{platform}}</div>
+            <div style="background: #f59e0b; color: white; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: bold; margin: 15px 0; display: inline-block;">{{platform}}</div>
             
-            <div class="ott-code-section">
-                <p class="ott-code-label">Your Activation Code</p>
-                <div class="ott-code-box">
-                    <h1 class="ott-code">{{ottCode}}</h1>
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px; margin: 25px 0; text-align: center;">
+                <p style="color: white; margin: 0 0 15px 0; font-size: 16px; opacity: 0.9;">Your Activation Code</p>
+                <div style="background: rgba(255,255,255,0.2); padding: 20px; border-radius: 10px; border: 2px dashed rgba(255,255,255,0.5);">
+                    <h1 style="color: white; margin: 0; font-size: 36px; font-weight: bold; letter-spacing: 3px; font-family: 'Courier New', monospace;">{{ottCode}}</h1>
                 </div>
             </div>
             
-            <div class="instructions-section">
-                <h3>📱 How to Redeem Your Code</h3>
-                <ol>
-                    <li>Download the <a href="https://www.ottplay.com/partner/systech-it-solution/ott_sustech_annualtest">OTT Play app</a> from your device's app store</li>
-                    <li>Open the app and create an account or sign in to your existing account</li>
-                    <li>Look for "Redeem Code", "Activate Subscription", or "Promo Code" option</li>
-                    <li>Enter your activation code: <strong>{{ottCode}}</strong></li>
-                    <li>Follow the on-screen instructions to complete activation</li>
-                    <li>Start enjoying your premium content immediately!</li>
+            <div style="background: #f0f9ff; padding: 25px; border-radius: 10px; margin: 25px 0; border-left: 4px solid #3b82f6;">
+                <h3 style="color: #1e40af; margin: 0 0 20px 0;">📱 How to Redeem Your Code</h3>
+                <ol style="color: #1e40af; line-height: 1.8; margin: 0; padding-left: 20px;">
+                    <li style="margin-bottom: 8px;">Download the <a href="https://www.ottplay.com/partner/systech-it-solution/ott_sustech_annualtest">OTT Play app</a> from your device's app store</li>
+                    <li style="margin-bottom: 8px;">Open the app and create an account or sign in to your existing account</li>
+                    <li style="margin-bottom: 8px;">Look for "Redeem Code", "Activate Subscription", or "Promo Code" option</li>
+                    <li style="margin-bottom: 8px;">Enter your activation code: <strong>{{ottCode}}</strong></li>
+                    <li style="margin-bottom: 8px;">Follow the on-screen instructions to complete activation</li>
+                    <li style="margin-bottom: 8px;">Start enjoying your premium content immediately!</li>
                 </ol>
             </div>
             
-            <div class="details-section">
+            <div style="background: #f8fafc; padding: 20px; margin: 20px 0; border-radius: 8px;">
                 <h3 style="color: #2d3748; margin-top: 0;">📋 Order Summary</h3>
-                <div class="detail-row">
-                    <span class="detail-label">Claim ID:</span>
-                    <span class="detail-value">{{claimId}}</span>
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
+                    <span style="font-weight: bold; color: #4a5568;">Claim ID:</span>
+                    <span style="color: #2d3748; font-family: 'Courier New', monospace;">{{claimId}}</span>
                 </div>
-                <div class="detail-row">
-                    <span class="detail-label">Platform:</span>
-                    <span class="detail-value">{{platform}}</span>
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
+                    <span style="font-weight: bold; color: #4a5568;">Platform:</span>
+                    <span style="color: #2d3748; font-family: 'Courier New', monospace;">{{platform}}</span>
                 </div>
-                <div class="detail-row">
-                    <span class="detail-label">Activation Code:</span>
-                    <span class="detail-value">{{ottCode}}</span>
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
+                    <span style="font-weight: bold; color: #4a5568;">Activation Code:</span>
+                    <span style="color: #2d3748; font-family: 'Courier New', monospace;">{{ottCode}}</span>
                 </div>
-                <div class="detail-row">
-                    <span class="detail-label">Original Code:</span>
-                    <span class="detail-value">{{activationCode}}</span>
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
+                    <span style="font-weight: bold; color: #4a5568;">Original Code:</span>
+                    <span style="color: #2d3748; font-family: 'Courier New', monospace;">{{activationCode}}</span>
                 </div>
-                <div class="detail-row">
-                    <span class="detail-label">Processed On:</span>
-                    <span class="detail-value">${new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}</span>
+                <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+                    <span style="font-weight: bold; color: #4a5568;">Processed On:</span>
+                    <span style="color: #2d3748; font-family: 'Courier New', monospace;">${new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}</span>
                 </div>
             </div>
             
-            <div class="important-note">
-                <h4>⚠️ Important Instructions</h4>
-                <p><strong>Save this email:</strong> Keep this email safe for future reference. You may need the activation code again.</p>
-                <p><strong>One-time use:</strong> This activation code can only be used once. Do not share it with others.</p>
-                <p><strong>Validity:</strong> Please redeem your code as soon as possible to avoid any expiration issues.</p>
-                <p><strong>Support:</strong> If you face any issues during activation, contact us with your Claim ID.</p>
+            <div style="background: #fef3c7; border: 1px solid #f59e0b; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h4 style="color: #92400e; margin: 0 0 10px 0;">⚠️ Important Instructions</h4>
+                <p style="margin: 8px 0; color: #78350f; line-height: 1.5;"><strong>Save this email:</strong> Keep this email safe for future reference. You may need the activation code again.</p>
+                <p style="margin: 8px 0; color: #78350f; line-height: 1.5;"><strong>One-time use:</strong> This activation code can only be used once. Do not share it with others.</p>
+                <p style="margin: 8px 0; color: #78350f; line-height: 1.5;"><strong>Validity:</strong> Please redeem your code as soon as possible to avoid any expiration issues.</p>
+                <p style="margin: 8px 0; color: #78350f; line-height: 1.5;"><strong>Support:</strong> If you face any issues during activation, contact us with your Claim ID.</p>
             </div>
             
             <div style="background: #dcfce7; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
@@ -142,12 +112,12 @@ export default function SendManualEmailPage() {
                 </p>
             </div>
             
-            <p style="color: #374151; line-height: 1.6; margin-top: 25px;">
+            <p style="color: #374151; line-height: 1.6; margin: 25px 0 16px 0;">
                 Thank you for choosing SYSTECH DIGITAL. We hope you enjoy your premium OTT experience!
             </p>
         </div>
         
-        <div class="footer">
+        <div style="text-align: center; margin-top: 30px; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
             <p style="margin: 0; font-weight: bold;">SYSTECH DIGITAL</p>
             <p style="margin: 5px 0;">📞 +91 7709803412 | ✉️ sales.systechdigital@gmail.com</p>
             <p style="margin: 10px 0 0 0; font-size: 12px;">This is an automated email. Please do not reply to this message.</p>

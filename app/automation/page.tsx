@@ -766,6 +766,65 @@ export default function AutomationPage() {
                       </Button>
                     </div>
 
+                    <Separator className="my-4" />
+
+                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                      <h4 className="font-semibold text-blue-900 mb-2 flex items-center">
+                        <Database className="w-4 h-4 mr-2" />
+                        Manual Claims Processing
+                      </h4>
+                      <p className="text-sm text-blue-700 mb-3">
+                        Process all claims with <strong>payment status = "paid"</strong> and{" "}
+                        <strong>OTT status = "pending"</strong>
+                      </p>
+
+                      <div className="bg-white p-3 rounded border border-blue-200 mb-3">
+                        <h5 className="font-medium text-blue-900 mb-2">This button will:</h5>
+                        <ul className="text-xs text-blue-700 space-y-1">
+                          <li>
+                            • <strong>Step 1:</strong> Find all claims where payment is completed but OTT code is
+                            pending
+                          </li>
+                          <li>
+                            • <strong>Step 2:</strong> Verify activation codes against sales records
+                          </li>
+                          <li>
+                            • <strong>Step 3:</strong> Check for duplicate claims (already used codes)
+                          </li>
+                          <li>
+                            • <strong>Step 4:</strong> Assign available OTT keys from inventory
+                          </li>
+                          <li>
+                            • <strong>Step 5:</strong> Update claim status from "pending" to "delivered"
+                          </li>
+                          <li>
+                            • <strong>Step 6:</strong> Send success emails with OTT codes to customers
+                          </li>
+                          <li>
+                            • <strong>Step 7:</strong> Send WhatsApp notifications (if phone number available)
+                          </li>
+                        </ul>
+                      </div>
+
+                      <Button
+                        onClick={runManualAutomation}
+                        disabled={isProcessing}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                      >
+                        {isProcessing ? (
+                          <>
+                            <RotateCcw className="w-4 h-4 mr-2 animate-spin" />
+                            Processing Claims...
+                          </>
+                        ) : (
+                          <>
+                            <Database className="w-4 h-4 mr-2" />
+                            Process Paid Claims Now
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
                     {isProcessing && (
                       <div className="space-y-2">
                         <div className="flex justify-between text-sm">
