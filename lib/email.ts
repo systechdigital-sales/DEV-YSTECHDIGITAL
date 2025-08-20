@@ -29,7 +29,6 @@ const emailTemplates = {
       <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
           <!-- Header -->
           <tr>
-              <!-- Changed to light background with black text for Outlook compatibility -->
               <td style="background-color: #f8fafc; color: #000000; padding: 30px; text-align: center; border: 2px solid #3b82f6;">
                   <h1 style="margin: 0; font-size: 28px; font-weight: bold; color: #000000;">📋 Order Placed Successfully!</h1>
                   <p style="margin: 10px 0 0 0; font-size: 16px; color: #000000;">Your OTT code claim has been submitted</p>
@@ -39,12 +38,12 @@ const emailTemplates = {
           <!-- Content -->
           <tr>
               <td style="padding: 30px;">
-                  <!-- Changed to light background with black text and border -->
                   <div style="background-color: #f8fafc; color: #000000; padding: 12px 24px; border-radius: 25px; border: 2px solid #3b82f6; display: inline-block; margin: 20px 0; font-weight: bold;">✅ Order Confirmed</div>
                   
                   <p style="font-size: 16px; margin-bottom: 20px;">Dear ${data.customerName},</p>
                   
-                  <p style="color: #4a5568; line-height: 1.6;">
+                  <!-- Changed text color from light gray to dark for better Outlook visibility -->
+                  <p style="color: #000000; line-height: 1.6;">
                       Thank you for submitting your OTT code claim! Your order has been successfully placed and is now awaiting payment.
                   </p>
                   
@@ -52,23 +51,25 @@ const emailTemplates = {
                   <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8fafc; margin: 20px 0; border-radius: 8px; border-left: 4px solid #3b82f6;">
                       <tr>
                           <td style="padding: 20px;">
-                              <h3 style="color: #2d3748; margin-top: 0;">📋 Order Details</h3>
+                              <!-- Changed header color to black for better visibility -->
+                              <h3 style="color: #000000; margin-top: 0;">📋 Order Details</h3>
                               <table width="100%" cellpadding="0" cellspacing="0">
                                   <tr>
-                                      <td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #4a5568;">Claim ID:</td>
-                                      <td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; color: #2d3748; font-family: 'Courier New', monospace;">${data.claimId}</td>
+                                      <!-- Changed label colors to black for better visibility -->
+                                      <td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #000000;">Claim ID:</td>
+                                      <td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; color: #000000; font-family: 'Courier New', monospace;">${data.claimId}</td>
                                   </tr>
                                   <tr>
-                                      <td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #4a5568;">Activation Code:</td>
-                                      <td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; color: #2d3748; font-family: 'Courier New', monospace;">${data.activationCode}</td>
+                                      <td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #000000;">Activation Code:</td>
+                                      <td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; color: #000000; font-family: 'Courier New', monospace;">${data.activationCode}</td>
                                   </tr>
                                   <tr>
-                                      <td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #4a5568;">Processing Fee:</td>
-                                      <td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; color: #2d3748; font-family: 'Courier New', monospace;">₹99</td>
+                                      <td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #000000;">Processing Fee:</td>
+                                      <td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; color: #000000; font-family: 'Courier New', monospace;">₹99</td>
                                   </tr>
                                   <tr>
-                                      <td style="padding: 10px 0; font-weight: bold; color: #4a5568;">Order Date:</td>
-                                      <td style="padding: 10px 0; color: #2d3748; font-family: 'Courier New', monospace;">${data.date}</td>
+                                      <td style="padding: 10px 0; font-weight: bold; color: #000000;">Order Date:</td>
+                                      <td style="padding: 10px 0; color: #000000; font-family: 'Courier New', monospace;">${data.date}</td>
                                   </tr>
                               </table>
                           </td>
@@ -79,19 +80,19 @@ const emailTemplates = {
                   <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8fafc; margin: 20px 0; border-radius: 8px; border-left: 4px solid #3b82f6;">
                       <tr>
                           <td style="padding: 20px;">
-                              <h3 style="color: #2d3748; margin-top: 0;">👤 Customer Details</h3>
+                              <h3 style="color: #000000; margin-top: 0;">👤 Customer Details</h3>
                               <table width="100%" cellpadding="0" cellspacing="0">
                                   <tr>
-                                      <td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #4a5568;">Name:</td>
-                                      <td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; color: #2d3748; font-family: 'Courier New', monospace;">${data.customerName}</td>
+                                      <td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #000000;">Name:</td>
+                                      <td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; color: #000000; font-family: 'Courier New', monospace;">${data.customerName}</td>
                                   </tr>
                                   <tr>
-                                      <td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #4a5568;">Email:</td>
-                                      <td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; color: #2d3748; font-family: 'Courier New', monospace;">${data.email}</td>
+                                      <td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #000000;">Email:</td>
+                                      <td style="padding: 10px 0; border-bottom: 1px solid #e2e8f0; color: #000000; font-family: 'Courier New', monospace;">${data.email}</td>
                                   </tr>
                                   <tr>
-                                      <td style="padding: 10px 0; font-weight: bold; color: #4a5568;">Phone:</td>
-                                      <td style="padding: 10px 0; color: #2d3748; font-family: 'Courier New', monospace;">${data.phone}</td>
+                                      <td style="padding: 10px 0; font-weight: bold; color: #000000;">Phone:</td>
+                                      <td style="padding: 10px 0; color: #000000; font-family: 'Courier New', monospace;">${data.phone}</td>
                                   </tr>
                               </table>
                           </td>
@@ -102,8 +103,10 @@ const emailTemplates = {
                   <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #e6fffa; border: 1px solid #81e6d9; margin: 20px 0; border-radius: 8px;">
                       <tr>
                           <td style="padding: 20px;">
-                              <h4 style="color: #234e52; margin: 0 0 15px 0;">💳 Next Steps</h4>
-                              <ul style="margin: 0; padding-left: 20px; color: #2d3748;">
+                              <!-- Changed header color to black for better visibility -->
+                              <h4 style="color: #000000; margin: 0 0 15px 0;">💳 Next Steps</h4>
+                              <!-- Changed list text color to black for better visibility -->
+                              <ul style="margin: 0; padding-left: 20px; color: #000000;">
                                   <li style="margin-bottom: 8px;">Complete the payment of ₹99 to activate your claim</li>
                                   <li style="margin-bottom: 8px;">After successful payment, your claim will be processed automatically</li>
                                   <li style="margin-bottom: 8px;">You'll receive your OTT code within 24-48 hours via email</li>
@@ -113,7 +116,8 @@ const emailTemplates = {
                       </tr>
                   </table>
                   
-                  <p style="color: #4a5568; line-height: 1.6; margin-top: 25px;">
+                  <!-- Changed paragraph text color to black for better visibility -->
+                  <p style="color: #000000; line-height: 1.6; margin-top: 25px;">
                       If you have any questions, please don't hesitate to contact our support team.
                   </p>
                   
@@ -121,8 +125,9 @@ const emailTemplates = {
                   <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0; background-color: #f7fafc; border-radius: 8px;">
                       <tr>
                           <td style="padding: 20px; text-align: center;">
-                              <p style="margin: 0; color: #2d3748; font-size: 18px; font-weight: bold;">Processing Fee: ₹99</p>
-                              <p style="margin: 5px 0 0 0; color: #718096; font-size: 14px;">One-time payment</p>
+                              <!-- Changed fee text colors to black for better visibility -->
+                              <p style="margin: 0; color: #000000; font-size: 18px; font-weight: bold;">Processing Fee: ₹99</p>
+                              <p style="margin: 5px 0 0 0; color: #000000; font-size: 14px;">One-time payment</p>
                           </td>
                       </tr>
                   </table>
@@ -131,7 +136,8 @@ const emailTemplates = {
           
           <!-- Footer -->
           <tr>
-              <td style="text-align: center; padding: 30px; color: #718096; font-size: 14px; border-top: 1px solid #e2e8f0;">
+              <!-- Changed footer text color to black for better visibility -->
+              <td style="text-align: center; padding: 30px; color: #000000; font-size: 14px; border-top: 1px solid #e2e8f0;">
                   <p style="margin: 0;">Thank you for choosing SYSTECH DIGITAL</p>
                   <p style="margin: 5px 0 0 0;">📞 +91 7709803412 | ✉️ sales.systechdigital@gmail.com</p>
                   <p style="margin: 10px 0 0 0; font-size: 12px;">This is an automated email. Please do not reply to this message.</p>
@@ -152,7 +158,6 @@ const emailTemplates = {
       <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
           <!-- Header -->
           <tr>
-              <!-- Changed to light background with black text for Outlook compatibility -->
               <td style="background-color: #f0fff4; color: #000000; padding: 30px; text-align: center; border: 2px solid #10b981;">
                   <h1 style="margin: 0; font-size: 28px; font-weight: bold; color: #000000;">🎉 Payment Successful!</h1>
                   <p style="margin: 10px 0 0 0; font-size: 16px; color: #000000;">Your OTT code claim is being processed</p>
@@ -162,12 +167,12 @@ const emailTemplates = {
           <!-- Content -->
           <tr>
               <td style="padding: 30px;">
-                  <!-- Changed to light background with black text and border -->
                   <div style="background-color: #f0fff4; color: #000000; padding: 12px 24px; border-radius: 25px; border: 2px solid #10b981; display: inline-block; margin: 20px 0; font-weight: bold;">✅ Payment Confirmed</div>
                   
                   <p style="font-size: 16px; margin-bottom: 20px;">Dear ${data.customerName},</p>
                   
-                  <p style="color: #374151; line-height: 1.6;">
+                  <!-- Changed text color to black for better visibility -->
+                  <p style="color: #000000; line-height: 1.6;">
                       Excellent! Your payment has been successfully processed. Your OTT code claim is now in our processing queue and will be handled automatically within the next 24-48 hours.
                   </p>
                   
@@ -175,27 +180,29 @@ const emailTemplates = {
                   <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f0fff4; margin: 20px 0; border-radius: 8px; border-left: 4px solid #10b981;">
                       <tr>
                           <td style="padding: 20px;">
-                              <h3 style="color: #065f46; margin-top: 0;">🔍 Transaction Details</h3>
+                              <!-- Changed header color to black for better visibility -->
+                              <h3 style="color: #000000; margin-top: 0;">🔍 Transaction Details</h3>
                               <table width="100%" cellpadding="0" cellspacing="0">
                                   <tr>
-                                      <td style="padding: 10px 0; border-bottom: 1px solid #d1fae5; font-weight: bold; color: #065f46;">Payment ID:</td>
-                                      <td style="padding: 10px 0; border-bottom: 1px solid #d1fae5; color: #047857; font-family: 'Courier New', monospace;">${data.paymentId}</td>
+                                      <!-- Changed all table text colors to black for better visibility -->
+                                      <td style="padding: 10px 0; border-bottom: 1px solid #d1fae5; font-weight: bold; color: #000000;">Payment ID:</td>
+                                      <td style="padding: 10px 0; border-bottom: 1px solid #d1fae5; color: #000000; font-family: 'Courier New', monospace;">${data.paymentId}</td>
                                   </tr>
                                   <tr>
-                                      <td style="padding: 10px 0; border-bottom: 1px solid #d1fae5; font-weight: bold; color: #065f46;">Order ID:</td>
-                                      <td style="padding: 10px 0; border-bottom: 1px solid #d1fae5; color: #047857; font-family: 'Courier New', monospace;">${data.orderId}</td>
+                                      <td style="padding: 10px 0; border-bottom: 1px solid #d1fae5; font-weight: bold; color: #000000;">Order ID:</td>
+                                      <td style="padding: 10px 0; border-bottom: 1px solid #d1fae5; color: #000000; font-family: 'Courier New', monospace;">${data.orderId}</td>
                                   </tr>
                                   <tr>
-                                      <td style="padding: 10px 0; border-bottom: 1px solid #d1fae5; font-weight: bold; color: #065f46;">Claim ID:</td>
-                                      <td style="padding: 10px 0; border-bottom: 1px solid #d1fae5; color: #047857; font-family: 'Courier New', monospace;">${data.claimId}</td>
+                                      <td style="padding: 10px 0; border-bottom: 1px solid #d1fae5; font-weight: bold; color: #000000;">Claim ID:</td>
+                                      <td style="padding: 10px 0; border-bottom: 1px solid #d1fae5; color: #000000; font-family: 'Courier New', monospace;">${data.claimId}</td>
                                   </tr>
                                   <tr>
-                                      <td style="padding: 10px 0; border-bottom: 1px solid #d1fae5; font-weight: bold; color: #065f46;">Amount Paid:</td>
-                                      <td style="padding: 10px 0; border-bottom: 1px solid #d1fae5; color: #047857; font-family: 'Courier New', monospace;">${data.amount}</td>
+                                      <td style="padding: 10px 0; border-bottom: 1px solid #d1fae5; font-weight: bold; color: #000000;">Amount Paid:</td>
+                                      <td style="padding: 10px 0; border-bottom: 1px solid #d1fae5; color: #000000; font-family: 'Courier New', monospace;">${data.amount}</td>
                                   </tr>
                                   <tr>
-                                      <td style="padding: 8px 0; font-weight: bold; color: #065f46;">Payment Date:</td>
-                                      <td style="padding: 8px 0; color: #047857; font-family: 'Courier New', monospace;">${data.date}</td>
+                                      <td style="padding: 8px 0; font-weight: bold; color: #000000;">Payment Date:</td>
+                                      <td style="padding: 8px 0; color: #000000; font-family: 'Courier New', monospace;">${data.date}</td>
                                   </tr>
                               </table>
                           </td>
@@ -206,19 +213,19 @@ const emailTemplates = {
                   <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f0fff4; margin: 20px 0; border-radius: 8px; border-left: 4px solid #10b981;">
                       <tr>
                           <td style="padding: 20px;">
-                              <h3 style="color: #065f46; margin-top: 0;">👤 Customer Information</h3>
+                              <h3 style="color: #000000; margin-top: 0;">👤 Customer Information</h3>
                               <table width="100%" cellpadding="0" cellspacing="0">
                                   <tr>
-                                      <td style="padding: 10px 0; border-bottom: 1px solid #d1fae5; font-weight: bold; color: #065f46;">Name:</td>
-                                      <td style="padding: 10px 0; border-bottom: 1px solid #d1fae5; color: #047857; font-family: 'Courier New', monospace;">${data.customerName}</td>
+                                      <td style="padding: 10px 0; border-bottom: 1px solid #d1fae5; font-weight: bold; color: #000000;">Name:</td>
+                                      <td style="padding: 10px 0; border-bottom: 1px solid #d1fae5; color: #000000; font-family: 'Courier New', monospace;">${data.customerName}</td>
                                   </tr>
                                   <tr>
-                                      <td style="padding: 10px 0; border-bottom: 1px solid #d1fae5; font-weight: bold; color: #065f46;">Email:</td>
-                                      <td style="padding: 10px 0; border-bottom: 1px solid #d1fae5; color: #047857; font-family: 'Courier New', monospace;">${data.email}</td>
+                                      <td style="padding: 10px 0; border-bottom: 1px solid #d1fae5; font-weight: bold; color: #000000;">Email:</td>
+                                      <td style="padding: 10px 0; border-bottom: 1px solid #d1fae5; color: #000000; font-family: 'Courier New', monospace;">${data.email}</td>
                                   </tr>
                                   <tr>
-                                      <td style="padding: 10px 0; font-weight: bold; color: #065f46;">Phone:</td>
-                                      <td style="padding: 10px 0; color: #047857; font-family: 'Courier New', monospace;">${data.phone}</td>
+                                      <td style="padding: 10px 0; font-weight: bold; color: #000000;">Phone:</td>
+                                      <td style="padding: 10px 0; color: #000000; font-family: 'Courier New', monospace;">${data.phone}</td>
                                   </tr>
                               </table>
                           </td>
@@ -229,11 +236,12 @@ const emailTemplates = {
                   <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fef3c7; border: 1px solid #f59e0b; margin: 20px 0; border-radius: 8px;">
                       <tr>
                           <td style="padding: 20px;">
-                              <h4 style="color: #92400e; margin: 0 0 15px 0;">📱 What Happens Next?</h4>
-                              <p style="margin: 0 0 10px 0; color: #78350f;"><strong>Automated Processing:</strong> Your claim will be processed automatically.</p>
-                              <p style="margin: 0 0 10px 0; color: #78350f;"><strong>Timeline:</strong> You will receive your OTT activation code within 24-48 hours.</p>
-                              <p style="margin: 0 0 10px 0; color: #78350f;"><strong>Delivery:</strong> The code will be sent to this email address (${data.email}).</p>
-                              <p style="margin: 0; color: #78350f;"><strong>Support:</strong> Our team is monitoring all claims to ensure smooth processing.</p>
+                              <!-- Changed header and text colors to black for better visibility -->
+                              <h4 style="color: #000000; margin: 0 0 15px 0;">📱 What Happens Next?</h4>
+                              <p style="margin: 0 0 10px 0; color: #000000;"><strong>Automated Processing:</strong> Your claim will be processed automatically.</p>
+                              <p style="margin: 0 0 10px 0; color: #000000;"><strong>Timeline:</strong> You will receive your OTT activation code within 24-48 hours.</p>
+                              <p style="margin: 0 0 10px 0; color: #000000;"><strong>Delivery:</strong> The code will be sent to this email address (${data.email}).</p>
+                              <p style="margin: 0; color: #000000;"><strong>Support:</strong> Our team is monitoring all claims to ensure smooth processing.</p>
                           </td>
                       </tr>
                   </table>
@@ -242,15 +250,17 @@ const emailTemplates = {
                   <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #e0f2fe; margin: 20px 0; border-radius: 8px; border-left: 4px solid #0284c7;">
                       <tr>
                           <td style="padding: 20px;">
-                              <h4 style="color: #0c4a6e; margin: 0 0 10px 0;">💡 Pro Tip</h4>
-                              <p style="margin: 0; color: #0c4a6e;">
+                              <!-- Changed header and text colors to black for better visibility -->
+                              <h4 style="color: #000000; margin: 0 0 10px 0;">💡 Pro Tip</h4>
+                              <p style="margin: 0; color: #000000;">
                                   Add <strong>sales.systechdigital@gmail.com</strong> to your contacts to ensure you receive your OTT code email.
                               </p>
                           </td>
                       </tr>
                   </table>
                   
-                  <p style="color: #374151; line-height: 1.6; margin-top: 25px;">
+                  <!-- Changed paragraph text color to black for better visibility -->
+                  <p style="color: #000000; line-height: 1.6; margin-top: 25px;">
                       Thank you for your trust in SYSTECH DIGITAL. We're committed to delivering your OTT code promptly and securely.
                   </p>
               </td>
@@ -258,7 +268,8 @@ const emailTemplates = {
           
           <!-- Footer -->
           <tr>
-              <td style="text-align: center; padding: 30px; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb;">
+              <!-- Changed footer text color to black for better visibility -->
+              <td style="text-align: center; padding: 30px; color: #000000; font-size: 14px; border-top: 1px solid #e5e7eb;">
                   <p style="margin: 0; font-weight: bold;">SYSTECH DIGITAL</p>
                   <p style="margin: 5px 0;">📞 +91 7709803412 | ✉️ sales.systechdigital@gmail.com</p>
                   <p style="margin: 10px 0 0 0; font-size: 12px;">This is an automated email. Please do not reply to this message.</p>
@@ -279,7 +290,6 @@ const emailTemplates = {
       <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
           <!-- Header -->
           <tr>
-              <!-- Changed to light background with black text for Outlook compatibility -->
               <td style="background-color: #f0f9ff; color: #000000; padding: 30px; text-align: center; border: 2px solid #8b5cf6;">
                   <h1 style="margin: 0; font-size: 28px; font-weight: bold; color: #000000;">🎉 Your OTT Code is Ready!</h1>
                   <p style="margin: 10px 0 0 0; font-size: 16px; color: #000000;">Enjoy your premium subscription</p>
@@ -289,28 +299,25 @@ const emailTemplates = {
           <!-- Content -->
           <tr>
               <td style="padding: 30px;">
-                  <!-- Changed to light background with black text and border -->
                   <div style="background-color: #f0f9ff; color: #000000; padding: 12px 24px; border-radius: 25px; border: 2px solid #8b5cf6; display: inline-block; margin: 20px 0; font-weight: bold;">✅ Code Delivered</div>
                   
                   <p style="font-size: 16px; margin-bottom: 20px;">Dear ${data.customerName},</p>
                   
-                  <p style="color: #374151; line-height: 1.6;">
+                  <!-- Changed text color to black for better visibility -->
+                  <p style="color: #000000; line-height: 1.6;">
                       Fantastic news! Your OTT subscription claim has been processed successfully. Here's your premium activation code:
                   </p>
                   
-                  <!-- Changed to light background with black text and border -->
                   <div style="background-color: #fef3c7; color: #000000; padding: 8px 16px; border-radius: 20px; border: 2px solid #f59e0b; font-size: 14px; font-weight: bold; margin: 15px 0; display: inline-block;">${data.platform || "OTT Platform"}</div>
                   
                   <!-- OTT Code Section -->
                   <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8fafc; margin: 25px 0; border-radius: 12px; border: 2px solid #667eea;">
                       <tr>
                           <td style="padding: 30px; text-align: center;">
-                              <!-- Changed to black text for visibility -->
                               <p style="color: #000000; margin: 0 0 15px 0; font-size: 16px;">Your Activation Code</p>
                               <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 10px; border: 3px solid #000000;">
                                   <tr>
                                       <td style="padding: 20px; text-align: center;">
-                                          <!-- Ensured black text for maximum visibility -->
                                           <h1 style="color: #000000; margin: 0; font-size: 36px; font-weight: bold; letter-spacing: 3px; font-family: 'Courier New', monospace;">${data.ottCode}</h1>
                                       </td>
                                   </tr>
@@ -323,9 +330,10 @@ const emailTemplates = {
                   <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f0f9ff; margin: 25px 0; border-radius: 10px; border-left: 4px solid #3b82f6;">
                       <tr>
                           <td style="padding: 25px;">
-                              <h3 style="color: #1e40af; margin: 0 0 20px 0;">📱 How to Redeem Your Code</h3>
-                              <ol style="color: #1e40af; line-height: 1.8; margin: 0; padding-left: 20px;">
-                                  <li style="margin-bottom: 8px;">Download the <a href="https://www.ottplay.com/partner/systech-it-solution/ott_sustech_annualtest" style="color: #1e40af;">OTT Play app</a> from your device's app store</li>
+                              <!-- Changed header and list text colors to black for better visibility -->
+                              <h3 style="color: #000000; margin: 0 0 20px 0;">📱 How to Redeem Your Code</h3>
+                              <ol style="color: #000000; line-height: 1.8; margin: 0; padding-left: 20px;">
+                                  <li style="margin-bottom: 8px;">Download the <a href="https://www.ottplay.com/partner/systech-it-solution/ott_sustech_annualtest" style="color: #000000;">OTT Play app</a> from your device's app store</li>
                                   <li style="margin-bottom: 8px;">Open the app and create an account or sign in to your existing account</li>
                                   <li style="margin-bottom: 8px;">Look for "Redeem Code", "Activate Subscription", or "Promo Code" option</li>
                                   <li style="margin-bottom: 8px;">Enter your activation code: <strong>${data.ottCode}</strong></li>
@@ -340,27 +348,28 @@ const emailTemplates = {
                   <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8fafc; margin: 20px 0; border-radius: 8px;">
                       <tr>
                           <td style="padding: 20px;">
-                              <h3 style="color: #2d3748; margin-top: 0;">📋 Order Summary</h3>
+                              <!-- Changed header and table text colors to black for better visibility -->
+                              <h3 style="color: #000000; margin-top: 0;">📋 Order Summary</h3>
                               <table width="100%" cellpadding="0" cellspacing="0">
                                   <tr>
-                                      <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #4a5568;">Claim ID:</td>
-                                      <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; color: #2d3748; font-family: 'Courier New', monospace;">${data.claimId}</td>
+                                      <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #000000;">Claim ID:</td>
+                                      <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; color: #000000; font-family: 'Courier New', monospace;">${data.claimId}</td>
                                   </tr>
                                   <tr>
-                                      <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #4a5568;">Platform:</td>
-                                      <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; color: #2d3748; font-family: 'Courier New', monospace;">${data.platform || "OTT Platform"}</td>
+                                      <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #000000;">Platform:</td>
+                                      <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; color: #000000; font-family: 'Courier New', monospace;">${data.platform || "OTT Platform"}</td>
                                   </tr>
                                   <tr>
-                                      <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #4a5568;">Activation Code:</td>
-                                      <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; color: #2d3748; font-family: 'Courier New', monospace;">${data.ottCode}</td>
+                                      <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #000000;">Activation Code:</td>
+                                      <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; color: #000000; font-family: 'Courier New', monospace;">${data.ottCode}</td>
                                   </tr>
                                   <tr>
-                                      <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #4a5568;">Original Code:</td>
-                                      <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; color: #2d3748; font-family: 'Courier New', monospace;">${data.activationCode}</td>
+                                      <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #000000;">Original Code:</td>
+                                      <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; color: #000000; font-family: 'Courier New', monospace;">${data.activationCode}</td>
                                   </tr>
                                   <tr>
-                                      <td style="padding: 8px 0; font-weight: bold; color: #4a5568;">Processed On:</td>
-                                      <td style="padding: 8px 0; color: #2d3748; font-family: 'Courier New', monospace;">${new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}</td>
+                                      <td style="padding: 8px 0; font-weight: bold; color: #000000;">Processed On:</td>
+                                      <td style="padding: 8px 0; color: #000000; font-family: 'Courier New', monospace;">${new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}</td>
                                   </tr>
                               </table>
                           </td>
@@ -371,11 +380,12 @@ const emailTemplates = {
                   <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fef3c7; border: 1px solid #f59e0b; margin: 20px 0; border-radius: 8px;">
                       <tr>
                           <td style="padding: 20px;">
-                              <h4 style="color: #92400e; margin: 0 0 10px 0;">⚠️ Important Instructions</h4>
-                              <p style="margin: 0 0 10px 0; color: #78350f;"><strong>Save this email:</strong> Keep this email safe for future reference. You may need the activation code again.</p>
-                              <p style="margin: 0 0 10px 0; color: #78350f;"><strong>One-time use:</strong> This activation code can only be used once. Do not share it with others.</p>
-                              <p style="margin: 0 0 10px 0; color: #78350f;"><strong>Validity:</strong> Please redeem your code as soon as possible to avoid any expiration issues.</p>
-                              <p style="margin: 0; color: #78350f;"><strong>Support:</strong> If you face any issues during activation, contact us with your Claim ID.</p>
+                              <!-- Changed header and text colors to black for better visibility -->
+                              <h4 style="color: #000000; margin: 0 0 10px 0;">⚠️ Important Instructions</h4>
+                              <p style="margin: 0 0 10px 0; color: #000000;"><strong>Save this email:</strong> Keep this email safe for future reference. You may need the activation code again.</p>
+                              <p style="margin: 0 0 10px 0; color: #000000;"><strong>One-time use:</strong> This activation code can only be used once. Do not share it with others.</p>
+                              <p style="margin: 0 0 10px 0; color: #000000;"><strong>Validity:</strong> Please redeem your code as soon as possible to avoid any expiration issues.</p>
+                              <p style="margin: 0; color: #000000;"><strong>Support:</strong> If you face any issues during activation, contact us with your Claim ID.</p>
                           </td>
                       </tr>
                   </table>
@@ -384,15 +394,17 @@ const emailTemplates = {
                   <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #dcfce7; margin: 20px 0; border-radius: 8px;">
                       <tr>
                           <td style="padding: 20px; text-align: center;">
-                              <h4 style="color: #166534; margin: 0 0 10px 0;">🌟 Enjoy Your Premium Experience!</h4>
-                              <p style="margin: 0; color: #166534;">
+                              <!-- Changed header and text colors to black for better visibility -->
+                              <h4 style="color: #000000; margin: 0 0 10px 0;">🌟 Enjoy Your Premium Experience!</h4>
+                              <p style="margin: 0; color: #000000;">
                                   You now have access to premium content, ad-free streaming, and exclusive features.
                               </p>
                           </td>
                       </tr>
                   </table>
                   
-                  <p style="color: #374151; line-height: 1.6; margin-top: 25px;">
+                  <!-- Changed paragraph text color to black for better visibility -->
+                  <p style="color: #000000; line-height: 1.6; margin-top: 25px;">
                       Thank you for choosing SYSTECH DIGITAL. We hope you enjoy your premium OTT experience!
                   </p>
               </td>
@@ -400,7 +412,8 @@ const emailTemplates = {
           
           <!-- Footer -->
           <tr>
-              <td style="text-align: center; padding: 30px; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb;">
+              <!-- Changed footer text color to black for better visibility -->
+              <td style="text-align: center; padding: 30px; color: #000000; font-size: 14px; border-top: 1px solid #e5e7eb;">
                   <p style="margin: 0; font-weight: bold;">SYSTECH DIGITAL</p>
                   <p style="margin: 5px 0;">📞 +91 7709803412 | ✉️ sales.systechdigital@gmail.com</p>
                   <p style="margin: 10px 0 0 0; font-size: 12px;">This is an automated email. Please do not reply to this message.</p>
