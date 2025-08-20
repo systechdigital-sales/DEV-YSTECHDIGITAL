@@ -102,6 +102,8 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
 
   const verifyPayment = async (paymentData: any) => {
     try {
+      console.log("[v0] Starting payment verification with data:", paymentData)
+
       const response = await fetch("/api/payment/verify", {
         method: "POST",
         headers: {
@@ -116,15 +118,31 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
         }),
       })
 
-      const data = await response.json()
+      console.log("[v0] Payment verification response status:", response.status)
 
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || "Payment verification failed")
+      const data = await response.json()
+      console.log("[v0] Payment verification response data:", data)
+
+      if (response.ok && data.success) {
+        console.log("[v0] Payment verification successful")
+        return data
       }
 
-      return data
+      if (data.duplicate) {
+        console.log("[v0] Duplicate payment detected, treating as success")
+        return data
+      }
+
+      console.error("[v0] Payment verification failed:", {
+        status: response.status,
+        success: data.success,
+        error: data.error,
+        responseOk: response.ok,
+      })
+
+      throw new Error(data.error || `Payment verification failed (Status: ${response.status})`)
     } catch (error) {
-      console.error("Payment verification error:", error)
+      console.error("[v0] Payment verification error:", error)
       throw error
     }
   }
@@ -159,15 +177,21 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
         },
         handler: async (response: any) => {
           try {
-            console.log("Payment successful, verifying...", response)
+            console.log("[v0] Payment successful, verifying...", response)
 
-            const verificationResult = await verifyPayment({
+            const verificationPromise = verifyPayment({
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
             })
 
-            console.log("Payment verification successful:", verificationResult)
+            const timeoutPromise = new Promise((_, reject) =>
+              setTimeout(() => reject(new Error("Verification timeout - payment may still be processing")), 30000),
+            )
+
+            const verificationResult = await Promise.race([verificationPromise, timeoutPromise])
+
+            console.log("[v0] Payment verification successful:", verificationResult)
 
             const successUrl = new URL("/payment/success", window.location.origin)
             successUrl.searchParams.set("payment_id", response.razorpay_payment_id)
@@ -182,8 +206,15 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
 
             window.location.replace(successUrl.toString())
           } catch (error) {
-            console.error("Payment verification failed:", error)
-            setPaymentError(error instanceof Error ? error.message : "Payment verification failed")
+            console.error("[v0] Payment verification failed:", error)
+
+            let errorMessage = "Payment verification failed. Please contact support if amount was deducted."
+            if (error instanceof Error && error.message.includes("timeout")) {
+              errorMessage =
+                "Payment verification is taking longer than expected. Your payment may still be processing. Please check your email or contact support."
+            }
+
+            setPaymentError(errorMessage)
             setShowErrorDialog(true)
             setLoading(false)
           }
