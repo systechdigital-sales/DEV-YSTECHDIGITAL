@@ -1422,19 +1422,19 @@ export default function AdminPage() {
                             />
                           </div>
                           <div>
-                            <Label className="text-sm font-medium text-gray-700">OTT Status</Label>
+                            <Label className="text-sm font-medium text-gray-700">Payment Status</Label>
                             <Select
-                              value={filters.ottStatus}
-                              onValueChange={(value) => handleFilterChange("ottStatus", value)}
+                              value={filters.paymentStatus}
+                              onValueChange={(value) => handleFilterChange("paymentStatus", value)}
                             >
                               <SelectTrigger className="text-sm">
-                                <SelectValue placeholder="All OTT Status" />
+                                <SelectValue placeholder="All Payment Status" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="all">All OTT Status</SelectItem>
-                                <SelectItem value="DELIVERED">DELIVERED</SelectItem>
-                                <SelectItem value="PENDING">PENDING</SelectItem>
-                                <SelectItem value="RETURN">RETURN</SelectItem>
+                                <SelectItem value="all">All Payment Status</SelectItem>
+                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="paid">Paid</SelectItem>
+                                <SelectItem value="failed">Failed</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -1595,8 +1595,8 @@ export default function AdminPage() {
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="all">All Status</SelectItem>
-                                <SelectItem value="Available">Available</SelectItem>
-                                <SelectItem value="Claimed">Claimed</SelectItem>
+                                <SelectItem value="available">Available</SelectItem>
+                                <SelectItem value="claimed">Claimed</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
