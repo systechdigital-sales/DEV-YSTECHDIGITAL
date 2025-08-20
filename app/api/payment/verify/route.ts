@@ -180,7 +180,6 @@ export async function POST(request: NextRequest) {
             created_at: new Date(),
             captured_at: new Date(),
             updatedAt: new Date(),
-            createdAt: new Date(),
             verificationAttempt: retryCount + 1,
             verificationTimestamp: new Date(),
             customerName: `${claim.firstName} ${claim.lastName}`,
