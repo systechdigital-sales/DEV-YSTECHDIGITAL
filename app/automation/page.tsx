@@ -376,6 +376,57 @@ export default function AutomationPage() {
     await runScheduledAutomation()
   }, [runScheduledAutomation, addLog])
 
+  // Run specific claims processing
+  const runSpecificClaimsProcessing = useCallback(async () => {
+    addLog("info", "🔧 Running specific claims processing with sales records matching...")
+    setIsProcessing(true)
+    setCurrentStep("Initializing specific claims processing...")
+    setAutomationProgress(0)
+
+    try {
+      for (let i = 0; i <= 100; i += 10) {
+        setAutomationProgress(i)
+        setCurrentStep(`Processing claims with sales records... ${i}%`)
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+      }
+
+      const response = await fetch("/api/admin/manual-claims-processing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      })
+
+      const result = await response.json()
+      setAutomationProgress(100)
+
+      if (result.success) {
+        addLog("success", `✅ Specific claims processing completed: ${result.message}`)
+        addLog("info", `📊 Processed: ${result.processedCount || 0} claims`)
+        await fetchStats()
+      } else {
+        addLog("error", `❌ Specific claims processing failed: ${result.error}`)
+      }
+    } catch (error) {
+      addLog("error", `❌ Error during specific claims processing: ${error.message}`)
+    } finally {
+      setIsProcessing(false)
+      setCurrentStep("")
+      setAutomationProgress(0)
+    }
+  }, [addLog])
+
+  // Fetch stats from API
+  const fetchStats = useCallback(async () => {
+    try {
+      const response = await fetch("/api/admin/automation-stats")
+      if (response.ok) {
+        const data = await response.json()
+        setStats(data.stats)
+      }
+    } catch (error) {
+      addLog("error", "Failed to fetch automation stats", error)
+    }
+  }, [addLog])
+
   // Toggle log expansion
   const toggleLogExpansion = (logId: string) => {
     setExpandedLogs((prev) => {
@@ -889,7 +940,7 @@ export default function AutomationPage() {
                       </div>
 
                       <Button
-                        onClick={runManualAutomation}
+                        onClick={runSpecificClaimsProcessing}
                         disabled={isProcessing}
                         className="w-full bg-green-600 hover:bg-green-700 text-white"
                       >
