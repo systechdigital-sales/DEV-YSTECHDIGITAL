@@ -480,7 +480,7 @@ export default function AdminPage() {
 
         const fileName = type
           ? `systech_ott_${type}_export_${new Date().toISOString().split("T")[0]}.xlsx`
-          : `dev-env_export_${new Date().toISOString().split("T")[0]}.xlsx`
+          : `systech_ott_platform_export_${new Date().toISOString().split("T")[0]}.xlsx`
 
         a.download = fileName
         document.body.appendChild(a)
@@ -1056,7 +1056,7 @@ export default function AdminPage() {
             <div className="text-center">
               <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-600 mx-auto mb-4"></div>
               <p className="text-purple-600 text-lg font-medium">Loading dashboard...</p>
-              <p className="text-gray-500 text-sm mt-2">Connecting to dev-env database</p>
+              <p className="text-gray-500 text-sm mt-2">Connecting to systech_ott_platform database</p>
             </div>
           </SidebarInset>
         </div>
@@ -1206,7 +1206,7 @@ export default function AdminPage() {
                     Data Management
                   </CardTitle>
                   <CardDescription className="text-sm sm:text-lg text-gray-600">
-                    Upload Excel files (.xlsx, .xls) or CSV files and export data from dev-env
+                    Upload Excel files (.xlsx, .xls) or CSV files and export data from systech_ott_platform
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="p-4 sm:p-8">
@@ -1293,7 +1293,7 @@ export default function AdminPage() {
                           📤 Export Data & Manual Actions
                         </h3>
                         <p className="text-gray-600 text-sm">
-                          Download data from dev-env database and perform manual operations
+                          Download data from systech_ott_platform database and perform manual operations
                         </p>
                       </div>
                     </div>
@@ -1380,7 +1380,7 @@ export default function AdminPage() {
                             Claims Management
                           </CardTitle>
                           <CardDescription className="text-sm sm:text-lg text-gray-600">
-                            Customer claims from dev-env.claims collection
+                            Customer claims from systech_ott_platform.claims collection
                           </CardDescription>
                         </div>
                       </div>
@@ -1422,19 +1422,19 @@ export default function AdminPage() {
                             />
                           </div>
                           <div>
-                            <Label className="text-sm font-medium text-gray-700">Payment Status</Label>
+                            <Label className="text-sm font-medium text-gray-700">OTT Status</Label>
                             <Select
-                              value={filters.paymentStatus}
-                              onValueChange={(value) => handleFilterChange("paymentStatus", value)}
+                              value={filters.ottStatus}
+                              onValueChange={(value) => handleFilterChange("ottStatus", value)}
                             >
                               <SelectTrigger className="text-sm">
-                                <SelectValue placeholder="All Payment Status" />
+                                <SelectValue placeholder="All OTT Status" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="all">All Payment Status</SelectItem>
-                                <SelectItem value="pending">Pending</SelectItem>
-                                <SelectItem value="paid">Paid</SelectItem>
-                                <SelectItem value="failed">Failed</SelectItem>
+                                <SelectItem value="all">All OTT Status</SelectItem>
+                                <SelectItem value="DELIVERED">DELIVERED</SelectItem>
+                                <SelectItem value="PENDING">PENDING</SelectItem>
+                                <SelectItem value="RETURN">RETURN</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -1561,7 +1561,7 @@ export default function AdminPage() {
                             Redemption Records
                           </CardTitle>
                           <CardDescription className="text-sm sm:text-lg text-gray-600">
-                            Sales data from dev-env.salesrecords collection
+                            Sales data from systech_ott_platform.salesrecords collection
                           </CardDescription>
                         </div>
                       </div>
@@ -1595,8 +1595,8 @@ export default function AdminPage() {
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="all">All Status</SelectItem>
-                                <SelectItem value="available">Available</SelectItem>
-                                <SelectItem value="claimed">Claimed</SelectItem>
+                                <SelectItem value="Available">Available</SelectItem>
+                                <SelectItem value="Claimed">Claimed</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -1682,7 +1682,7 @@ export default function AdminPage() {
                             OTT Keys Inventory
                           </CardTitle>
                           <CardDescription className="text-sm sm:text-lg text-gray-600">
-                            OTT keys from dev-env.ottkeys collection
+                            OTT keys from systech_ott_platform.ottkeys collection
                           </CardDescription>
                         </div>
                       </div>
