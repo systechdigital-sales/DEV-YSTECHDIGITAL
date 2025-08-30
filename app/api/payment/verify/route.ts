@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
 
   while (retryCount < maxRetries) {
     try {
-      console.log(`[v0] Payment verification started (attempt ${retryCount + 1}/${maxRetries})`)
+      console.log(`BytewiseTestingpoint Payment verification started (attempt ${retryCount + 1}/${maxRetries})`)
 
       const body = await request.json()
       razorpay_order_id = body.razorpay_order_id
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
       razorpay_signature = body.razorpay_signature
       claimId = body.claimId
 
-      console.log("[v0] Payment verification data:", {
+      console.log("BytewiseTestingpoint Payment verification data:", {
         razorpay_order_id,
         razorpay_payment_id,
         claimId,
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       })
 
       if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !claimId) {
-        console.error("[v0] Missing required payment verification fields")
+        console.error("BytewiseTestingpoint Missing required payment verification fields")
         return NextResponse.json(
           {
             success: false,
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET
 
       if (!razorpayKeySecret || !razorpayKeyId) {
-        console.error("[v0] Razorpay credentials not configured")
+        console.error("BytewiseTestingpoint Razorpay credentials not configured")
         return NextResponse.json(
           {
             success: false,
@@ -55,36 +55,77 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // Verify payment with Razorpay API
       let razorpayPaymentData = null
-      try {
-        const auth = Buffer.from(`${razorpayKeyId}:${razorpayKeySecret}`).toString("base64")
-        const razorpayResponse = await fetch(`https://api.razorpay.com/v1/payments/${razorpay_payment_id}`, {
-          headers: {
-            Authorization: `Basic ${auth}`,
-            "Content-Type": "application/json",
-          },
-        })
+      let razorpayVerificationAttempts = 0
+      const maxRazorpayAttempts = 3
 
-        if (razorpayResponse.ok) {
-          razorpayPaymentData = await razorpayResponse.json()
-          console.log("[v0] Razorpay payment status:", razorpayPaymentData.status)
+      while (razorpayVerificationAttempts < maxRazorpayAttempts) {
+        try {
+          console.log(
+            `BytewiseTestingpoint Razorpay API verification attempt ${razorpayVerificationAttempts + 1}/${maxRazorpayAttempts}`,
+          )
 
-          // If payment is not captured in Razorpay, fail the verification
-          if (razorpayPaymentData.status !== "captured") {
-            console.error("[v0] Payment not captured in Razorpay:", razorpayPaymentData.status)
-            return NextResponse.json(
-              {
-                success: false,
-                error: `Payment status is ${razorpayPaymentData.status}, not captured`,
-              },
-              { status: 400 },
-            )
+          const auth = Buffer.from(`${razorpayKeyId}:${razorpayKeySecret}`).toString("base64")
+          const razorpayResponse = await fetch(`https://api.razorpay.com/v1/payments/${razorpay_payment_id}`, {
+            headers: {
+              Authorization: `Basic ${auth}`,
+              "Content-Type": "application/json",
+            },
+          })
+
+          if (razorpayResponse.ok) {
+            razorpayPaymentData = await razorpayResponse.json()
+            console.log("BytewiseTestingpoint Razorpay payment status:", razorpayPaymentData.status)
+
+            // If payment is not captured in Razorpay, retry the API call
+            if (razorpayPaymentData.status !== "captured") {
+              console.log(`BytewiseTestingpoint Payment status is ${razorpayPaymentData.status}, retrying API call...`)
+              razorpayVerificationAttempts++
+
+              if (razorpayVerificationAttempts < maxRazorpayAttempts) {
+                // Wait before retrying (exponential backoff)
+                await new Promise((resolve) => setTimeout(resolve, Math.pow(2, razorpayVerificationAttempts) * 1000))
+                continue
+              } else {
+                console.error(
+                  "BytewiseTestingpoint Payment not captured after all API attempts:",
+                  razorpayPaymentData.status,
+                )
+                return NextResponse.json(
+                  {
+                    success: false,
+                    error: `Payment status is ${razorpayPaymentData.status}, not captured after ${maxRazorpayAttempts} verification attempts`,
+                  },
+                  { status: 400 },
+                )
+              }
+            }
+            break // Success, exit the retry loop
+          } else {
+            razorpayVerificationAttempts++
+            if (razorpayVerificationAttempts >= maxRazorpayAttempts) {
+              console.error("BytewiseTestingpoint Failed to verify with Razorpay API after all attempts")
+              // Continue with signature verification as fallback
+              break
+            }
+            // Wait before retrying
+            await new Promise((resolve) => setTimeout(resolve, Math.pow(2, razorpayVerificationAttempts) * 1000))
           }
+        } catch (apiError) {
+          console.error(
+            `BytewiseTestingpoint Razorpay API error (attempt ${razorpayVerificationAttempts + 1}):`,
+            apiError,
+          )
+          razorpayVerificationAttempts++
+
+          if (razorpayVerificationAttempts >= maxRazorpayAttempts) {
+            console.error("BytewiseTestingpoint Failed to verify with Razorpay API after all attempts")
+            // Continue with signature verification as fallback
+            break
+          }
+          // Wait before retrying
+          await new Promise((resolve) => setTimeout(resolve, Math.pow(2, razorpayVerificationAttempts) * 1000))
         }
-      } catch (apiError) {
-        console.error("[v0] Failed to verify with Razorpay API:", apiError)
-        // Continue with signature verification as fallback
       }
 
       const body_string = razorpay_order_id + "|" + razorpay_payment_id
@@ -93,7 +134,7 @@ export async function POST(request: NextRequest) {
       const isAuthentic = expectedSignature === razorpay_signature
 
       if (!isAuthentic) {
-        console.error("[v0] Invalid payment signature")
+        console.error("BytewiseTestingpoint Invalid payment signature")
         return NextResponse.json(
           {
             success: false,
@@ -103,7 +144,7 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      console.log("[v0] Payment signature verified successfully")
+      console.log("BytewiseTestingpoint Payment signature verified successfully")
 
       const { client, db } = await connectToDatabase()
       session = client.startSession()
@@ -120,11 +161,11 @@ export async function POST(request: NextRequest) {
           claim = await claimsCollection.findOne({ claimId }, { session })
 
           if (!claim) {
-            console.error("[v0] Claim not found:", claimId)
+            console.error("BytewiseTestingpoint Claim not found:", claimId)
             throw new Error(`Claim not found: ${claimId}`)
           }
 
-          console.log("[v0] Found claim for payment update:", claim.claimId)
+          console.log("BytewiseTestingpoint Found claim for payment update:", claim.claimId)
 
           const existingTransaction = await transactionsCollection.findOne(
             { razorpay_payment_id: razorpay_payment_id },
@@ -132,7 +173,7 @@ export async function POST(request: NextRequest) {
           )
 
           if (existingTransaction && claim.paymentStatus === "paid") {
-            console.log("[v0] Payment already processed, skipping duplicate")
+            console.log("BytewiseTestingpoint Payment already processed, skipping duplicate")
             throw new Error("DUPLICATE_PAYMENT")
           }
 
@@ -152,17 +193,18 @@ export async function POST(request: NextRequest) {
                 razorpayStatus: razorpayPaymentData?.status || "captured",
                 razorpayAmount: razorpayPaymentData?.amount || 9900,
                 lastSyncedAt: new Date(),
+                razorpayVerificationAttempts: razorpayVerificationAttempts,
               },
             },
             { session },
           )
 
           if (claimUpdateResult.matchedCount === 0) {
-            console.error("[v0] Failed to update claim payment status")
+            console.error("BytewiseTestingpoint Failed to update claim payment status")
             throw new Error("Failed to update payment status - claim not matched")
           }
 
-          console.log("[v0] Claim updated successfully:", {
+          console.log("BytewiseTestingpoint Claim updated successfully:", {
             matched: claimUpdateResult.matchedCount,
             modified: claimUpdateResult.modifiedCount,
           })
@@ -186,6 +228,7 @@ export async function POST(request: NextRequest) {
             source: "payment_verification",
             razorpayData: razorpayPaymentData,
             lastSyncedAt: new Date(),
+            razorpayVerificationAttempts: razorpayVerificationAttempts,
           }
 
           transactionInsertResult = await transactionsCollection.updateOne(
@@ -197,7 +240,7 @@ export async function POST(request: NextRequest) {
             { upsert: true, session },
           )
 
-          console.log("[v0] Transaction record saved:", {
+          console.log("BytewiseTestingpoint Transaction record saved:", {
             upserted: transactionInsertResult.upsertedCount,
             modified: transactionInsertResult.modifiedCount,
             matched: transactionInsertResult.matchedCount,
@@ -211,14 +254,31 @@ export async function POST(request: NextRequest) {
           )
 
           if (!verifyClaimUpdate || !verifyTransactionUpdate) {
-            console.error("[v0] Verification failed after update:", {
+            console.error("BytewiseTestingpoint Verification failed after update:", {
               claimVerified: !!verifyClaimUpdate,
               transactionVerified: !!verifyTransactionUpdate,
             })
             throw new Error("Data verification failed after update")
           }
 
-          console.log("[v0] Both claim and transaction verified successfully")
+          console.log("BytewiseTestingpoint Both claim and transaction verified successfully")
+
+          const paymentAttemptsCollection = db.collection("payment_attempts")
+          const userIdentifier = `${claim.email}_${claim.phoneNumber || claim.phone}`
+
+          await paymentAttemptsCollection.updateOne(
+            { userIdentifier, claimId },
+            {
+              $set: {
+                attemptCount: 0,
+                lastSuccessfulPayment: new Date(),
+                updatedAt: new Date(),
+              },
+              $unset: { cooldownUntil: "" },
+            },
+          )
+
+          console.log("BytewiseTestingpoint Payment attempts reset for successful payment")
         },
         {
           readConcern: { level: "majority" },
@@ -227,10 +287,10 @@ export async function POST(request: NextRequest) {
         },
       )
 
-      console.log("[v0] Database transaction completed successfully")
+      console.log("BytewiseTestingpoint Database transaction completed successfully")
 
       try {
-        console.log("[v0] Sending payment success email...")
+        console.log("BytewiseTestingpoint Sending payment success email...")
         const customerName = `${claim.firstName} ${claim.lastName}`
 
         await sendEmail({
@@ -258,16 +318,16 @@ export async function POST(request: NextRequest) {
                 <div style="background: #eff6ff; padding: 20px; border-radius: 8px; margin-bottom: 25px; border-left: 4px solid #3b82f6;">
                   <h3 style="color: #1e40af; margin: 0 0 15px 0; font-size: 18px;">What Happens Next?</h3>
                   <ol style="color: #374151; margin: 0; padding-left: 20px;">
-                    <li style="margin-bottom: 8px;">Your Activation Code, Product Serial Number, or IMEI Number will be verified.</li>
-                    <li style="margin-bottom: 8px;">Once your claim is submitted and successfully verified, your OTTplay code will be generated and sent to your registered email ID.</li>
+                    <li style="margin-bottom: 8px;">Your Coupon code, Product Serial Number, or IMEI Number will be verified.</li>
+                    <li style="margin-bottom: 8px;">Once your claim is submitted and successfully verified, your OTTplay Coupon code will be generated and sent to your registered email ID.</li>
                     <li style="margin-bottom: 8px;">You'll receive the code within 24-48 hours</li>
-                    <li>Start enjoying your premium OTT subscription!</li>
+                    <li>Start enjoying your premium OTTplay subscription!</li>
                   </ol>
                 </div>
 
                 <div style="background: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0;">
                   <p style="color: #92400e; margin: 0; font-size: 14px; text-align: center;">
-                    <strong>Processing Time:</strong> Your OTT code will be delivered to this email address within 24-48 hours. Please check your inbox and spam folder.
+                    <strong>Processing Time:</strong> Your OTTplay Coupon code will be delivered to this email address within 24-48 hours. Please check your inbox and spam folder.
                   </p>
                 </div>
 
@@ -281,9 +341,9 @@ export async function POST(request: NextRequest) {
           `,
         })
 
-        console.log("[v0] Payment success email sent successfully")
+        console.log("BytewiseTestingpoint Payment success email sent successfully")
       } catch (emailError) {
-        console.error("[v0] Failed to send payment success email:", emailError)
+        console.error("BytewiseTestingpoint Failed to send payment success email:", emailError)
         try {
           await db.collection("email_failures").insertOne({
             claimId,
@@ -294,12 +354,12 @@ export async function POST(request: NextRequest) {
             type: "payment_success",
           })
         } catch (logError) {
-          console.error("[v0] Failed to log email failure:", logError)
+          console.error("BytewiseTestingpoint Failed to log email failure:", logError)
         }
       }
 
       try {
-        console.log("[v0] Triggering automation for claim:", claimId)
+        console.log("BytewiseTestingpoint Triggering automation for claim:", claimId)
         const automationResponse = await fetch(
           `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/api/webhook/claims-trigger`,
           {
@@ -312,10 +372,10 @@ export async function POST(request: NextRequest) {
         )
 
         if (automationResponse.ok) {
-          console.log("[v0] Automation triggered successfully")
+          console.log("BytewiseTestingpoint Automation triggered successfully")
         } else {
           const errorText = await automationResponse.text()
-          console.error("[v0] Failed to trigger automation:", errorText)
+          console.error("BytewiseTestingpoint Failed to trigger automation:", errorText)
 
           await db.collection("automation_failures").insertOne({
             claimId,
@@ -326,7 +386,7 @@ export async function POST(request: NextRequest) {
           })
         }
       } catch (automationError) {
-        console.error("[v0] Error triggering automation:", automationError)
+        console.error("BytewiseTestingpoint Error triggering automation:", automationError)
 
         try {
           await db.collection("automation_failures").insertOne({
@@ -337,7 +397,7 @@ export async function POST(request: NextRequest) {
             type: "network_error",
           })
         } catch (logError) {
-          console.error("[v0] Failed to log automation failure:", logError)
+          console.error("BytewiseTestingpoint Failed to log automation failure:", logError)
         }
       }
 
@@ -348,10 +408,11 @@ export async function POST(request: NextRequest) {
         orderId: razorpay_order_id,
         claimId,
         attempt: retryCount + 1,
+        razorpayVerificationAttempts: razorpayVerificationAttempts,
         timestamp: new Date().toISOString(),
       })
     } catch (error) {
-      console.error(`[v0] Payment verification error (attempt ${retryCount + 1}):`, error)
+      console.error(`BytewiseTestingpoint Payment verification error (attempt ${retryCount + 1}):`, error)
 
       if (error.message === "DUPLICATE_PAYMENT") {
         return NextResponse.json({
@@ -366,7 +427,7 @@ export async function POST(request: NextRequest) {
 
       if (retryCount < maxRetries - 1 && isRetryableError(error)) {
         retryCount++
-        console.log(`[v0] Retrying payment verification (attempt ${retryCount + 1}/${maxRetries})`)
+        console.log(`BytewiseTestingpoint Retrying payment verification (attempt ${retryCount + 1}/${maxRetries})`)
 
         await new Promise((resolve) => setTimeout(resolve, Math.pow(2, retryCount) * 1000))
         continue
@@ -374,6 +435,8 @@ export async function POST(request: NextRequest) {
 
       try {
         const { db } = await connectToDatabase()
+
+        // Log the verification failure
         await db.collection("payment_verification_failures").insertOne({
           razorpay_payment_id,
           razorpay_order_id,
@@ -384,8 +447,30 @@ export async function POST(request: NextRequest) {
           timestamp: new Date(),
           finalFailure: true,
         })
+
+        // Update payment attempts with failure information
+        if (claimId) {
+          const claimsCollection = db.collection("claims")
+          const claim = await claimsCollection.findOne({ claimId })
+
+          if (claim) {
+            const paymentAttemptsCollection = db.collection("payment_attempts")
+            const userIdentifier = `${claim.email}_${claim.phoneNumber || claim.phone}`
+
+            await paymentAttemptsCollection.updateOne(
+              { userIdentifier, claimId },
+              {
+                $set: {
+                  lastFailedAttempt: new Date(),
+                  lastFailureReason: error.message,
+                  updatedAt: new Date(),
+                },
+              },
+            )
+          }
+        }
       } catch (logError) {
-        console.error("[v0] Failed to log payment verification failure:", logError)
+        console.error("BytewiseTestingpoint Failed to log payment verification failure:", logError)
       }
 
       return NextResponse.json(

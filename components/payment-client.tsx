@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, CreditCard, Shield, AlertCircle, RefreshCw, X, Lock, Star, Clock } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
+import PaymentCooldownDialog from "./payment-cooldown-dialog"
 
 declare global {
   interface Window {
@@ -30,11 +31,58 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
   const [showErrorDialog, setShowErrorDialog] = useState(false)
   const [retryCount, setRetryCount] = useState(0)
   const [paymentError, setPaymentError] = useState<string | null>(null)
+  const [showCooldownDialog, setShowCooldownDialog] = useState(false)
+  const [cooldownData, setCooldownData] = useState<{
+    cooldownUntil: Date
+    remainingMinutes: number
+  } | null>(null)
+  const [attemptInfo, setAttemptInfo] = useState<{
+    attemptCount: number
+    remainingAttempts: number
+    canAttemptPayment: boolean
+  } | null>(null)
 
   useEffect(() => {
     fetchRazorpayKey()
     loadRazorpayScript()
+    checkPaymentAttempts()
   }, [])
+
+  const checkPaymentAttempts = async () => {
+    try {
+      const response = await fetch("/api/payment/check-attempts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          customerEmail,
+          customerPhone,
+          claimId,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setAttemptInfo({
+          attemptCount: data.attemptCount,
+          remainingAttempts: data.remainingAttempts || 0,
+          canAttemptPayment: data.canAttemptPayment,
+        })
+
+        if (data.inCooldown) {
+          setCooldownData({
+            cooldownUntil: new Date(data.cooldownUntil),
+            remainingMinutes: data.remainingMinutes,
+          })
+          setShowCooldownDialog(true)
+        }
+      }
+    } catch (error) {
+      console.error("Error checking payment attempts:", error)
+    }
+  }
 
   const fetchRazorpayKey = async () => {
     try {
@@ -78,19 +126,29 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          amount: PAYMENT_AMOUNT,
+          amount: PAYMENT_AMOUNT * 100,
           claimId,
-          customerName,
           customerEmail,
+          customerPhone,
         }),
       })
 
       const data = await response.json()
 
-      if (!response.ok || !data.success) {
+      if (!response.ok) {
+        if (data.error === "PAYMENT_COOLDOWN" || data.error === "PAYMENT_LIMIT_EXCEEDED") {
+          setCooldownData({
+            cooldownUntil: new Date(data.cooldownUntil),
+            remainingMinutes: data.remainingMinutes,
+          })
+          setShowCooldownDialog(true)
+          return null
+        }
         throw new Error(data.error || data.details || "Failed to create order")
-        console.log("create order")
-        alert(data)
+      }
+
+      if (!data.success) {
+        throw new Error(data.error || data.details || "Failed to create order")
       }
 
       return data
@@ -102,7 +160,7 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
 
   const verifyPayment = async (paymentData: any) => {
     try {
-      console.log("[v0] Starting payment verification with data:", paymentData)
+      console.log("BytewiseTestingpoint Starting payment verification with data:", paymentData)
 
       const response = await fetch("/api/payment/verify", {
         method: "POST",
@@ -118,22 +176,22 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
         }),
       })
 
-      console.log("[v0] Payment verification response status:", response.status)
+      console.log("BytewiseTestingpoint Payment verification response status:", response.status)
 
       const data = await response.json()
-      console.log("[v0] Payment verification response data:", data)
+      console.log("BytewiseTestingpoint Payment verification response data:", data)
 
       if (response.ok && data.success) {
-        console.log("[v0] Payment verification successful")
+        console.log("BytewiseTestingpoint Payment verification successful")
         return data
       }
 
       if (data.duplicate) {
-        console.log("[v0] Duplicate payment detected, treating as success")
+        console.log("BytewiseTestingpoint Duplicate payment detected, treating as success")
         return data
       }
 
-      console.error("[v0] Payment verification failed:", {
+      console.error("BytewiseTestingpoint Payment verification failed:", {
         status: response.status,
         success: data.success,
         error: data.error,
@@ -142,7 +200,7 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
 
       throw new Error(data.error || `Payment verification failed (Status: ${response.status})`)
     } catch (error) {
-      console.error("[v0] Payment verification error:", error)
+      console.error("BytewiseTestingpoint Payment verification error:", error)
       throw error
     }
   }
@@ -153,6 +211,11 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
       return
     }
 
+    if (attemptInfo && !attemptInfo.canAttemptPayment) {
+      await checkPaymentAttempts()
+      return
+    }
+
     try {
       setLoading(true)
       setError(null)
@@ -160,13 +223,18 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
 
       const orderData = await createOrder()
 
+      if (!orderData) {
+        setLoading(false)
+        return
+      }
+
       const options = {
         key: razorpayKey,
-        amount: orderData.amount,
-        currency: orderData.currency,
+        amount: orderData.order.amount,
+        currency: orderData.order.currency,
         name: "SYSTECH DIGITAL",
         description: "OTT Platform Access - Processing Fee",
-        order_id: orderData.orderId,
+        order_id: orderData.order.id,
         prefill: {
           name: customerName,
           email: customerEmail,
@@ -177,7 +245,7 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
         },
         handler: async (response: any) => {
           try {
-            console.log("[v0] Payment successful, verifying...", response)
+            console.log("BytewiseTestingpoint Payment successful, verifying...", response)
 
             const verificationPromise = verifyPayment({
               razorpay_order_id: response.razorpay_order_id,
@@ -191,7 +259,7 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
 
             const verificationResult = await Promise.race([verificationPromise, timeoutPromise])
 
-            console.log("[v0] Payment verification successful:", verificationResult)
+            console.log("BytewiseTestingpoint Payment verification successful:", verificationResult)
 
             const successUrl = new URL("/payment/success", window.location.origin)
             successUrl.searchParams.set("payment_id", response.razorpay_payment_id)
@@ -206,7 +274,7 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
 
             window.location.replace(successUrl.toString())
           } catch (error) {
-            console.error("[v0] Payment verification failed:", error)
+            console.error("BytewiseTestingpoint Payment verification failed:", error)
 
             let errorMessage = "Payment verification failed. Please contact support if amount was deducted."
             if (error instanceof Error && error.message.includes("timeout")) {
@@ -234,6 +302,10 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
         setPaymentError(`Payment failed: ${response.error.description}`)
         setShowErrorDialog(true)
         setLoading(false)
+
+        setTimeout(() => {
+          checkPaymentAttempts()
+        }, 1000)
       })
 
       razorpay.open()
@@ -248,11 +320,20 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
     setRetryCount((prev) => prev + 1)
     setShowErrorDialog(false)
     setPaymentError(null)
-    handlePayment()
+    checkPaymentAttempts().then(() => {
+      if (attemptInfo?.canAttemptPayment) {
+        handlePayment()
+      }
+    })
   }
 
   const handleCancelPayment = () => {
     setShowErrorDialog(false)
+    window.location.href = "/ott"
+  }
+
+  const handleReturnToForm = () => {
+    setShowCooldownDialog(false)
     window.location.href = "/ott"
   }
 
@@ -333,6 +414,24 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
               </div>
             </div>
 
+            {attemptInfo && (
+              <div className="bg-blue-50 rounded-lg p-4 mb-6">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-blue-900">Payment Attempts</span>
+                  <span className="text-sm text-blue-700">{attemptInfo.attemptCount} of 3 used</span>
+                </div>
+                <div className="w-full bg-blue-200 rounded-full h-2 mt-2">
+                  <div
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${(attemptInfo.attemptCount / 3) * 100}%` }}
+                  ></div>
+                </div>
+                {attemptInfo.remainingAttempts > 0 && (
+                  <p className="text-xs text-blue-700 mt-2">{attemptInfo.remainingAttempts} attempts remaining</p>
+                )}
+              </div>
+            )}
+
             <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-6 mb-8">
               <div className="flex items-center justify-between mb-4">
                 <span className="text-lg font-medium text-gray-700">Processing Fee</span>
@@ -375,7 +474,7 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
 
             <Button
               onClick={handlePayment}
-              disabled={loading}
+              disabled={loading || (attemptInfo && !attemptInfo.canAttemptPayment)}
               className="w-full bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white py-4 text-lg font-semibold rounded-xl shadow-lg transform transition-all duration-200 hover:scale-105 disabled:transform-none"
               size="lg"
             >
@@ -383,6 +482,11 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
                 <>
                   <Loader2 className="w-5 h-5 animate-spin mr-3" />
                   Processing Payment...
+                </>
+              ) : attemptInfo && !attemptInfo.canAttemptPayment ? (
+                <>
+                  <Clock className="w-5 h-5 mr-3" />
+                  Payment Limit Reached
                 </>
               ) : (
                 <>
@@ -417,6 +521,16 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
         </div>
       </div>
 
+      {cooldownData && (
+        <PaymentCooldownDialog
+          open={showCooldownDialog}
+          onOpenChange={setShowCooldownDialog}
+          cooldownUntil={cooldownData.cooldownUntil}
+          remainingMinutes={cooldownData.remainingMinutes}
+          onReturnToForm={handleReturnToForm}
+        />
+      )}
+
       <Dialog open={showErrorDialog} onOpenChange={setShowErrorDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -430,7 +544,11 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
             </DialogDescription>
           </DialogHeader>
           <div className="flex space-x-3 mt-6">
-            <Button onClick={handleRetryPayment} className="flex-1 bg-blue-600 hover:bg-blue-700">
+            <Button
+              onClick={handleRetryPayment}
+              className="flex-1 bg-blue-600 hover:bg-blue-700"
+              disabled={attemptInfo && !attemptInfo.canAttemptPayment}
+            >
               <RefreshCw className="w-4 h-4 mr-2" />
               Retry Payment
             </Button>

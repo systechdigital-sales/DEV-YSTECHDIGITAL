@@ -99,7 +99,6 @@ export default function NotFound() {
               <div className="text-sm text-gray-500">
                 <p>Need help? Contact our support team:</p>
                 <p className="font-semibold text-red-600">sales.systechdigital@gmail.com</p>
-                <p className="font-semibold text-red-600">+91 7709803412</p>
               </div>
             </CardContent>
           </Card>

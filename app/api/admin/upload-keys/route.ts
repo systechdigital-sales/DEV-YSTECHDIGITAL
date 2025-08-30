@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server"
 import { getDatabase } from "@/lib/mongodb"
-import type { OTTKey } from "@/lib/models"
-import { parseExcel, parseCSV } from "@/lib/excelParser" // Assuming this utility exists or will be created
-import type { Collection } from "mongodb"
-
-// Helper to normalize column names for robust matching
-const normalizeHeader = (header: string) => header.toLowerCase().replace(/[^a-z0-9]/g, "")
+import type { ISalesRecord } from "@/lib/models"
+import { parseExcel, parseCSV } from "@/lib/excelParser"
 
 export async function POST(request: Request) {
   try {
+    const db = await getDatabase()
     const formData = await request.formData()
     const file = formData.get("file") as File | null
 
@@ -16,14 +13,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "No file uploaded." }, { status: 400 })
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer())
-    let records: any[] = []
-    const fileType = file.name.split(".").pop()?.toLowerCase()
+    const fileExtension = file.name.split(".").pop()?.toLowerCase()
+    let json: any[] = []
 
-    if (fileType === "xlsx" || fileType === "xls") {
-      records = parseExcel(buffer)
-    } else if (fileType === "csv") {
-      records = parseCSV(buffer.toString())
+    const arrayBuffer = await file.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+
+    if (fileExtension === "xlsx" || fileExtension === "xls") {
+      json = parseExcel(buffer)
+    } else if (fileExtension === "csv") {
+      json = parseCSV(buffer.toString("utf-8"))
     } else {
       return NextResponse.json(
         { success: false, error: "Unsupported file type. Please upload .xlsx, .xls, or .csv." },
@@ -31,102 +30,125 @@ export async function POST(request: Request) {
       )
     }
 
-    if (!records || records.length === 0) {
+    if (!json || json.length === 0) {
+      return NextResponse.json({ success: false, error: "No data found in the uploaded file." }, { status: 400 })
+    }
+
+    const stats = {
+      totalInFile: json.length,
+      duplicatesInFile: 0,
+      existingInDatabase: 0,
+      successfullyUploaded: 0,
+      errors: [] as string[],
+    }
+
+    const recordsToInsert: ISalesRecord[] = []
+    const requiredHeaders = ["Product Sub Category", "Product", "Activation Code/ Serial No / IMEI Number"]
+
+    // Check if all required headers are present
+    const actualHeaders = Object.keys(json[0] || {})
+    const missingHeaders = requiredHeaders.filter((header) => !actualHeaders.includes(header))
+
+    if (missingHeaders.length > 0) {
       return NextResponse.json(
-        { success: false, error: "No data found in the file or file is empty." },
+        {
+          success: false,
+          error: "Missing required column headers.",
+          stats,
+          details: missingHeaders.map((header) => `Missing column: '${header}'`),
+        },
         { status: 400 },
       )
     }
 
-    const db = await getDatabase()
-    const ottKeysCollection: Collection<OTTKey> = db.collection("ottkeys")
-
-    const requiredHeaders = {
-      productsubcategory: "Product Sub Category",
-      product: "Product",
-      activationcode: "Activation Code",
-    }
-
-    const errors: string[] = []
-    const validKeys: OTTKey[] = []
     const existingActivationCodes = new Set(
-      (await ottKeysCollection.find({}, { projection: { activationCode: 1 } }).toArray()).map((k) => k.activationCode),
+      (
+        await db
+          .collection<ISalesRecord>("salesrecords")
+          .find({}, { projection: { activationCode: 1 } })
+          .toArray()
+      ).map((record) => record.activationCode.toUpperCase()),
     )
 
-    // Validate headers
-    const fileHeaders = Object.keys(records[0] || {}).map(normalizeHeader)
-    const missingHeaders = Object.keys(requiredHeaders).filter((rh) => !fileHeaders.includes(rh))
+    const fileActivationCodes = new Set<string>()
 
-    if (missingHeaders.length > 0) {
-      const missingHeaderNames = missingHeaders.map((mh) => requiredHeaders[mh as keyof typeof requiredHeaders])
-      errors.push(
-        `Missing required column(s) in the file: ${missingHeaderNames.join(", ")}. Please ensure column headers match exactly.`,
-      )
-      return NextResponse.json({ success: false, error: "Invalid file format.", details: errors }, { status: 400 })
-    }
+    for (let i = 0; i < json.length; i++) {
+      const row = json[i]
+      const rowNumber = i + 2
 
-    for (let i = 0; i < records.length; i++) {
-      const record = records[i]
-      const rowNum = i + 2 // +1 for 0-indexed array, +1 for header row
+      const missingFields: string[] = []
+      const productSubCategory = row["Product Sub Category"]?.toString().trim() || ""
+      const product = row["Product"]?.toString().trim() || ""
+      let activationCode = row["Activation Code/ Serial No / IMEI Number"]?.toString().trim() || ""
+      const status = row["Status"]?.toString().trim() || "available"
 
-      const productSubCategory = record["Product Sub Category"] || record["productSubCategory"]
-      const product = record["Product"] || record["product"]
-      const activationCode = record["Activation Code"] || record["activationCode"]
-      const status = record["Status"] || record["status"] || "available" // Default status
+      if (!productSubCategory) missingFields.push("'Product Sub Category'")
+      if (!product) missingFields.push("'Product'")
+      if (!activationCode) missingFields.push("'Activation Code/ Serial No / IMEI Number'")
 
-      const rowErrors: string[] = []
-      if (!productSubCategory) rowErrors.push("'Product Sub Category'")
-      if (!product) rowErrors.push("'Product'")
-      if (!activationCode) rowErrors.push("'Activation Code'")
+      if (missingFields.length > 0) {
+        stats.errors.push(`Row ${rowNumber}: Missing required field(s): ${missingFields.join(", ")}.`)
+        continue
+      }
 
-      if (rowErrors.length > 0) {
-        errors.push(`Row ${rowNum}: Missing required field(s): ${rowErrors.join(", ")}.`)
+      activationCode = activationCode.toUpperCase().trim()
+
+      if (fileActivationCodes.has(activationCode)) {
+        stats.duplicatesInFile++
+        stats.errors.push(`Row ${rowNumber}: Duplicate Activation Code '${activationCode}' found within the file.`)
         continue
       }
 
       if (existingActivationCodes.has(activationCode)) {
-        errors.push(`Row ${rowNum}: Duplicate Activation Code '${activationCode}' already exists.`)
+        stats.existingInDatabase++
+        stats.errors.push(`Row ${rowNumber}: Activation Code '${activationCode}' already exists in database.`)
         continue
       }
 
-      validKeys.push({
+      fileActivationCodes.add(activationCode)
+
+      const newSalesRecord: ISalesRecord = {
         productSubCategory,
         product,
-        activationCode,
+        activationCode, // Now uppercase
         status,
         createdAt: new Date(),
         updatedAt: new Date(),
-      } as OTTKey) // Cast to OTTKey, _id will be added by MongoDB
+      }
+
+      recordsToInsert.push(newSalesRecord)
     }
 
-    if (validKeys.length > 0) {
-      await ottKeysCollection.insertMany(validKeys)
+    if (recordsToInsert.length > 0) {
+      try {
+        const result = await db.collection<ISalesRecord>("salesrecords").insertMany(recordsToInsert, { ordered: false })
+        stats.successfullyUploaded = result.insertedCount
+      } catch (dbError: any) {
+        console.error("Error during bulk insert of sales records:", dbError)
+        stats.errors.push(`Database error during bulk insert: ${dbError.message || "Unknown error"}`)
+      }
     }
 
-    if (errors.length > 0) {
-      return NextResponse.json(
-        {
-          success: validKeys.length > 0, // Partial success if some keys were uploaded
-          message:
-            validKeys.length > 0
-              ? `Successfully uploaded ${validKeys.length} keys with some errors.`
-              : "No keys uploaded due to errors.",
-          count: validKeys.length,
-          details: errors,
-        },
-        { status: validKeys.length > 0 ? 200 : 400 },
-      )
-    }
+    const message =
+      `File has ${stats.totalInFile} records. ` +
+      `${stats.duplicatesInFile > 0 ? `File has ${stats.duplicatesInFile} duplicate entries. ` : ""}` +
+      `${stats.existingInDatabase > 0 ? `Database already has ${stats.existingInDatabase} existing records. ` : ""}` +
+      `Successfully uploaded ${stats.successfullyUploaded} new records.`
 
     return NextResponse.json(
-      { success: true, message: `Successfully uploaded ${validKeys.length} OTT keys.`, count: validKeys.length },
-      { status: 200 },
+      {
+        success: stats.successfullyUploaded > 0,
+        message,
+        stats,
+        count: stats.successfullyUploaded,
+        details: stats.errors.length > 0 ? stats.errors : undefined,
+      },
+      {
+        status: stats.successfullyUploaded > 0 ? 200 : 400,
+      },
     )
   } catch (error: any) {
-    console.error("Error in upload-keys API:", error)
-    return NextResponse.json(
-      { success: false, error: error.message || "An unexpected error occurred." },
-      { status: 500 },
-    )
+    console.error("Error processing sales upload:", error)
+    return NextResponse.json({ success: false, error: error.message || "Internal server error" }, { status: 500 })
   }
 }

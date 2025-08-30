@@ -116,6 +116,13 @@ export default function HomePage() {
     },
   ]
 
+  const handleClick = () => {
+    window.open(
+      "https://www.ottplay.com/partner/systech-it-solution/ott_sustech_annualtest",
+      "_blank"
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Header */}
@@ -129,22 +136,14 @@ export default function HomePage() {
                 <p className="text-sm text-red-200">Simplifying the Digital Experience</p>
               </div>
             </div>
-            {/* <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-4">
               <Button
-                onClick={handleCustomerDashboard}
-                variant="ghost"
-                className="text-white hover:bg-white/20 border border-white/30"
-              >
-                <User className="w-4 h-4 mr-2" />
-                My Dashboard
-              </Button>
-              <Button
-                onClick={() => router.push("/ott")}
+                onClick={handleClick}
                 className="bg-white text-red-900 hover:bg-red-50 font-semibold"
               >
-                Claim Now
+                Redeem Your Code
               </Button>
-            </div> */}
+            </div>
           </div>
         </div>
       </header>

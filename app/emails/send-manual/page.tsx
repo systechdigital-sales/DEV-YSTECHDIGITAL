@@ -49,13 +49,13 @@ export default function SendManualEmailPage() {
             <p style="font-size: 16px; margin: 0 0 20px 0;">Dear {{customerName}},</p>
             
             <p style="color: #374151; line-height: 1.6; margin: 16px 0;">
-                Fantastic news! Your OTT subscription claim has been processed successfully. Here's your premium activation code:
+                Great news! Your OTT subscription claim has been processed successfully. Here&#39;s your Coupon code: :
             </p>
             
             <div style="background: #f59e0b; color: white; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: bold; margin: 15px 0; display: inline-block;">{{platform}}</div>
             
             <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px; margin: 25px 0; text-align: center;">
-                <p style="color: white; margin: 0 0 15px 0; font-size: 16px; opacity: 0.9;">Your Activation Code</p>
+                <p style="color: white; margin: 0 0 15px 0; font-size: 16px; opacity: 0.9;">Your OTTplay Power Package 01 Yr Subscription Coupon code:</p>
                 <div style="background: rgba(255,255,255,0.2); padding: 20px; border-radius: 10px; border: 2px dashed rgba(255,255,255,0.5);">
                     <h1 style="color: white; margin: 0; font-size: 36px; font-weight: bold; letter-spacing: 3px; font-family: 'Courier New', monospace;">{{ottCode}}</h1>
                 </div>
@@ -65,10 +65,10 @@ export default function SendManualEmailPage() {
                 <h3 style="color: #1e40af; margin: 0 0 20px 0;">📱 How to Redeem Your Code</h3>
                 <ol style="color: #1e40af; line-height: 1.8; margin: 0; padding-left: 20px;">
                     <li style="margin-bottom: 8px;">Download the <a href="https://www.ottplay.com/partner/systech-it-solution/ott_sustech_annualtest">OTT Play app</a> from your device's app store</li>
-                    <li style="margin-bottom: 8px;">Open the app and create an account or sign in to your existing account</li>
-                    <li style="margin-bottom: 8px;">Look for "Redeem Code", "Activate Subscription", or "Promo Code" option</li>
-                    <li style="margin-bottom: 8px;">Enter your activation code: <strong>{{ottCode}}</strong></li>
-                    <li style="margin-bottom: 8px;">Follow the on-screen instructions to complete activation</li>
+                    <li style="margin-bottom: 8px;">Tap ‘Apply Coupon’, enter code &amp; get 100% off.</li>
+                    <li style="margin-bottom: 8px;">Tap ‘Subscribe Yearly”</li>
+                    <li style="margin-bottom: 8px;">Enter your mobile number, verify OTP &amp; start streaming OTTs +500 Live channels for 12 months!</li>
+                    <li style="margin-bottom: 8px;">Enter your Coupon code:<strong>{{ottCode}}</strong></li>
                     <li style="margin-bottom: 8px;">Start enjoying your premium content immediately!</li>
                 </ol>
             </div>
@@ -119,7 +119,7 @@ export default function SendManualEmailPage() {
         
         <div style="text-align: center; margin-top: 30px; color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
             <p style="margin: 0; font-weight: bold;">SYSTECH DIGITAL</p>
-            <p style="margin: 5px 0;">📞 +91 7709803412 | ✉️ sales.systechdigital@gmail.com</p>
+            <p style="margin: 5px 0;"> ✉️ sales.systechdigital@gmail.com</p>
             <p style="margin: 10px 0 0 0; font-size: 12px;">This is an automated email. Please do not reply to this message.</p>
         </div>
     </div>

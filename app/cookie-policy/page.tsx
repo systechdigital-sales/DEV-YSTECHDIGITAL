@@ -541,9 +541,6 @@ export default function CookiePolicy() {
                       📧 <strong>Email:</strong> sales.systechdigital@gmail.com
                     </li>
                     <li>
-                      📞 <strong>Phone:</strong> +91 7709803412
-                    </li>
-                    <li>
                       🌐 <strong>Website:</strong> www.systechdigital.co.in
                     </li>
                     <li>

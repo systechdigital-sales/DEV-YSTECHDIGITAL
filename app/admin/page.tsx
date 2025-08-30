@@ -13,22 +13,27 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import {
   Upload,
   DownloadIcon,
-  AlertCircle,
-  CheckCircle,
-  Users,
-  Key,
-  DollarSign,
+  AlertCircleIcon,
+  CheckCircleIcon,
+  UsersIcon,
+  KeyIcon,
+  DollarSignIcon,
   FileSpreadsheet,
-  RefreshCw,
-  Trash2,
-  Send,
-  SearchIcon,
+  RefreshCwIcon,
+  Trash2Icon,
+  SendIcon,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
   Loader2,
   PlusIcon,
   CheckIcon,
+  SearchIcon,
+  Edit2,
+  XIcon,
+  Check,
+  MessageCircleIcon,
+  Download,
 } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -46,7 +51,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { XIcon } from "lucide-react"
 
 // Reduced page size for better performance
 const ITEMS_PER_PAGE = 10
@@ -98,6 +102,8 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState("claims")
   const router = useRouter()
 
+  const [initialLoading, setInitialLoading] = useState(true)
+
   // Data state - only store current page data
   const [currentData, setCurrentData] = useState<{
     claims: ClaimResponse[]
@@ -121,6 +127,7 @@ export default function AdminPage() {
 
   // Search state
   const [searchTerm, setSearchTerm] = useState("")
+  const [searchInput, setSearchInput] = useState("") // Added separate input state for typing
   const [searchLoading, setSearchLoading] = useState(false)
 
   // Filter state
@@ -196,15 +203,20 @@ export default function AdminPage() {
       return
     }
 
-    // Load initial data
-    loadStats()
-    loadCurrentTabData()
+    const initializeData = async () => {
+      await loadStats()
+      await loadCurrentTabData()
+      setInitialLoading(false)
+    }
+
+    initializeData()
   }, [router])
 
-  // Load data when tab changes
   useEffect(() => {
-    loadCurrentTabData()
-  }, [activeTab, sortConfig, filters, dateFilter])
+    if (!initialLoading) {
+      loadCurrentTabData()
+    }
+  }, [activeTab, sortConfig, filters, dateFilter, initialLoading])
 
   // Load stats (lightweight operation)
   const loadStats = async () => {
@@ -223,7 +235,6 @@ export default function AdminPage() {
     }
   }
 
-  // Load current tab data with pagination
   const loadCurrentTabData = useCallback(
     async (page = 1, search = "") => {
       setSearchLoading(true)
@@ -289,26 +300,36 @@ export default function AdminPage() {
         setError(`Failed to load ${activeTab} data`)
       } finally {
         setSearchLoading(false)
-        setLoading(false)
+        if (initialLoading) {
+          setLoading(false)
+        }
       }
     },
-    [activeTab, sortConfig, filters, dateFilter],
+    [activeTab, sortConfig, filters, dateFilter, initialLoading],
   )
 
-  // Handle search with debouncing
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (searchTerm !== undefined) {
-        loadCurrentTabData(1, searchTerm)
-      }
-    }, 500)
+  const handleSearch = () => {
+    setSearchTerm(searchInput)
+    setPagination((prev) => ({
+      ...prev,
+      [activeTab]: { ...prev[activeTab as keyof typeof prev], page: 1 },
+    }))
+    loadCurrentTabData(1, searchInput)
+  }
 
-    return () => clearTimeout(timeoutId)
-  }, [searchTerm, loadCurrentTabData])
+  const handleSearchInputChange = (value: string) => {
+    setSearchInput(value)
+  }
+
+  const handleSearchKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSearch()
+    }
+  }
 
   // Handle page change
   const handlePageChange = (page: number) => {
-    console.log("[v0] Page change to:", page)
+    console.log("Bytewise Page change to:", page)
     setPagination((prev) => ({
       ...prev,
       [activeTab]: { ...prev[activeTab as keyof typeof prev], page },
@@ -324,14 +345,20 @@ export default function AdminPage() {
     setSortConfig({ key: "createdAt", direction: "desc" })
   }
 
-  // Handle search change
+  // Handle search change - prevent immediate refresh
   const handleSearchChange = (value: string) => {
+    if (value !== searchTerm) {
+      setSearchLoading(true)
+    }
     setSearchTerm(value)
   }
 
-  // Handle filter change
   const handleFilterChange = (filterType: keyof FilterConfig, value: string) => {
-    console.log("[v0] Filter change:", filterType, "=", value)
+    console.log("Bytewise Filter change:", filterType, "=", value)
+    if (filterType === "paymentStatus" && value === "returned") {
+      console.log("Bytewise Filtering for returned payments only")
+    }
+
     setFilters((prev) => ({
       ...prev,
       [filterType]: value,
@@ -340,37 +367,40 @@ export default function AdminPage() {
       ...prev,
       [activeTab]: { ...prev[activeTab as keyof typeof prev], page: 1 },
     }))
-    setTimeout(() => {
-      loadCurrentTabData(1, searchTerm)
-    }, 0)
+
+    loadCurrentTabData(1, searchTerm)
   }
 
   const handleDateFilterChange = (field: "startDate" | "endDate", value: string) => {
-    setDateFilter((prev) => {
-      const newFilter = {
-        ...prev,
-        [field]: value,
-      }
+    console.log("Bytewise Date filter change:", field, value)
 
-      // Trigger data reload when both dates are set or when clearing dates
-      if ((newFilter.startDate && newFilter.endDate) || (!newFilter.startDate && !newFilter.endDate)) {
-        setTimeout(() => {
-          loadCurrentTabData(1, searchTerm)
-        }, 100)
-      }
+    setDateFilter((prev) => ({
+      ...prev,
+      [field]: value,
+    }))
+  }
 
-      return newFilter
-    })
+  const handleDateFilterSearch = () => {
+    console.log("Bytewise Date filter search triggered")
+    setPagination((prev) => ({
+      ...prev,
+      [activeTab]: { ...prev[activeTab as keyof typeof prev], page: 1 },
+    }))
+    loadCurrentTabData(1, searchTerm)
   }
 
   const clearDateFilter = () => {
+    console.log("Bytewise Clearing date filter")
     setDateFilter({
       startDate: "",
       endDate: "",
     })
-    setTimeout(() => {
-      loadCurrentTabData(1, searchTerm)
-    }, 100)
+
+    setPagination((prev) => ({
+      ...prev,
+      [activeTab]: { ...prev[activeTab as keyof typeof prev], page: 1 },
+    }))
+    loadCurrentTabData(1, searchTerm)
   }
 
   // Handle sort change
@@ -513,6 +543,8 @@ export default function AdminPage() {
         description: errorMessage,
         variant: "destructive",
       })
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -737,6 +769,10 @@ export default function AdminPage() {
       case "already_claimed":
       case "activation_code_not_found":
         return <Badge className="bg-red-100 text-red-800 border-red-300">{status.toUpperCase()}</Badge>
+      case "returned": // Enhanced returned status styling
+        return (
+          <Badge className="bg-orange-100 text-orange-800 border-orange-300 font-medium">{status.toUpperCase()}</Badge>
+        )
       default:
         return <Badge variant="outline">{status.toUpperCase()}</Badge>
     }
@@ -877,12 +913,23 @@ export default function AdminPage() {
         params.append("endDate", dateFilter.endDate)
       }
 
+      console.log("Bytewise Fetching claims with payment status:", filters.paymentStatus)
+
       const response = await fetch(`/api/admin/claims?${params}`)
       const data = await response.json()
+
+      console.log("Bytewise Claims API response:", data)
 
       if (data.data) {
         setClaims(data.data)
         setTotalPages(data.totalPages || 1)
+        console.log("Bytewise Claims loaded:", data.data.length, "items")
+        if (filters.paymentStatus === "returned") {
+          console.log(
+            "Bytewise Returned payments:",
+            data.data.filter((claim) => claim.paymentStatus?.toLowerCase() === "returned"),
+          )
+        }
       }
     } catch (error) {
       console.error("Error fetching claims:", error)
@@ -1047,7 +1094,146 @@ export default function AdminPage() {
     }
   }
 
-  if (loading) {
+  const [updatingTransaction, setUpdatingTransaction] = useState<string | null>(null)
+
+  const updateClaimFromTransaction = async (transaction: any) => {
+    setUpdatingTransaction(transaction._id)
+    setError("")
+    setMessage("")
+
+    try {
+      const response = await fetch("/api/admin/update-claim-from-transaction", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          transactionId: transaction._id,
+          razorpay_payment_id: transaction.razorpay_payment_id,
+          razorpay_order_id: transaction.razorpay_order_id,
+          email: transaction.email,
+          claimId: transaction.claimId,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setMessage(
+          `Successfully updated claim ${data.claimId} from transaction data. Match strategy: ${data.matchStrategy}`,
+        )
+        loadCurrentTabData()
+      } else {
+        throw new Error(data.error || "Failed to update claim from transaction")
+      }
+    } catch (error) {
+      console.error("Error updating claim from transaction:", error)
+      setError(error instanceof Error ? error.message : "Failed to update claim from transaction")
+    } finally {
+      setUpdatingTransaction(null)
+    }
+  }
+
+  const [editingClaimId, setEditingClaimId] = useState<string | null>(null)
+  const [editClaimIdValue, setEditClaimIdValue] = useState<string>("")
+  const [updatingClaimId, setUpdatingClaimId] = useState<string | null>(null)
+
+  const updateTransactionClaimId = async (transactionId: string, newClaimId: string) => {
+    console.log("Bytewise Starting updateTransactionClaimId with:", { transactionId, newClaimId })
+    setUpdatingClaimId(transactionId)
+    try {
+      console.log("Bytewise Making API call to update-transaction-claim-id")
+      const response = await fetch("/api/admin/update-transaction-claim-id", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          transactionId,
+          claimId: newClaimId.trim() || null,
+        }),
+      })
+
+      console.log("Bytewise API response status:", response.status)
+      const result = await response.json()
+      console.log("Bytewise API response data:", result)
+
+      if (response.ok) {
+        console.log("Bytewise Update successful, showing success toast")
+        toast({
+          title: "Success",
+          description: "Claim ID updated successfully",
+        })
+        setEditingClaimId(null)
+        setEditClaimIdValue("")
+        loadCurrentTabData()
+      } else {
+        throw new Error(result.error || "Failed to update claim ID")
+      }
+    } catch (error) {
+      console.error("Bytewise Error updating claim ID:", error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update claim ID",
+        variant: "destructive",
+      })
+    } finally {
+      setUpdatingClaimId(null)
+    }
+  }
+
+  const startEditingClaimId = (transactionId: string, currentClaimId: string) => {
+    console.log("Bytewise Starting to edit claim ID for transaction:", transactionId)
+    setEditingClaimId(transactionId)
+    setEditClaimIdValue(currentClaimId || "")
+  }
+
+  const cancelEditingClaimId = () => {
+    setEditingClaimId(null)
+    setEditClaimIdValue("")
+  }
+
+  const handleWhatsAppClick = (claim: ClaimResponse) => {
+    const phoneNumber = claim.phoneNumber?.replace(/\D/g, "") // Remove non-digits
+    if (!phoneNumber) {
+      toast({
+        title: "No Phone Number",
+        description: "This claim doesn't have a valid phone number for WhatsApp.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Format phone number for WhatsApp (add country code if not present)
+    const formattedPhone = phoneNumber.startsWith("91") ? phoneNumber : `91${phoneNumber}`
+
+    const message = `Dear Customer, 👋
+
+We're happy to share an update regarding your OTT claim:
+
+🆔 Claim ID: ${claim.claimId}
+📌 Current Status: ${claim.ottStatus || "Processing"}
+${claim.ottCode ? `🎟️ **OTT Code:** ${claim.ottCode}` : ""}
+
+How to Redeem:
+1) Open the OTT Play app from your web browser
+2) Click on the link, enter code & get 100% off 👉 https://www.ottplay.com/partner/systech-it-solution/ott_sustech_annualtest
+3) Tap ‘Subscribe Yearly”
+4) Enter your mobile number, verify OTP & start streaming OTTs +500 Live channels for 12 months!
+5) Enter the Coupon code: ${claim.ottCode ? `🎟️ **OTT Code:** ${claim.ottCode}` : ""}
+6) Enjoy your premium subscription!
+
+🙏 Thank you for trusting SYSTECH DIGITAL — we truly value your association with us.
+
+If you need any help, our support team is just a message away 💬.
+
+Warm regards,
+Team SYSTECH DIGITAL`
+
+    // Open WhatsApp with pre-filled message
+    const whatsappUrl = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`
+    window.open(whatsappUrl, "_blank")
+  }
+
+  if (initialLoading) {
     return (
       <SidebarProvider>
         <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex w-full">
@@ -1098,7 +1284,7 @@ export default function AdminPage() {
                     }}
                     className="bg-white/20 hover:bg-white/30 text-white border-white/30 text-xs sm:text-sm"
                   >
-                    <RefreshCw className="w-4 h-4 mr-1 sm:mr-2" />
+                    <RefreshCwIcon className="w-4 h-4 mr-1 sm:mr-2" />
                     <span className="hidden sm:inline">Refresh Data</span>
                     <span className="sm:hidden">Refresh</span>
                   </Button>
@@ -1122,7 +1308,7 @@ export default function AdminPage() {
                         </p>
                       </div>
                       <div className="p-2 sm:p-3 bg-blue-100 rounded-full">
-                        <Users className="w-4 h-4 sm:w-8 sm:h-8 text-blue-600" />
+                        <UsersIcon className="w-4 h-4 sm:w-8 sm:h-8 text-blue-600" />
                       </div>
                     </div>
                   </CardContent>
@@ -1139,7 +1325,7 @@ export default function AdminPage() {
                         </p>
                       </div>
                       <div className="p-2 sm:p-3 bg-green-100 rounded-full">
-                        <DollarSign className="w-4 h-4 sm:w-8 sm:h-8 text-green-600" />
+                        <DollarSignIcon className="w-4 h-4 sm:w-8 sm:h-8 text-green-600" />
                       </div>
                     </div>
                   </CardContent>
@@ -1157,7 +1343,7 @@ export default function AdminPage() {
                         </p>
                       </div>
                       <div className="p-2 sm:p-3 bg-purple-100 rounded-full">
-                        <Key className="w-4 h-4 sm:w-8 sm:h-8 text-purple-600" />
+                        <KeyIcon className="w-4 h-4 sm:w-8 sm:h-8 text-purple-600" />
                       </div>
                     </div>
                   </CardContent>
@@ -1174,7 +1360,7 @@ export default function AdminPage() {
                         <p className="text-xs sm:text-sm text-gray-500">Payment success</p>
                       </div>
                       <div className="p-2 sm:p-3 bg-orange-100 rounded-full">
-                        <CheckCircle className="w-4 h-4 sm:w-8 sm:h-8 text-orange-600" />
+                        <CheckCircleIcon className="w-4 h-4 sm:w-8 sm:h-8 text-orange-600" />
                       </div>
                     </div>
                   </CardContent>
@@ -1184,7 +1370,7 @@ export default function AdminPage() {
               {/* Messages */}
               {message && (
                 <Alert className="mb-3 sm:mb-6 border-green-200 bg-green-50">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <CheckCircleIcon className="h-4 w-4 text-green-600" />
                   <AlertTitle className="text-green-800">Success</AlertTitle>
                   <AlertDescription className="text-green-700">{message}</AlertDescription>
                 </Alert>
@@ -1192,7 +1378,7 @@ export default function AdminPage() {
 
               {error && (
                 <Alert variant="destructive" className="mb-3 sm:mb-6">
-                  <AlertCircle className="h-4 w-4" />
+                  <AlertCircleIcon className="h-4 w-4" />
                   <AlertTitle>Error</AlertTitle>
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
@@ -1218,6 +1404,24 @@ export default function AdminPage() {
                           <FileSpreadsheet className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" /> Activation Code Upload
                         </h3>
                         <p className="text-blue-800 mb-3 sm:mb-4 text-sm">Upload Excel/CSV file to collection</p>
+
+                        <div className="mb-4">
+                          <Button
+                            onClick={() => {
+                              const link = document.createElement("a")
+                              link.href = "/templates/activation-code-template.xlsx"
+                              link.download = "activation-code-template.xlsx"
+                              link.click()
+                            }}
+                            variant="outline"
+                            size="sm"
+                            className="text-blue-700 border-blue-300 hover:bg-blue-100"
+                          >
+                            <Download className="w-4 h-4 mr-2" />
+                            Download Template
+                          </Button>
+                        </div>
+
                         <div className="space-y-2 sm:space-y-3">
                           <Label htmlFor="sales-file" className="text-blue-900 font-medium text-xs sm:text-sm">
                             Select Sales File (.xlsx, .xls, .csv)
@@ -1235,7 +1439,8 @@ export default function AdminPage() {
                             <ul className="list-disc list-inside space-y-1">
                               <li>Product Sub Category</li>
                               <li>Product</li>
-                              <li>Activation Code</li>
+                              <li>Activation Code/ Serial No / IMEI Number</li>
+                              <li>Status</li>
                             </ul>
                           </div>
                         </div>
@@ -1246,11 +1451,29 @@ export default function AdminPage() {
                     <div className="space-y-3 sm:space-y-4">
                       <div className="bg-green-50 p-4 sm:p-6 rounded-xl border border-green-200">
                         <h3 className="text-lg sm:text-xl font-semibold text-green-900 mb-3 sm:mb-4 flex items-center">
-                          <Key className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" /> OTT Keys Upload
+                          <KeyIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" /> OTT Keys Upload
                         </h3>
                         <p className="text-green-800 mb-3 sm:mb-4 text-sm">
                           Upload Excel/CSV file to ottkeys collection
                         </p>
+
+                        <div className="mb-4">
+                          <Button
+                            onClick={() => {
+                              const link = document.createElement("a")
+                              link.href = "/templates/ott-keys-template.xlsx"
+                              link.download = "ott-keys-template.xlsx"
+                              link.click()
+                            }}
+                            variant="outline"
+                            size="sm"
+                            className="text-green-700 border-green-300 hover:bg-green-100"
+                          >
+                            <Download className="w-4 h-4 mr-2" />
+                            Download Template
+                          </Button>
+                        </div>
+
                         <div className="space-y-2 sm:space-y-3">
                           <Label htmlFor="keys-file" className="text-green-900 font-medium text-xs sm:text-sm">
                             Select Keys File (.xlsx, .xls, .csv)
@@ -1269,6 +1492,7 @@ export default function AdminPage() {
                               <li>Product Sub Category</li>
                               <li>Product</li>
                               <li>Activation Code</li>
+                              <li>Status</li>
                             </ul>
                           </div>
                         </div>
@@ -1388,21 +1612,36 @@ export default function AdminPage() {
                       {/* Search and Filters */}
                       <div className="mt-4 sm:mt-6 space-y-4">
                         <div className="flex items-center space-x-2 sm:space-x-4">
-                          <div className="flex-1 relative">
-                            <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                            <Input
-                              placeholder="Search by name, email, phone, activation code..."
-                              value={searchTerm}
-                              onChange={(e) => handleSearchChange(e.target.value)}
-                              className="pl-10 text-sm"
-                            />
+                          <div className="flex items-center space-x-2 flex-1">
+                            <div className="relative flex-1">
+                              <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                              <Input
+                                placeholder={`Search ${activeTab}...`}
+                                value={searchInput} // Use searchInput instead of searchTerm
+                                onChange={(e) => handleSearchInputChange(e.target.value)} // Use new handler
+                                onKeyPress={handleSearchKeyPress} // Added Enter key handler
+                                className="pl-10 text-sm"
+                              />
+                            </div>
+                            <Button
+                              onClick={handleSearch}
+                              disabled={searchLoading}
+                              size="sm"
+                              className="bg-indigo-600 hover:bg-indigo-700"
+                            >
+                              {searchLoading ? (
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                              ) : (
+                                <SearchIcon className="h-4 w-4" />
+                              )}
+                            </Button>
                           </div>
                           {searchLoading && (
                             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
                           )}
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                           <div>
                             <Label className="text-sm font-medium text-gray-700">Start Date</Label>
                             <Input
@@ -1438,6 +1677,7 @@ export default function AdminPage() {
                               </SelectContent>
                             </Select>
                           </div>
+                          
                           <div className="flex items-end">
                             <Button
                               onClick={clearDateFilter}
@@ -1518,21 +1758,11 @@ export default function AdminPage() {
                                     <Button
                                       variant="outline"
                                       size="sm"
-                                      onClick={() =>
-                                        handleDeleteClick("claims", claim._id || claim.id, claim.email || "Unknown")
-                                      }
-                                      className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                                      onClick={() => handleWhatsAppClick(claim)}
+                                      className="text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200"
+                                      title="Send WhatsApp message"
                                     >
-                                      <Trash2 className="w-4 h-4" />
-                                    </Button>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleManualAssignClick(claim)}
-                                      disabled={claim.ottStatus === "delivered" || claim.paymentStatus !== "paid"}
-                                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200"
-                                    >
-                                      <Send className="w-4 h-4" />
+                                      <MessageCircleIcon className="w-4 h-4" />
                                     </Button>
                                   </TableCell>
                                 </TableRow>
@@ -1569,18 +1799,30 @@ export default function AdminPage() {
                       {/* Search and Filters */}
                       <div className="mt-4 sm:mt-6 space-y-4">
                         <div className="flex items-center space-x-2 sm:space-x-4">
-                          <div className="flex-1 relative">
-                            <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                            <Input
-                              placeholder="Search by activation code, product, category..."
-                              value={searchTerm}
-                              onChange={(e) => handleSearchChange(e.target.value)}
-                              className="pl-10 text-sm"
-                            />
+                          <div className="flex items-center space-x-2 flex-1">
+                            <div className="relative flex-1">
+                              <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                              <Input
+                                placeholder="Search by activation code, product, category..."
+                                value={searchInput}
+                                onChange={(e) => handleSearchInputChange(e.target.value)}
+                                onKeyPress={handleSearchKeyPress}
+                                className="pl-10 text-sm"
+                              />
+                            </div>
+                            <Button
+                              onClick={handleSearch}
+                              disabled={searchLoading}
+                              size="sm"
+                              className="bg-indigo-600 hover:bg-indigo-700"
+                            >
+                              {searchLoading ? (
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                              ) : (
+                                <SearchIcon className="h-4 w-4" />
+                              )}
+                            </Button>
                           </div>
-                          {searchLoading && (
-                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
-                          )}
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
@@ -1641,20 +1883,6 @@ export default function AdminPage() {
                                     {formatDateTime(sale.updatedAt)}
                                   </TableCell>
                                   <TableCell>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() =>
-                                        handleDeleteClick(
-                                          "sales",
-                                          sale._id || sale.id,
-                                          sale.activationCode || "Unknown",
-                                        )
-                                      }
-                                      className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                    </Button>
                                   </TableCell>
                                 </TableRow>
                               ))
@@ -1690,18 +1918,30 @@ export default function AdminPage() {
                       {/* Search and Filters */}
                       <div className="mt-4 sm:mt-6 space-y-4">
                         <div className="flex items-center space-x-2 sm:space-x-4">
-                          <div className="flex-1 relative">
-                            <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                            <Input
-                              placeholder="Search by activation code, product, category..."
-                              value={searchTerm}
-                              onChange={(e) => handleSearchChange(e.target.value)}
-                              className="pl-10 text-sm"
-                            />
+                          <div className="flex items-center space-x-2 flex-1">
+                            <div className="relative flex-1">
+                              <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                              <Input
+                                placeholder="Search by activation code, product, category..."
+                                value={searchInput}
+                                onChange={(e) => handleSearchInputChange(e.target.value)}
+                                onKeyPress={handleSearchKeyPress}
+                                className="pl-10 text-sm"
+                              />
+                            </div>
+                            <Button
+                              onClick={handleSearch}
+                              disabled={searchLoading}
+                              size="sm"
+                              className="bg-indigo-600 hover:bg-indigo-700"
+                            >
+                              {searchLoading ? (
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                              ) : (
+                                <SearchIcon className="h-4 w-4" />
+                              )}
+                            </Button>
                           </div>
-                          {searchLoading && (
-                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
-                          )}
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
@@ -1763,16 +2003,6 @@ export default function AdminPage() {
                                     {formatDateTime(key.updatedAt)}
                                   </TableCell>
                                   <TableCell>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() =>
-                                        handleDeleteClick("keys", key._id || key.id, key.activationCode || "Unknown")
-                                      }
-                                      className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                    </Button>
                                   </TableCell>
                                 </TableRow>
                               ))
@@ -1815,7 +2045,7 @@ export default function AdminPage() {
                             </>
                           ) : (
                             <>
-                              <RefreshCw className="w-4 h-4 mr-2" />
+                              <RefreshCwIcon className="w-4 h-4 mr-2" />
                               Sync from Razorpay
                             </>
                           )}
@@ -1825,18 +2055,30 @@ export default function AdminPage() {
                       {/* Search and Filters */}
                       <div className="mt-4 sm:mt-6 space-y-4">
                         <div className="flex items-center space-x-2 sm:space-x-4">
-                          <div className="flex-1 relative">
-                            <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                            <Input
-                              placeholder="Search by payment ID, order ID, email..."
-                              value={searchTerm}
-                              onChange={(e) => handleSearchChange(e.target.value)}
-                              className="pl-10 text-sm"
-                            />
+                          <div className="flex items-center space-x-2 flex-1">
+                            <div className="relative flex-1">
+                              <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                              <Input
+                                placeholder="Search by payment ID, order ID, email..."
+                                value={searchInput}
+                                onChange={(e) => handleSearchInputChange(e.target.value)}
+                                onKeyPress={handleSearchKeyPress}
+                                className="pl-10 text-sm"
+                              />
+                            </div>
+                            <Button
+                              onClick={handleSearch}
+                              disabled={searchLoading}
+                              size="sm"
+                              className="bg-indigo-600 hover:bg-indigo-700"
+                            >
+                              {searchLoading ? (
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                              ) : (
+                                <SearchIcon className="h-4 w-4" />
+                              )}
+                            </Button>
                           </div>
-                          {searchLoading && (
-                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
-                          )}
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
@@ -1877,6 +2119,7 @@ export default function AdminPage() {
                               <TableHead className="font-bold text-gray-800">Claim ID</TableHead>
                               <TableHead className="font-bold text-gray-800">Created Date</TableHead>
                               <TableHead className="font-bold text-gray-800">Created Time</TableHead>
+                              <TableHead className="font-bold text-gray-800">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -1900,7 +2143,59 @@ export default function AdminPage() {
                                   <TableCell>{transaction.email || "N/A"}</TableCell>
                                   <TableCell>{transaction.contact || "N/A"}</TableCell>
                                   <TableCell className="font-mono text-sm">
-                                    {transaction.claimId || <span className="text-gray-400">-</span>}
+                                    {editingClaimId === transaction._id ? (
+                                      <div className="flex items-center gap-2">
+                                        <Input
+                                          value={editClaimIdValue}
+                                          onChange={(e) => setEditClaimIdValue(e.target.value)}
+                                          className="h-8 text-sm font-mono"
+                                          placeholder="Enter claim ID"
+                                          disabled={updatingClaimId === transaction._id}
+                                        />
+                                        <Button
+                                          onClick={() => updateTransactionClaimId(transaction._id, editClaimIdValue)}
+                                          disabled={updatingClaimId === transaction._id}
+                                          size="sm"
+                                          className="h-8 px-2 bg-green-600 hover:bg-green-700"
+                                        >
+                                          {updatingClaimId === transaction._id ? (
+                                            <>
+                                              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                              Updating...
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Check className="w-3 h-3" />
+                                            </>
+                                          )}
+                                        </Button>
+                                        <Button
+                                          onClick={cancelEditingClaimId}
+                                          disabled={updatingClaimId === transaction._id}
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-8 px-2 bg-transparent"
+                                        >
+                                          <XIcon className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center gap-2">
+                                        <span className={transaction.claimId ? "" : "text-gray-400"}>
+                                          {transaction.claimId || "-"}
+                                        </span>
+                                        <Button
+                                          onClick={() =>
+                                            startEditingClaimId(transaction._id, transaction.claimId || "")
+                                          }
+                                          size="sm"
+                                          variant="ghost"
+                                          className="h-6 w-6 p-0 hover:bg-gray-100"
+                                        >
+                                          <Edit2 className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                    )}
                                   </TableCell>
                                   <TableCell className="text-sm text-gray-600">
                                     {formatDateTimeIST(transaction.created_at)?.split(" ")[0] || "-"}
@@ -1908,11 +2203,31 @@ export default function AdminPage() {
                                   <TableCell className="text-sm text-gray-600">
                                     {formatDateTimeIST(transaction.created_at)?.split(" ")[1] || "-"}
                                   </TableCell>
+                                  <TableCell>
+                                    <Button
+                                      onClick={() => updateClaimFromTransaction(transaction)}
+                                      disabled={updatingTransaction === transaction._id}
+                                      size="sm"
+                                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1"
+                                    >
+                                      {updatingTransaction === transaction._id ? (
+                                        <>
+                                          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                          Updating...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <RefreshCwIcon className="w-3 h-3 mr-1" />
+                                          Update
+                                        </>
+                                      )}
+                                    </Button>
+                                  </TableCell>
                                 </TableRow>
                               ))
                             ) : (
                               <TableRow>
-                                <TableCell colSpan={12} className="text-center py-8 text-gray-500">
+                                <TableCell colSpan={11} className="text-center py-8 text-gray-500">
                                   {searchLoading
                                     ? "Searching..."
                                     : "No transactions data available. Click 'Sync from Razorpay' to fetch transactions."}

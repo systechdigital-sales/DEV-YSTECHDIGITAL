@@ -39,7 +39,7 @@ async function syncTransactions() {
     sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60)
     const fromTimestamp = Math.floor(sixtyDaysAgo.getTime() / 1000)
 
-    console.log("[v0] Syncing transactions from:", new Date(fromTimestamp * 1000))
+    console.log("BytewiseTestingpoint Syncing transactions from:", new Date(fromTimestamp * 1000))
 
     while (hasMore) {
       try {
@@ -57,9 +57,9 @@ async function syncTransactions() {
           await new Promise((resolve) => setTimeout(resolve, 200))
         }
       } catch (apiError) {
-        console.error("[v0] Razorpay API error:", apiError)
+        console.error("BytewiseTestingpoint Razorpay API error:", apiError)
         if (allPayments.length > 0) {
-          console.log("[v0] Continuing with partial data due to API error")
+          console.log("BytewiseTestingpoint Continuing with partial data due to API error")
           break
         }
         throw apiError
@@ -116,7 +116,7 @@ async function syncTransactions() {
           syncedCount++
         }
       } catch (paymentError) {
-        console.error("[v0] Error processing payment:", payment.id, paymentError)
+        console.error("BytewiseTestingpoint Error processing payment:", payment.id, paymentError)
         errorCount++
 
         await db.collection("sync_errors").insertOne({
@@ -148,7 +148,7 @@ async function syncTransactions() {
       errorCount,
     })
   } catch (error) {
-    console.error("[v0] Error syncing transactions:", error)
+    console.error("BytewiseTestingpoint Error syncing transactions:", error)
     return NextResponse.json({ error: "Failed to sync transactions from Razorpay" }, { status: 500 })
   }
 }
@@ -166,7 +166,7 @@ async function matchTransactionsWithClaims() {
       })
       .toArray()
 
-    console.log("[v0] Found", unmatchedTransactions.length, "unmatched transactions")
+    console.log("BytewiseTestingpoint Found", unmatchedTransactions.length, "unmatched transactions")
 
     let matchedCount = 0
 
@@ -254,13 +254,13 @@ async function matchTransactionsWithClaims() {
         }
 
         matchedCount++
-        console.log("[v0] Matched transaction", transaction.razorpay_payment_id, "with claim", matchingClaim.claimId)
+        console.log("BytewiseTestingpoint Matched transaction", transaction.razorpay_payment_id, "with claim", matchingClaim.claimId)
       }
     }
 
-    console.log(`[v0] Successfully matched ${matchedCount} transactions with claims`)
+    console.log(`BytewiseTestingpoint Successfully matched ${matchedCount} transactions with claims`)
   } catch (error) {
-    console.error("[v0] Error matching transactions with claims:", error)
+    console.error("BytewiseTestingpoint Error matching transactions with claims:", error)
   }
 }
 

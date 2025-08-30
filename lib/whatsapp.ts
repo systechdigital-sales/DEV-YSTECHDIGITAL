@@ -12,8 +12,8 @@ interface WhatsAppOTTCodeData {
 
 export async function sendWhatsAppMessage(data: WhatsAppMessage): Promise<boolean> {
   try {
-    console.log("[v0] Sending WhatsApp message to:", data.to)
-    console.log("[v0] Message length:", data.message.length)
+    console.log("BytewiseTestingpoint Sending WhatsApp message to:", data.to)
+    console.log("BytewiseTestingpoint Message length:", data.message.length)
 
     // For now, we'll use a placeholder implementation
     // In production, you would integrate with WhatsApp Business API
@@ -24,7 +24,7 @@ export async function sendWhatsAppMessage(data: WhatsAppMessage): Promise<boolea
     const accessToken = process.env.WHATSAPP_ACCESS_TOKEN
 
     if (!accessToken) {
-      console.error("[v0] WhatsApp access token not configured")
+      console.error("BytewiseTestingpoint WhatsApp access token not configured")
       return false
     }
 
@@ -47,14 +47,14 @@ export async function sendWhatsAppMessage(data: WhatsAppMessage): Promise<boolea
     })
 
     if (response.ok) {
-      console.log("[v0] WhatsApp message sent successfully")
+      console.log("BytewiseTestingpoint WhatsApp message sent successfully")
       return true
     } else {
-      console.error("[v0] WhatsApp API error:", await response.text())
+      console.error("BytewiseTestingpoint WhatsApp API error:", await response.text())
       return false
     }
   } catch (error) {
-    console.error("[v0] Error sending WhatsApp message:", error)
+    console.error("BytewiseTestingpoint Error sending WhatsApp message:", error)
     return false
   }
 }
@@ -129,7 +129,6 @@ We encountered an issue while processing your OTT code claim.
 • Your payment is secure
 
 *Need help?*
-📞 +91 7709803412
 📧 sales.systechdigital@gmail.com
 
 We apologize for the inconvenience.

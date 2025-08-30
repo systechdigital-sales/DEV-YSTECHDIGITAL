@@ -341,7 +341,7 @@ export async function GET(request: Request) {
       })
 
       const responseHeaders = new Headers()
-      responseHeaders.append("Content-Disposition", `attachment; filename="dev-env_complete_export.xlsx"`)
+      responseHeaders.append("Content-Disposition", `attachment; filename="systech_ott_platform_complete_export.xlsx"`)
       responseHeaders.append("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
       return new NextResponse(blob, { headers: responseHeaders })

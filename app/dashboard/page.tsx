@@ -8,7 +8,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   Users,
   DollarSign,
-  TrendingUp,
   Calendar,
   ShoppingCart,
   Key,
@@ -16,10 +15,8 @@ import {
   CheckCircle,
   Clock,
   XCircle,
-  Loader,
   AlertCircle,
   BarChart3,
-  PieChart,
   Activity,
   Target,
 } from "lucide-react"
@@ -40,6 +37,8 @@ interface DashboardStats {
   claimedSales: number
   totalKeys: number
   availableKeys: number
+  assignedKeys: number
+  usedKeys: number
   processing: number
   successful: number
   pending: number
@@ -48,6 +47,8 @@ interface DashboardStats {
   monthlyData: Array<{ month: string; claims: number; revenue: number }>
   dailyData: Array<{ date: string; claims: number; activity: number }>
   todaysSuccessfulClaims: number
+  paidClaims: number
+  todaysCollectionAmount: number
 }
 
 export default function DashboardPage() {
@@ -63,6 +64,8 @@ export default function DashboardPage() {
     claimedSales: 0,
     totalKeys: 0,
     availableKeys: 0,
+    assignedKeys: 0,
+    usedKeys: 0,
     processing: 0,
     successful: 0,
     pending: 0,
@@ -71,6 +74,8 @@ export default function DashboardPage() {
     monthlyData: [],
     dailyData: [],
     todaysSuccessfulClaims: 0,
+    paidClaims: 0,
+    todaysCollectionAmount: 0,
   })
   const [lastUpdated, setLastUpdated] = useState<string>("")
   const router = useRouter()
@@ -102,18 +107,22 @@ export default function DashboardPage() {
       setLoading(true)
       setError("")
 
-      console.log("[v0] Loading dashboard data...")
+      console.log("BytewiseTestingpoint Loading dashboard data...")
 
       const timestamp = Date.now()
       const statsResponse = await fetch(`/api/admin/stats?t=${timestamp}`).then((res) => res.json())
 
-      console.log("[v0] Stats API Response:", statsResponse)
+      console.log("BytewiseTestingpoint Stats API Response:", statsResponse)
+      console.log("BytewiseTestingpoint Keys Debug - Total Keys:", statsResponse.totalKeys)
+      console.log("BytewiseTestingpoint Keys Debug - Available Keys:", statsResponse.availableKeys)
+      console.log("BytewiseTestingpoint Keys Debug - Assigned Keys:", statsResponse.assignedKeys)
+      console.log("BytewiseTestingpoint Keys Debug - Used Keys:", statsResponse.usedKeys)
 
       const claimsResponse = await fetch(`/api/admin/claims?limit=1000&t=${timestamp}`).then((res) => res.json())
       const claims = claimsResponse.data || []
 
-      console.log("[v0] Claims API Response:", claimsResponse)
-      console.log("[v0] Total claims fetched:", claims.length)
+      console.log("BytewiseTestingpoint Claims API Response:", claimsResponse)
+      console.log("BytewiseTestingpoint Total claims fetched:", claims.length)
 
       // Calculate today's date in IST
       const today = new Date()
@@ -121,7 +130,7 @@ export default function DashboardPage() {
       const istToday = new Date(today.getTime() + istOffset)
       const todayStr = istToday.toISOString().split("T")[0]
 
-      console.log("[v0] Today's date (IST):", todayStr)
+      console.log("BytewiseTestingpoint Today's date (IST):", todayStr)
 
       // Calculate additional statistics from claims data
       const todaysClaims = claims.filter((claim: any) => {
@@ -136,10 +145,18 @@ export default function DashboardPage() {
         return claimDate === todayStr && claim.status === "delivered"
       }).length
 
-      console.log("[v0] Today's claims:", todaysClaims)
-      console.log("[v0] Today's successful claims:", todaysSuccessfulClaims)
+      const todaysPaidClaims = claims.filter((claim: any) => {
+        if (!claim.createdAt) return false
+        const claimDate = new Date(claim.createdAt).toISOString().split("T")[0]
+        return claimDate === todayStr && claim.paymentStatus === "paid"
+      }).length
+
+      console.log("BytewiseTestingpoint Today's claims:", todaysClaims)
+      console.log("BytewiseTestingpoint Today's successful claims:", todaysSuccessfulClaims)
+      console.log("BytewiseTestingpoint Today's paid claims:", todaysPaidClaims)
 
       const totalRevenue = (statsResponse.paidClaims || 0) * 99
+      const todaysCollectionAmount = todaysPaidClaims * 99
 
       const successRate =
         statsResponse.totalClaims > 0
@@ -150,7 +167,7 @@ export default function DashboardPage() {
       const dailyData = generateDailyData(claims)
 
       console.log(
-        "[v0] API Stats - Total:",
+        "BytewiseTestingpoint API Stats - Total:",
         statsResponse.totalClaims,
         "Delivered:",
         statsResponse.deliveredClaims,
@@ -160,14 +177,23 @@ export default function DashboardPage() {
         statsResponse.failedClaims,
       )
       console.log(
-        "[v0] API Sales - Total:",
+        "BytewiseTestingpoint API Sales - Total:",
         statsResponse.totalSales,
         "Available:",
         statsResponse.availableSales,
         "Claimed:",
         statsResponse.claimedSales,
       )
-      console.log("[v0] API Keys - Total:", statsResponse.totalKeys, "Available:", statsResponse.availableKeys)
+      console.log(
+        "BytewiseTestingpoint API Keys - Total:",
+        statsResponse.totalKeys,
+        "Available:",
+        statsResponse.availableKeys,
+        "Assigned:",
+        statsResponse.assignedKeys,
+        "Used:",
+        statsResponse.usedKeys,
+      )
 
       const newStats: DashboardStats = {
         totalClaims: statsResponse.totalClaims || 0,
@@ -179,6 +205,8 @@ export default function DashboardPage() {
         claimedSales: statsResponse.claimedSales || 0,
         totalKeys: statsResponse.totalKeys || 0,
         availableKeys: statsResponse.availableKeys || 0,
+        assignedKeys: statsResponse.assignedKeys || 0,
+        usedKeys: statsResponse.usedKeys || 0,
         processing: statsResponse.pendingClaims || 0,
         successful: statsResponse.deliveredClaims || 0,
         pending: statsResponse.pendingClaims || 0,
@@ -187,9 +215,11 @@ export default function DashboardPage() {
         monthlyData,
         dailyData,
         todaysSuccessfulClaims,
+        paidClaims: statsResponse.paidClaims || 0,
+        todaysCollectionAmount,
       }
 
-      console.log("[v0] Final calculated stats:", newStats)
+      console.log("BytewiseTestingpoint Final calculated stats:", newStats)
 
       setStats(newStats)
       setLastUpdated(new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }))
@@ -268,7 +298,7 @@ export default function DashboardPage() {
             <div className="text-center">
               <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-600 mx-auto mb-4"></div>
               <p className="text-purple-600 text-lg font-medium">Loading dashboard...</p>
-              <p className="text-gray-500 text-sm mt-2">Connecting to dev-env database</p>
+              <p className="text-gray-500 text-sm mt-2">Connecting to systech_ott_platform database</p>
             </div>
           </SidebarInset>
         </div>
@@ -288,7 +318,7 @@ export default function DashboardPage() {
                 <div className="flex items-center space-x-4 min-w-0 flex-1">
                   <SidebarTrigger className="text-white hover:bg-white/20 p-2 rounded-lg flex-shrink-0" />
                   <div className="flex items-center space-x-3 min-w-0 flex-1">
-                    <div className="p-2 bg-white/20 rounded-lg flex-shrink-0">
+                    <div className="p-2 bg-white/20 rounded-lg flex items-center justify-center">
                       <Image
                         src="/logo.png"
                         alt="SYSTECH DIGITAL Logo"
@@ -301,7 +331,6 @@ export default function DashboardPage() {
                       <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white truncate">
                         Dashboard Analytics
                       </h1>
-                      
                     </div>
                   </div>
                 </div>
@@ -334,14 +363,15 @@ export default function DashboardPage() {
             )}
 
             {/* Main Stats Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8 w-full">
-              <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg border-0 min-w-0">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8 w-full">
+              {/* 1. Total Claims */}
+              <Card className="bg-gradient-to-br from-teal-500 to-teal-600 text-white shadow-lg border-0 min-w-0">
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
                     <div className="min-w-0 flex-1">
-                      <p className="text-blue-100 text-sm font-medium">Total Claims</p>
+                      <p className="text-teal-100 text-sm font-medium">Total Claims</p>
                       <p className="text-2xl sm:text-3xl font-bold">{stats.totalClaims}</p>
-                      <p className="text-blue-200 text-xs sm:text-sm mt-1">📈 All time</p>
+                      <p className="text-teal-200 text-xs sm:text-sm mt-1">📈 All time claims</p>
                     </div>
                     <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
                       <Users className="w-6 h-6 sm:w-8 sm:h-8" />
@@ -350,24 +380,55 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-teal-500 to-teal-600 text-white shadow-lg border-0 min-w-0">
+              {/* 2. Total Paid Claims */}
+              <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg border-0 min-w-0">
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
                     <div className="min-w-0 flex-1">
-                      <p className="text-teal-100 text-sm font-medium">Total Claimed</p>
-                      <p className="text-2xl sm:text-3xl font-bold text-white">{stats.claimedSales}</p>
-                      <p className="text-teal-200 text-xs sm:text-sm mt-1">
-                        {stats.availableSales} available 
-                      </p>
+                      <p className="text-green-100 text-sm font-medium">Total Paid Claims</p>
+                      <p className="text-2xl sm:text-3xl font-bold">{stats.paidClaims}</p>
+                      <p className="text-green-200 text-xs sm:text-sm mt-1">✅ Successfully paid</p>
                     </div>
                     <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
-                      <ShoppingCart className="w-6 h-6 sm:w-8 sm:h-8" />
+                      <CheckCircle className="w-6 h-6 sm:w-8 sm:h-8" />
                     </div>
                   </div>
                 </CardContent>
               </Card>
-     
 
+              {/* 3. Total Payment */}
+              <Card className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-lg border-0 min-w-0">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-emerald-100 text-sm font-medium">Total Payment</p>
+                      <p className="text-2xl sm:text-3xl font-bold">{formatCurrency(stats.totalRevenue)}</p>
+                      <p className="text-emerald-200 text-xs sm:text-sm mt-1">💰 Total revenue</p>
+                    </div>
+                    <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
+                      <DollarSign className="w-6 h-6 sm:w-8 sm:h-8" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 4. Total Pending Claims */}
+              <Card className="bg-gradient-to-br from-yellow-500 to-yellow-600 text-white shadow-lg border-0 min-w-0">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-yellow-100 text-sm font-medium">Total Pending Claims</p>
+                      <p className="text-2xl sm:text-3xl font-bold">{stats.pending}</p>
+                      <p className="text-yellow-200 text-xs sm:text-sm mt-1">⏳ Awaiting processing</p>
+                    </div>
+                    <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
+                      <Clock className="w-6 h-6 sm:w-8 sm:h-8" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 5. Today's Claims */}
               <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg border-0 min-w-0">
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
@@ -375,7 +436,8 @@ export default function DashboardPage() {
                       <p className="text-orange-100 text-sm font-medium">Today's Claims</p>
                       <p className="text-2xl sm:text-3xl font-bold">{stats.todaysClaims}</p>
                       <p className="text-orange-200 text-xs sm:text-sm mt-1">
-                        📅 {new Date().toLocaleDateString("en-IN")}
+                        {Math.floor((stats.todaysCollectionAmount || 0) / 99)} paid /{" "}
+                        {stats.todaysClaims - Math.floor((stats.todaysCollectionAmount || 0) / 99)} pending
                       </p>
                     </div>
                     <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
@@ -385,12 +447,18 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg border-0 min-w-0">
+              {/* 6. Today's Collection */}
+              <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg border-0 min-w-0">
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
                     <div className="min-w-0 flex-1">
-                      <p className="text-green-100 text-sm font-medium">Total Revenue</p>
-                      <p className="text-2xl sm:text-3xl font-bold">{formatCurrency(stats.totalRevenue)}</p>
+                      <p className="text-blue-100 text-sm font-medium">Today's Collection</p>
+                      <p className="text-2xl sm:text-3xl font-bold">
+                        {formatCurrency(stats.todaysCollectionAmount || 0)}
+                      </p>
+                      <p className="text-blue-200 text-xs sm:text-sm mt-1">
+                        📅 {new Date().toLocaleDateString("en-IN")}
+                      </p>
                     </div>
                     <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
                       <DollarSign className="w-6 h-6 sm:w-8 sm:h-8" />
@@ -398,36 +466,25 @@ export default function DashboardPage() {
                   </div>
                 </CardContent>
               </Card>
-              
             </div>
 
-           
-
-            {/* Status Cards with Progress */}
+            {/* Additional Stats Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8 w-full">
-              
-
-              <Card className="bg-yellow-50 border-yellow-200 shadow-lg min-w-0">
+              <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-lg border-0 min-w-0">
                 <CardContent className="p-4 sm:p-6">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <Clock className="w-5 h-5 text-yellow-600 flex-shrink-0" />
-                    <h3 className="font-semibold text-yellow-800 truncate">Pending</h3>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-2xl font-bold text-yellow-900">{stats.pending}</span>
-                      <span className="text-sm text-yellow-600">
-                        {stats.totalClaims > 0 ? Math.round((stats.pending / stats.totalClaims) * 100) : 0}%
-                      </span>
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-purple-100 text-sm font-medium">Available Sales</p>
+                      <p className="text-2xl sm:text-3xl font-bold text-white">{stats.availableSales}</p>
+                      <p className="text-purple-200 text-xs sm:text-sm mt-1">{stats.claimedSales} claimed</p>
                     </div>
-                    <Progress
-                      value={stats.totalClaims > 0 ? (stats.pending / stats.totalClaims) * 100 : 0}
-                      className="h-2"
-                    />
-                    <p className="text-xs text-yellow-600">Awaiting processing</p>
+                    <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
+                      <ShoppingCart className="w-6 h-6 sm:w-8 sm:h-8" />
+                    </div>
                   </div>
                 </CardContent>
               </Card>
+
 
               <Card className="bg-red-50 border-red-200 shadow-lg min-w-0">
                 <CardContent className="p-4 sm:p-6">
@@ -450,6 +507,29 @@ export default function DashboardPage() {
                   </div>
                 </CardContent>
               </Card>
+
+                            <Card className="bg-yellow-50 border-yellow-200 shadow-lg min-w-0">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <Clock className="w-5 h-5 text-yellow-600 flex-shrink-0" />
+                    <h3 className="font-semibold text-yellow-800 truncate">Pending</h3>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-2xl font-bold text-yellow-900">{stats.pending}</span>
+                      <span className="text-sm text-yellow-600">
+                        {stats.totalClaims > 0 ? Math.round((stats.pending / stats.totalClaims) * 100) : 0}%
+                      </span>
+                    </div>
+                    <Progress
+                      value={stats.totalClaims > 0 ? (stats.pending / stats.totalClaims) * 100 : 0}
+                      className="h-2"
+                    />
+                    <p className="text-xs text-yellow-600">Awaiting processing</p>
+                  </div>
+                </CardContent>
+              </Card>
+
             </div>
 
             {/* Analytics Tabs */}
@@ -491,29 +571,35 @@ export default function DashboardPage() {
                   </CardHeader>
                   <CardContent className="w-full">
                     <div className="space-y-4">
-                      {stats.monthlyData.map((month, index) => (
-                        <div key={month.month} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                          <div className="flex items-center space-x-4">
-                            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                              <span className="text-purple-600 font-bold">{month.month}</span>
+                      {stats.monthlyData.map((month, index) => {
+                        const maxClaims = Math.max(...stats.monthlyData.map((m) => m.claims))
+                        const progressWidth = maxClaims > 0 ? Math.min(100, (month.claims / maxClaims) * 100) : 0
+
+                        return (
+                          <div
+                            key={month.month}
+                            className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                          >
+                            <div className="flex items-center space-x-4">
+                              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                                <span className="text-purple-600 font-bold">{month.month}</span>
+                              </div>
+                              <div>
+                                <p className="font-semibold text-gray-800">{month.claims} Claims</p>
+                                <p className="text-sm text-gray-600">{formatCurrency(month.revenue)} Revenue</p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="font-semibold text-gray-800">{month.claims} Claims</p>
-                              <p className="text-sm text-gray-600">{formatCurrency(month.revenue)} Revenue</p>
+                            <div className="text-right">
+                              <div className="w-24 bg-gray-200 rounded-full h-2">
+                                <div
+                                  className="bg-purple-600 h-2 rounded-full"
+                                  style={{ width: `${progressWidth}%` }}
+                                ></div>
+                              </div>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <div className="w-24 bg-gray-200 rounded-full h-2">
-                              <div
-                                className="bg-purple-600 h-2 rounded-full"
-                                style={{
-                                  width: `${Math.min(100, (month.claims / Math.max(...stats.monthlyData.map((m) => m.claims))) * 100)}%`,
-                                }}
-                              ></div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   </CardContent>
                 </Card>

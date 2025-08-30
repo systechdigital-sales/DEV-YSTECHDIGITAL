@@ -7,22 +7,22 @@ export async function POST(request: NextRequest) {
   try {
     const { claimId, paymentStatus, paymentId, razorpayOrderId } = await request.json()
 
-    console.log("Updating claim status in dev-env.claims:", {
+    console.log("Updating claim status in systech_ott_platform.claims:", {
       claimId,
       paymentStatus,
       paymentId,
       razorpayOrderId,
     })
 
-    // Connect to dev-env database
-    const db = await getDatabase("dev-env")
+    // Connect to systech_ott_platform database
+    const db = await getDatabase("systech_ott_platform")
     const claimsCollection = db.collection<IClaimResponse>("claims")
 
     // Find the claim
     const claim = await claimsCollection.findOne({ _id: claimId })
 
     if (!claim) {
-      console.error("Claim not found in dev-env.claims:", claimId)
+      console.error("Claim not found in systech_ott_platform.claims:", claimId)
       return NextResponse.json({ success: false, error: "Claim not found" }, { status: 404 })
     }
 
@@ -40,11 +40,11 @@ export async function POST(request: NextRequest) {
     )
 
     if (updateResult.matchedCount === 0) {
-      console.error("Failed to update claim in dev-env.claims:", claimId)
+      console.error("Failed to update claim in systech_ott_platform.claims:", claimId)
       return NextResponse.json({ success: false, error: "Failed to update claim" }, { status: 500 })
     }
 
-    console.log("Successfully updated claim in dev-env.claims:", claimId)
+    console.log("Successfully updated claim in systech_ott_platform.claims:", claimId)
 
     // Send payment success email if payment was successful
     if (paymentStatus === "paid") {
@@ -109,10 +109,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: "Claim status updated successfully in dev-env.claims",
+      message: "Claim status updated successfully in systech_ott_platform.claims",
     })
   } catch (error: any) {
-    console.error("Error updating claim status in dev-env.claims:", error)
+    console.error("Error updating claim status in systech_ott_platform.claims:", error)
     return NextResponse.json(
       { success: false, error: error.message || "Failed to update claim status" },
       { status: 500 },

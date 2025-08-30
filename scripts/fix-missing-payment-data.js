@@ -2,7 +2,7 @@ import { connectToDatabase } from "../lib/mongodb.js"
 
 async function fixMissingPaymentData() {
   try {
-    console.log("[v0] Starting comprehensive data recovery for missing payment records...")
+    console.log("BytewiseTestingpoint Starting comprehensive data recovery for missing payment records...")
 
     const { db } = await connectToDatabase()
     const claimsCollection = db.collection("claims")
@@ -19,7 +19,7 @@ async function fixMissingPaymentData() {
       })
       .toArray()
 
-    console.log("[v0] Found", paidClaimsWithoutTransactions.length, "paid claims to check")
+    console.log("BytewiseTestingpoint Found", paidClaimsWithoutTransactions.length, "paid claims to check")
 
     let recoveredCount = 0
     let alreadyExistsCount = 0
@@ -65,7 +65,7 @@ async function fixMissingPaymentData() {
         await transactionsCollection.insertOne(transactionData)
         recoveredCount++
 
-        console.log("[v0] Recovered transaction for claim:", claim.claimId)
+        console.log("BytewiseTestingpoint Recovered transaction for claim:", claim.claimId)
       } else {
         const updates = {}
 
@@ -91,7 +91,7 @@ async function fixMissingPaymentData() {
 
           await transactionsCollection.updateOne({ _id: existingTransaction._id }, { $set: updates })
           updatedCount++
-          console.log("[v0] Enhanced transaction data for claim:", claim.claimId)
+          console.log("BytewiseTestingpoint Enhanced transaction data for claim:", claim.claimId)
         }
 
         alreadyExistsCount++
@@ -105,7 +105,7 @@ async function fixMissingPaymentData() {
       })
       .toArray()
 
-    console.log("[v0] Found", orphanedTransactions.length, "orphaned transactions")
+    console.log("BytewiseTestingpoint Found", orphanedTransactions.length, "orphaned transactions")
 
     let matchedOrphansCount = 0
 
@@ -215,7 +215,7 @@ async function fixMissingPaymentData() {
 
         matchedOrphansCount++
         console.log(
-          "[v0] Matched orphaned transaction:",
+          "BytewiseTestingpoint Matched orphaned transaction:",
           transaction.razorpay_payment_id,
           "with claim:",
           matchingClaim.claimId,
@@ -237,7 +237,7 @@ async function fixMissingPaymentData() {
     // Store recovery report
     await db.collection("recovery_reports").insertOne(recoveryReport)
 
-    console.log("[v0] Data recovery completed successfully:")
+    console.log("BytewiseTestingpoint Data recovery completed successfully:")
     console.log("- Recovered missing transactions:", recoveredCount)
     console.log("- Already existing transactions:", alreadyExistsCount)
     console.log("- Enhanced existing transactions:", updatedCount)
@@ -247,7 +247,7 @@ async function fixMissingPaymentData() {
 
     return recoveryReport
   } catch (error) {
-    console.error("[v0] Error in data recovery:", error)
+    console.error("BytewiseTestingpoint Error in data recovery:", error)
     throw error
   }
 }
@@ -267,10 +267,10 @@ function getMatchStrategy(transaction, claim) {
 // Run the recovery
 fixMissingPaymentData()
   .then((result) => {
-    console.log("[v0] Recovery completed successfully:", result)
+    console.log("BytewiseTestingpoint Recovery completed successfully:", result)
     process.exit(0)
   })
   .catch((error) => {
-    console.error("[v0] Recovery failed:", error)
+    console.error("BytewiseTestingpoint Recovery failed:", error)
     process.exit(1)
   })

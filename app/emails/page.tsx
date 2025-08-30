@@ -85,7 +85,7 @@ export default function EmailsPage() {
       setLoading(true)
       setError(null)
 
-      console.log("[v0] Fetching comprehensive claims data for emails page...")
+      console.log("BytewiseTestingpoint Fetching comprehensive claims data for emails page...")
 
       // Fetch claims with all email-related data
       const response = await fetch("/api/admin/claims?limit=1000", {
@@ -95,14 +95,14 @@ export default function EmailsPage() {
         },
       })
 
-      console.log("[v0] Claims API response status:", response.status)
+      console.log("BytewiseTestingpoint Claims API response status:", response.status)
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
 
       const data = await response.json()
-      console.log("[v0] Claims API response data structure:", {
+      console.log("BytewiseTestingpoint Claims API response data structure:", {
         hasSuccess: "success" in data,
         hasClaims: "claims" in data,
         isArray: Array.isArray(data),
@@ -115,16 +115,16 @@ export default function EmailsPage() {
 
       if (data.success && Array.isArray(data.claims)) {
         claimsData = data.claims
-        console.log("[v0] Using data.claims array, length:", claimsData.length)
+        console.log("BytewiseTestingpoint Using data.claims array, length:", claimsData.length)
       } else if (Array.isArray(data)) {
         claimsData = data
-        console.log("[v0] Using direct data array, length:", claimsData.length)
+        console.log("BytewiseTestingpoint Using direct data array, length:", claimsData.length)
       } else if (data.data && Array.isArray(data.data)) {
         claimsData = data.data
-        console.log("[v0] Using data.data array, length:", claimsData.length)
+        console.log("BytewiseTestingpoint Using data.data array, length:", claimsData.length)
       } else {
         claimsData = []
-        console.log("[v0] No valid claims data found, using empty array")
+        console.log("BytewiseTestingpoint No valid claims data found, using empty array")
       }
 
       // Ensure all required email fields are present
@@ -136,7 +136,7 @@ export default function EmailsPage() {
       }))
 
       if (claimsData.length > 0) {
-        console.log("[v0] Sample claim data structure:", {
+        console.log("BytewiseTestingpoint Sample claim data structure:", {
           firstClaim: {
             hasClaimId: "claimId" in claimsData[0],
             hasEmail: "email" in claimsData[0],
@@ -150,9 +150,9 @@ export default function EmailsPage() {
 
       setClaims(claimsData)
       setFilteredClaims(claimsData)
-      console.log("[v0] Successfully set claims data, total:", claimsData.length)
+      console.log("BytewiseTestingpoint Successfully set claims data, total:", claimsData.length)
     } catch (err) {
-      console.error("[v0] Error fetching claims:", err)
+      console.error("BytewiseTestingpoint Error fetching claims:", err)
       setError(err instanceof Error ? err.message : "Failed to fetch claims data")
       setClaims([])
       setFilteredClaims([])
@@ -329,7 +329,7 @@ export default function EmailsPage() {
 
   const deliveryRate = claims.length > 0 ? Math.round((deliveredCount / claims.length) * 100) : 0
 
-  console.log("[v0] Email statistics:", {
+  console.log("BytewiseTestingpoint Email statistics:", {
     totalClaims: claims.length,
     deliveredCount,
     pendingCount,
