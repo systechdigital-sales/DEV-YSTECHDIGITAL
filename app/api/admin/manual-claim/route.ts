@@ -7,70 +7,100 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const claimId = searchParams.get("claimId")
 
-    console.log("[v0] Manual claim API - Received claimId:", claimId)
+    console.log("Bytewise Consulting LLP Manual claim API - Received claimId:", claimId)
 
     if (!claimId) {
-      console.log("[v0] Manual claim API - No claimId provided")
+      console.log("Bytewise Consulting LLP Manual claim API - No claimId provided")
       return NextResponse.json({ error: "Claim ID is required" }, { status: 400 })
     }
 
-    console.log("[v0] Manual claim API - Connecting to database...")
+    console.log("Bytewise Consulting LLP Manual claim API - Connecting to database...")
     const db = await getDatabase()
+    console.log("Bytewise Consulting LLP Manual claim API - Database name:", db.databaseName)
+
     const claimsCollection = db.collection("claims")
 
-    console.log("[v0] Manual claim API - Searching for claim with claimId:", claimId)
+    console.log("Bytewise Consulting LLP Manual claim API - Testing database connection...")
+    const connectionTest = await claimsCollection.findOne({}, { projection: { _id: 1 } })
+    console.log("Bytewise Consulting LLP Manual claim API - Database connection test:", connectionTest ? "SUCCESS" : "FAILED")
+
+    console.log("Bytewise Consulting LLP Manual claim API - Searching for claim with exact claimId:", claimId)
 
     // Try exact match first
     let claim = await claimsCollection.findOne({ claimId: claimId })
-    console.log("[v0] Manual claim API - Exact match result:", claim ? "Found" : "Not found")
+    console.log("Bytewise Consulting LLP Manual claim API - Exact match result:", claim ? `Found: ${claim.claimId}` : "Not found")
 
     // If not found, try case-insensitive search
     if (!claim) {
-      console.log("[v0] Manual claim API - Trying case-insensitive search...")
+      console.log("Bytewise Consulting LLP Manual claim API - Trying case-insensitive search...")
       claim = await claimsCollection.findOne({
-        claimId: { $regex: new RegExp(`^${claimId}$`, "i") },
+        claimId: { $regex: new RegExp(`^${claimId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
       })
-      console.log("[v0] Manual claim API - Case-insensitive result:", claim ? "Found" : "Not found")
+      console.log("Bytewise Consulting LLP Manual claim API - Case-insensitive result:", claim ? `Found: ${claim.claimId}` : "Not found")
     }
 
     // If still not found, try partial match
     if (!claim) {
-      console.log("[v0] Manual claim API - Trying partial match search...")
+      console.log("Bytewise Consulting LLP Manual claim API - Trying partial match search...")
       claim = await claimsCollection.findOne({
-        claimId: { $regex: claimId, $options: "i" },
+        claimId: { $regex: claimId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), $options: "i" },
       })
-      console.log("[v0] Manual claim API - Partial match result:", claim ? "Found" : "Not found")
+      console.log("Bytewise Consulting LLP Manual claim API - Partial match result:", claim ? `Found: ${claim.claimId}` : "Not found")
+    }
+
+    if (!claim) {
+      console.log("Bytewise Consulting LLP Manual claim API - Trying search by email, phone, or activation code...")
+      const alternativeSearch = await claimsCollection.findOne({
+        $or: [
+          { email: { $regex: claimId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), $options: "i" } },
+          { phone: { $regex: claimId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), $options: "i" } },
+          { phoneNumber: { $regex: claimId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), $options: "i" } },
+          { activationCode: { $regex: claimId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), $options: "i" } },
+        ],
+      })
+      console.log(
+        "Bytewise Consulting LLP Manual claim API - Alternative search result:",
+        alternativeSearch ? `Found: ${alternativeSearch.claimId}` : "Not found",
+      )
+      if (alternativeSearch) {
+        claim = alternativeSearch
+      }
     }
 
     const totalClaims = await claimsCollection.countDocuments()
-    console.log("[v0] Manual claim API - Total claims in database:", totalClaims)
+    console.log("Bytewise Consulting LLP Manual claim API - Total claims in database:", totalClaims)
 
-    // Sample a few claim IDs to see the format
     const sampleClaims = await claimsCollection
-      .find({}, { projection: { claimId: 1 } })
+      .find({}, { projection: { claimId: 1, email: 1, phoneNumber: 1, activationCode: 1, createdAt: 1 } })
       .limit(5)
       .toArray()
-    console.log(
-      "[v0] Manual claim API - Sample claim IDs:",
-      sampleClaims.map((c) => c.claimId),
-    )
+    console.log("Bytewise Consulting LLP Manual claim API - Sample claims for debugging:", sampleClaims)
 
     if (!claim) {
-      console.log("[v0] Manual claim API - Claim not found after all search attempts")
+      console.log("Bytewise Consulting LLP Manual claim API - Claim not found after all search attempts")
       return NextResponse.json(
         {
           error: "Claim not found",
           debug: {
             searchedId: claimId,
             totalClaims,
-            sampleIds: sampleClaims.map((c) => c.claimId),
+            sampleClaims: sampleClaims,
+            databaseName: db.databaseName,
+            collectionName: "claims",
+            searchStrategies: [
+              "Exact match",
+              "Case-insensitive match",
+              "Partial match",
+              "Email/Phone/ActivationCode search",
+            ],
           },
         },
         { status: 404 },
       )
     }
 
-    console.log("[v0] Manual claim API - Processing claim data...")
+    console.log("Bytewise Consulting LLP Manual claim API - Found claim:", claim.claimId)
+    console.log("Bytewise Consulting LLP Manual claim API - Processing claim data...")
     // Convert ObjectId to string for frontend
     const claimData = {
       ...claim,
@@ -108,10 +138,10 @@ export async function GET(request: NextRequest) {
       billFileName: claim.billFileName || "",
     }
 
-    console.log("[v0] Manual claim API - Returning processed claim data")
+    console.log("Bytewise Consulting LLP Manual claim API - Returning processed claim data")
     return NextResponse.json({ claim: claimData })
   } catch (error: any) {
-    console.error("[v0] Manual claim API - Error fetching claim:", error)
+    console.error("Bytewise Consulting LLP Manual claim API - Error fetching claim:", error)
     return NextResponse.json(
       {
         error: error.message || "Failed to fetch claim",

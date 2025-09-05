@@ -3,6 +3,68 @@ import { getDatabase } from "@/lib/mongodb"
 import { sendEmail } from "@/lib/email"
 import { sendOTTCodeWhatsApp, sendFailureWhatsApp } from "@/lib/whatsapp"
 
+async function verifyPaymentWithRazorpay(
+  paymentId: string,
+  orderId: string,
+): Promise<{ success: boolean; status: string; error?: string }> {
+  try {
+    const auth = Buffer.from(`${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`).toString("base64")
+
+    // Verify payment status from Razorpay
+    const paymentResponse = await fetch(`https://api.razorpay.com/v1/payments/${paymentId}`, {
+      headers: {
+        Authorization: `Basic ${auth}`,
+        "Content-Type": "application/json",
+      },
+    })
+
+    if (!paymentResponse.ok) {
+      return { success: false, status: "unknown", error: "Failed to fetch payment details" }
+    }
+
+    const paymentData = await paymentResponse.json()
+
+    // Also verify order status
+    const orderResponse = await fetch(`https://api.razorpay.com/v1/orders/${orderId}`, {
+      headers: {
+        Authorization: `Basic ${auth}`,
+        "Content-Type": "application/json",
+      },
+    })
+
+    if (!orderResponse.ok) {
+      return { success: false, status: paymentData.status, error: "Failed to fetch order details" }
+    }
+
+    const orderData = await orderResponse.json()
+
+    console.log(`[v0] Razorpay verification - Payment: ${paymentData.status}, Order: ${orderData.status}`)
+
+    return {
+      success: true,
+      status: paymentData.status,
+      error: paymentData.status === "failed" ? paymentData.error_description : undefined,
+    }
+  } catch (error) {
+    console.error("[v0] Razorpay verification error:", error)
+    return { success: false, status: "unknown", error: error.message }
+  }
+}
+
+function getNextVerificationTime(attemptNumber: number): Date {
+  const now = new Date()
+  switch (attemptNumber) {
+    case 1:
+      return new Date(now.getTime() + 30 * 60 * 1000) // 30 minutes
+    case 2:
+      return new Date(now.getTime() + 60 * 60 * 1000) // 1 hour
+    case 3:
+      return new Date(now.getTime() + 2 * 60 * 60 * 1000) // 2 hours
+    default:
+      return new Date(now.getTime() + 30 * 60 * 1000)
+  }
+}
+
 // Helper function to normalize activation codes for better matching
 const normalizeActivationCode = (code: string): string => {
   return code.toString().trim().toUpperCase().replace(/\s+/g, "")
@@ -69,8 +131,7 @@ export async function POST(request: NextRequest) {
       step?: string
     }> = []
 
-    // STEP 1: Handle expired pending payments (older than 48 hours)
-    console.log("📅 Step 1: Processing expired pending payments...")
+    console.log("📅 Step 1: Processing expired pending payments with verification...")
     const expiredCutoff = new Date(Date.now() - 48 * 60 * 60 * 1000) // 48 hours ago
 
     const expiredClaims = await claimsCollection
@@ -85,24 +146,97 @@ export async function POST(request: NextRequest) {
 
     for (const claim of expiredClaims) {
       try {
-        // Update claim status to failed
-        await claimsCollection.updateOne(
-          { _id: claim._id },
-          {
-            $set: {
-              paymentStatus: "failed",
-              failureReason: "Payment expired - exceeded 48 hour payment window",
-              updatedAt: new Date(),
-              emailSent: "expired", // Mark that expired email was sent
+        if (!claim.verificationAttempts) {
+          await claimsCollection.updateOne(
+            { _id: claim._id },
+            {
+              $set: {
+                verificationAttempts: 0,
+                lastVerificationAt: new Date(),
+                nextVerificationAt: getNextVerificationTime(1),
+              },
             },
-          },
-        )
+          )
+          claim.verificationAttempts = 0
+        }
 
-        // Send expired payment email
-        await sendExpiredPaymentEmail(claim)
-        expiredCount++
+        const now = new Date()
+        if (claim.nextVerificationAt && now < new Date(claim.nextVerificationAt)) {
+          console.log(`⏳ Skipping claim ${claim.claimId} - next verification at ${claim.nextVerificationAt}`)
+          continue
+        }
 
-        console.log(`⏰ Expired claim processed: ${claim.claimId}`)
+        let shouldFail = true
+        if (claim.razorpayPaymentId && claim.razorpayOrderId && claim.verificationAttempts < 3) {
+          console.log(`🔍 Verifying payment ${claim.razorpayPaymentId} (attempt ${claim.verificationAttempts + 1}/3)`)
+
+          const verification = await verifyPaymentWithRazorpay(claim.razorpayPaymentId, claim.razorpayOrderId)
+
+          await claimsCollection.updateOne(
+            { _id: claim._id },
+            {
+              $set: {
+                verificationAttempts: claim.verificationAttempts + 1,
+                lastVerificationAt: new Date(),
+                lastVerificationResult: verification.status,
+                nextVerificationAt:
+                  claim.verificationAttempts + 1 < 3 ? getNextVerificationTime(claim.verificationAttempts + 2) : null,
+              },
+            },
+          )
+
+          if (verification.success) {
+            if (verification.status === "captured" || verification.status === "authorized") {
+              await claimsCollection.updateOne(
+                { _id: claim._id },
+                {
+                  $set: {
+                    paymentStatus: "paid",
+                    updatedAt: new Date(),
+                    verificationNote: `Payment verified as ${verification.status} on attempt ${claim.verificationAttempts + 1}`,
+                  },
+                },
+              )
+              console.log(`✅ Payment verified as ${verification.status} for claim ${claim.claimId}`)
+              shouldFail = false
+              continue
+            } else if (verification.status === "created" || verification.status === "attempted") {
+              if (claim.verificationAttempts + 1 < 3) {
+                console.log(`⏳ Payment still ${verification.status}, will retry later for claim ${claim.claimId}`)
+                shouldFail = false
+                continue
+              }
+            }
+          }
+
+          if (claim.verificationAttempts + 1 >= 3) {
+            console.log(`❌ All 3 verification attempts exhausted for claim ${claim.claimId}`)
+          }
+        }
+
+        if (shouldFail) {
+          const failureReason = claim.razorpayPaymentId
+            ? `Payment verification failed after 3 attempts - last status: ${claim.lastVerificationResult || "unknown"}`
+            : "Payment expired - exceeded 48 hour payment window"
+
+          await claimsCollection.updateOne(
+            { _id: claim._id },
+            {
+              $set: {
+                paymentStatus: "failed",
+                failureReason: failureReason,
+                updatedAt: new Date(),
+                emailSent: "expired", // Mark that expired email was sent
+              },
+            },
+          )
+
+          // Send expired payment email
+          await sendExpiredPaymentEmail(claim)
+          expiredCount++
+
+          console.log(`⏰ Expired claim processed: ${claim.claimId}`)
+        }
       } catch (error) {
         console.error(`❌ Error processing expired claim ${claim.claimId}:`, error)
       }

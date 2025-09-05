@@ -64,7 +64,7 @@ export async function DELETE(request: NextRequest) {
       console.log("Bulk delete result:", result)
 
       return NextResponse.json({
-        message: `Successfully deleted ${deletedCount} ${type} record(s) from systech_ott_platform database`,
+        message: `Successfully deleted ${deletedCount} ${type} record(s) from database`,
         deletedCount,
       })
     } else if (id) {
@@ -94,7 +94,7 @@ export async function DELETE(request: NextRequest) {
       }
 
       return NextResponse.json({
-        message: `Successfully deleted ${type} record from systech_ott_platform database`,
+        message: `Successfully deleted ${type} record from database`,
         deletedCount,
       })
     } else {

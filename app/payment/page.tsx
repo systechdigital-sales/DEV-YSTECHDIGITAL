@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, CreditCard, AlertCircle, ArrowLeft, CheckCircle, User, Mail, Phone, Package } from "lucide-react"
 import Image from "next/image"
+import { verifyPayment, logClient } from "@/lib/payment-helpers"
 
 interface PaymentData {
   claimId: string
@@ -181,20 +182,26 @@ function PaymentContent() {
         handler: async (response: any) => {
           console.log("Payment successful:", response)
           try {
-            const verifyData = await verifyPayment(response, paymentData.claimId, 3)
+            const verifyData = await verifyPayment(response, paymentData.claimId)
+
+            console.log("Verification response:", verifyData)
+            logClient("Payment verification completed successfully", verifyData)
 
             if (verifyData.success) {
+              // Redirect to success page
               router.push(
-                `/payment/success?claimId=${paymentData.claimId}&paymentId=${response.razorpay_payment_id}&amount=${paymentData.amount}`
+                `/payment/success?claimId=${paymentData.claimId}&paymentId=${response.razorpay_payment_id}&amount=${paymentData.amount}`,
               )
+            } else {
+              throw new Error(verifyData.error || "Payment verification failed")
             }
           } catch (verifyError) {
-            console.error("Payment verification error after retries:", verifyError)
-            setError("Payment verification failed after multiple attempts. Please contact support if amount was deducted.")
+            console.error("Payment verification error:", verifyError)
+            logClient("Payment verification failed", verifyError)
+            setError("Payment verification failed. Please contact support if amount was deducted.")
             setLoading(false)
           }
         },
-
         modal: {
           ondismiss: () => {
             console.log("Payment modal dismissed")
@@ -436,48 +443,4 @@ export default function PaymentPage() {
       <PaymentContent />
     </Suspense>
   )
-}
-
-// Helper: retry payment verification up to 3 times
-const verifyPayment = async (
-  response: any,
-  claimId: string,
-  retries = 3
-): Promise<any> => {
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      console.log(`Verifying payment (attempt ${attempt})...`)
-      const verifyResponse = await fetch("/api/payment/verify", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          razorpay_order_id: response.razorpay_order_id,
-          razorpay_payment_id: response.razorpay_payment_id,
-          razorpay_signature: response.razorpay_signature,
-          claimId,
-        }),
-      })
-
-      const verifyData = await verifyResponse.json()
-      console.log("Verification response:", verifyData)
-
-      if (verifyData.success) {
-        return verifyData
-      }
-
-      // If failed and not last attempt → wait a bit before retry
-      if (attempt < retries) {
-        console.warn("Verification failed, retrying in 2s...")
-        await new Promise((res) => setTimeout(res, 2000))
-      } else {
-        throw new Error(verifyData.error || "Payment verification failed")
-      }
-    } catch (err) {
-      console.error(`Attempt ${attempt} error:`, err)
-      if (attempt === retries) throw err
-      await new Promise((res) => setTimeout(res, 2000))
-    }
-  }
 }

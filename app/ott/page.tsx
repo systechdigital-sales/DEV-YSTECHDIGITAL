@@ -1348,7 +1348,6 @@ export default function OTTClaimPage() {
                       value={formData.purchaseDate}
                       onChange={(e) => handleInputChange("purchaseDate", e.target.value)}
                       className="mt-1"
-                      max={new Date().toISOString().split("T")[0]}
                     />
                   </div>
                   <div>

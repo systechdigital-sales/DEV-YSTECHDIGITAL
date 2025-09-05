@@ -132,7 +132,7 @@ export default function AdminPage() {
 
   // Filter state
   const [filters, setFilters] = useState<FilterConfig>({
-    paymentStatus: "all",
+    paymentStatus: "paid",
     ottStatus: "all",
     salesStatus: "all",
     keysStatus: "all",
@@ -235,78 +235,166 @@ export default function AdminPage() {
     }
   }
 
+  // const loadCurrentTabData = useCallback(
+  //   async (page = 1, search = "") => {
+  //     setSearchLoading(true)
+
+  //     try {
+  //       const params = new URLSearchParams({
+  //         page: page.toString(),
+  //         limit: ITEMS_PER_PAGE.toString(),
+  //         search: search,
+  //         ...(activeTab === "transactions"
+  //           ? {}
+  //           : {
+  //               sort: sortConfig.key,
+  //               order: sortConfig.direction,
+  //               paymentStatus: filters.paymentStatus,
+  //               ottStatus: filters.ottStatus,
+  //               salesStatus: filters.salesStatus,
+  //               keysStatus: filters.keysStatus,
+  //               transactionsStatus: filters.transactionsStatus,
+  //               startDate: dateFilter.startDate,
+  //               endDate: dateFilter.endDate,
+  //             }),
+  //       })
+
+  //       const endpoint = activeTab === "transactions" ? "/api/admin/razorpay-transactions" : `/api/admin/${activeTab}`
+
+  //       const response = await fetch(`${endpoint}?${params}`)
+  //       const data = await response.json()
+
+  //       if (response.ok) {
+  //         if (activeTab === "transactions") {
+  //           setCurrentData((prev) => ({
+  //             ...prev,
+  //             transactions: data.data || [],
+  //           }))
+  //           setPagination((prev) => ({
+  //             ...prev,
+  //             transactions: {
+  //               page: data.page || page,
+  //               total: data.total || 0,
+  //               totalPages: data.totalPages || Math.ceil((data.total || 0) / ITEMS_PER_PAGE),
+  //             },
+  //           }))
+  //         } else {
+  //           setCurrentData((prev) => ({
+  //             ...prev,
+  //             [activeTab]: data.data || [],
+  //           }))
+  //           setPagination((prev) => ({
+  //             ...prev,
+  //             [activeTab]: {
+  //               page: data.page || 1,
+  //               total: data.total || 0,
+  //               totalPages: data.totalPages || 1,
+  //             },
+  //           }))
+  //         }
+  //       } else {
+  //         throw new Error(data.error || "Failed to load data")
+  //       }
+  //     } catch (error) {
+  //       console.error(`Error loading ${activeTab} data:`, error)
+  //       setError(`Failed to load ${activeTab} data`)
+  //     } finally {
+  //       setSearchLoading(false)
+  //       if (initialLoading) {
+  //         setLoading(false)
+  //       }
+  //     }
+  //   },
+  //   [activeTab, sortConfig, filters, dateFilter, initialLoading],
+  // )
   const loadCurrentTabData = useCallback(
-    async (page = 1, search = "") => {
-      setSearchLoading(true)
+  async (page = 1, search = "") => {
+    setSearchLoading(true)
 
-      try {
-        const params = new URLSearchParams({
-          page: page.toString(),
-          limit: ITEMS_PER_PAGE.toString(),
-          search: search,
-          ...(activeTab === "transactions"
-            ? {}
-            : {
-                sort: sortConfig.key,
-                order: sortConfig.direction,
-                paymentStatus: filters.paymentStatus,
-                ottStatus: filters.ottStatus,
-                salesStatus: filters.salesStatus,
-                keysStatus: filters.keysStatus,
-                transactionsStatus: filters.transactionsStatus,
-                startDate: dateFilter.startDate,
-                endDate: dateFilter.endDate,
-              }),
-        })
+    try {
+      // shared params
+      const params: Record<string, string> = {
+        page: page.toString(),
+        limit: ITEMS_PER_PAGE.toString(),
+        search,
+      }
 
-        const endpoint = activeTab === "transactions" ? "/api/admin/razorpay-transactions" : `/api/admin/${activeTab}`
-
-        const response = await fetch(`${endpoint}?${params}`)
-        const data = await response.json()
-
-        if (response.ok) {
-          if (activeTab === "transactions") {
-            setCurrentData((prev) => ({
-              ...prev,
-              transactions: data.data || [],
-            }))
-            setPagination((prev) => ({
-              ...prev,
-              transactions: {
-                page: data.page || page,
-                total: data.total || 0,
-                totalPages: data.totalPages || Math.ceil((data.total || 0) / ITEMS_PER_PAGE),
-              },
-            }))
-          } else {
-            setCurrentData((prev) => ({
-              ...prev,
-              [activeTab]: data.data || [],
-            }))
-            setPagination((prev) => ({
-              ...prev,
-              [activeTab]: {
-                page: data.page || 1,
-                total: data.total || 0,
-                totalPages: data.totalPages || 1,
-              },
-            }))
-          }
-        } else {
-          throw new Error(data.error || "Failed to load data")
+      // add filters depending on activeTab
+      if (activeTab === "claims") {
+        if (filters.paymentStatus && filters.paymentStatus !== "all") {
+          params.paymentStatus = filters.paymentStatus
         }
-      } catch (error) {
-        console.error(`Error loading ${activeTab} data:`, error)
-        setError(`Failed to load ${activeTab} data`)
-      } finally {
-        setSearchLoading(false)
-        if (initialLoading) {
-          setLoading(false)
+        if (filters.ottStatus && filters.ottStatus !== "all") {
+          params.ottStatus = filters.ottStatus
         }
       }
-    },
-    [activeTab, sortConfig, filters, dateFilter, initialLoading],
-  )
+
+      if (activeTab === "sales") {
+        if (filters.salesStatus && filters.salesStatus !== "all") {
+          params.status = filters.salesStatus
+        }
+      }
+
+      if (activeTab === "keys") {
+        if (filters.keysStatus && filters.keysStatus !== "all") {
+          params.status = filters.keysStatus
+          
+        }
+      }
+
+      if (activeTab === "transactions") {
+        if (filters.transactionsStatus && filters.transactionsStatus !== "all") {
+          params.status = filters.transactionsStatus
+        }
+      }
+
+      // add sorting & date filters for non-transactions tabs
+      if (activeTab !== "transactions") {
+        params.sort = sortConfig.key
+        params.order = sortConfig.direction
+        if (dateFilter.startDate) params.startDate = dateFilter.startDate
+        if (dateFilter.endDate) params.endDate = dateFilter.endDate
+      }
+
+      const queryString = new URLSearchParams(params).toString()
+      const endpoint =
+        activeTab === "transactions"
+          ? "/api/admin/razorpay-transactions"
+          : `/api/admin/${activeTab}`
+
+      const response = await fetch(`${endpoint}?${queryString}`)
+      const data = await response.json()
+
+      if (!response.ok) throw new Error(data.error || "Failed to load data")
+
+      // update the correct tab inside currentData
+      setCurrentData((prev) => ({
+        ...prev,
+        [activeTab]: data.data || [],
+      }))
+
+      // update pagination for the correct tab
+      setPagination((prev) => ({
+        ...prev,
+        [activeTab]: {
+          page: data.page || page,
+          total: data.total || 0,
+          totalPages: data.totalPages || Math.ceil((data.total || 0) / ITEMS_PER_PAGE),
+        },
+      }))
+    } catch (error) {
+      console.error(`Error loading ${activeTab} data:`, error)
+      setError(`Failed to load ${activeTab} data`)
+    } finally {
+      setSearchLoading(false)
+      if (initialLoading) {
+        setLoading(false)
+      }
+    }
+  },
+  [activeTab, sortConfig, filters, dateFilter, initialLoading],
+)
+
 
   const handleSearch = () => {
     setSearchTerm(searchInput)
@@ -353,23 +441,39 @@ export default function AdminPage() {
     setSearchTerm(value)
   }
 
-  const handleFilterChange = (filterType: keyof FilterConfig, value: string) => {
-    console.log("Bytewise Filter change:", filterType, "=", value)
-    if (filterType === "paymentStatus" && value === "returned") {
-      console.log("Bytewise Filtering for returned payments only")
-    }
+  // const handleFilterChange = (filterType: keyof FilterConfig, value: string) => {
+  //   console.log("Bytewise Filter change:", filterType, "=", value)
+  //   if (filterType === "paymentStatus" && value === "returned") {
+  //     console.log("Bytewise Filtering for returned payments only")
+  //   }
 
-    setFilters((prev) => ({
-      ...prev,
-      [filterType]: value,
-    }))
-    setPagination((prev) => ({
-      ...prev,
-      [activeTab]: { ...prev[activeTab as keyof typeof prev], page: 1 },
-    }))
+  //   setFilters((prev) => ({
+  //     ...prev,
+  //     [filterType]: value,
+  //   }))
+  //   setPagination((prev) => ({
+  //     ...prev,
+  //     [activeTab]: { ...prev[activeTab as keyof typeof prev], page: 1 },
+  //   }))
 
-    loadCurrentTabData(1, searchTerm)
-  }
+  //   loadCurrentTabData(1, searchTerm)
+  // }
+
+const handleFilterChange = (filterType: keyof FilterConfig, value: string) => {
+  setFilters((prev) => ({
+    ...prev,
+    [filterType]: value,
+  }))
+
+  setPagination((prev) => ({
+    ...prev,
+    [activeTab]: { ...prev[activeTab], page: 1 },
+  }))
+
+  loadCurrentTabData(1, searchTerm)
+}
+
+
 
   const handleDateFilterChange = (field: "startDate" | "endDate", value: string) => {
     console.log("Bytewise Date filter change:", field, value)
@@ -489,42 +593,23 @@ export default function AdminPage() {
     }
   }
 
-  const exportData = async (type?: "claims" | "sales" | "keys") => {
+  const exportData = async (type?: "claims" | "sales" | "keys" | "all") => {
     try {
       setMessage("")
       setError("")
 
-      let url = "/api/admin/export"
-      if (type) {
-        url += `?type=${type}`
+      if (type === "all") {
+        await exportData("claims")
+        await exportData("sales")
+        await exportData("keys")
+        return
       }
 
+      let url = "/api/admin/export"
+      if (type) url += `?type=${type}`
+
       const response = await fetch(url)
-
-      if (response.ok) {
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement("a")
-        a.style.display = "none"
-        a.href = url
-
-        const fileName = type
-          ? `systech_ott_${type}_export_${new Date().toISOString().split("T")[0]}.xlsx`
-          : `systech_ott_platform_export_${new Date().toISOString().split("T")[0]}.xlsx`
-
-        a.download = fileName
-        document.body.appendChild(a)
-        a.click()
-        window.URL.revokeObjectURL(url)
-        document.body.removeChild(a)
-
-        const successMessage = `${type ? type.charAt(0).toUpperCase() + type.slice(1) : "All"} data exported successfully with all columns`
-        setMessage(successMessage)
-        toast({
-          title: "Export Successful",
-          description: successMessage,
-        })
-      } else {
+      if (!response.ok) {
         const errorResult = await response.json()
         const errorMessage = errorResult.error || "Failed to export data"
         setError(errorMessage)
@@ -533,7 +618,31 @@ export default function AdminPage() {
           description: errorMessage,
           variant: "destructive",
         })
+        return
       }
+
+      const blob = await response.blob()
+      const urlObj = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.style.display = "none"
+      a.href = urlObj
+
+      const fileName = type
+        ? `systech_ott_${type}_export_${new Date().toISOString().split("T")[0]}.xlsx`
+        : `systech_ott_platform_export_${new Date().toISOString().split("T")[0]}.xlsx`
+
+      a.download = fileName
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(urlObj)
+      document.body.removeChild(a)
+
+      const successMessage = `${type ? type.charAt(0).toUpperCase() + type.slice(1) : "All"} data exported successfully with all columns`
+      setMessage(successMessage)
+      toast({
+        title: "Export Successful",
+        description: successMessage,
+      })
     } catch (error) {
       console.error("Export error:", error)
       const errorMessage = "Network error occurred during export"
@@ -1242,7 +1351,7 @@ Team SYSTECH DIGITAL`
             <div className="text-center">
               <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-600 mx-auto mb-4"></div>
               <p className="text-purple-600 text-lg font-medium">Loading dashboard...</p>
-              <p className="text-gray-500 text-sm mt-2">Connecting to systech_ott_platform database</p>
+              <p className="text-gray-500 text-sm mt-2">Connecting to database</p>
             </div>
           </SidebarInset>
         </div>
@@ -1392,7 +1501,7 @@ Team SYSTECH DIGITAL`
                     Data Management
                   </CardTitle>
                   <CardDescription className="text-sm sm:text-lg text-gray-600">
-                    Upload Excel files (.xlsx, .xls) or CSV files and export data from systech_ott_platform
+                    Upload Excel files (.xlsx, .xls) or CSV files and export
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="p-4 sm:p-8">
@@ -1517,7 +1626,7 @@ Team SYSTECH DIGITAL`
                           📤 Export Data & Manual Actions
                         </h3>
                         <p className="text-gray-600 text-sm">
-                          Download data from systech_ott_platform database and perform manual operations
+                          Download data from  database and perform manual operations
                         </p>
                       </div>
                     </div>
@@ -1604,7 +1713,7 @@ Team SYSTECH DIGITAL`
                             Claims Management
                           </CardTitle>
                           <CardDescription className="text-sm sm:text-lg text-gray-600">
-                            Customer claims from systech_ott_platform.claims collection
+                            Customer claims from claims collection
                           </CardDescription>
                         </div>
                       </div>
@@ -1791,7 +1900,7 @@ Team SYSTECH DIGITAL`
                             Redemption Records
                           </CardTitle>
                           <CardDescription className="text-sm sm:text-lg text-gray-600">
-                            Sales data from systech_ott_platform.salesrecords collection
+                            Sales data from salesrecords collection
                           </CardDescription>
                         </div>
                       </div>
@@ -1910,7 +2019,7 @@ Team SYSTECH DIGITAL`
                             OTT Keys Inventory
                           </CardTitle>
                           <CardDescription className="text-sm sm:text-lg text-gray-600">
-                            OTT keys from systech_ott_platform.ottkeys collection
+                            OTT keys from ottkeys collection
                           </CardDescription>
                         </div>
                       </div>
@@ -1956,9 +2065,8 @@ Team SYSTECH DIGITAL`
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="all">All Status</SelectItem>
-                                <SelectItem value="available">Available</SelectItem>
+                                <SelectItem value="Available">Available</SelectItem>
                                 <SelectItem value="assigned">Assigned</SelectItem>
-                                <SelectItem value="used">Used</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -1983,6 +2091,7 @@ Team SYSTECH DIGITAL`
                           </TableHeader>
                           <TableBody>
                             {currentData.keys.length > 0 ? (
+                              
                               currentData.keys.map((key, index) => (
                                 <TableRow
                                   key={key._id || key.id}
@@ -2093,10 +2202,7 @@ Team SYSTECH DIGITAL`
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="all">All Status</SelectItem>
-                                <SelectItem value="created">Created</SelectItem>
-                                <SelectItem value="authorized">Authorized</SelectItem>
                                 <SelectItem value="captured">Captured</SelectItem>
-                                <SelectItem value="refunded">Refunded</SelectItem>
                                 <SelectItem value="failed">Failed</SelectItem>
                               </SelectContent>
                             </Select>

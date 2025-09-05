@@ -298,7 +298,7 @@ export default function DashboardPage() {
             <div className="text-center">
               <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-600 mx-auto mb-4"></div>
               <p className="text-purple-600 text-lg font-medium">Loading dashboard...</p>
-              <p className="text-gray-500 text-sm mt-2">Connecting to systech_ott_platform database</p>
+              <p className="text-gray-500 text-sm mt-2">Connecting to database</p>
             </div>
           </SidebarInset>
         </div>
@@ -437,7 +437,6 @@ export default function DashboardPage() {
                       <p className="text-2xl sm:text-3xl font-bold">{stats.todaysClaims}</p>
                       <p className="text-orange-200 text-xs sm:text-sm mt-1">
                         {Math.floor((stats.todaysCollectionAmount || 0) / 99)} paid /{" "}
-                        {stats.todaysClaims - Math.floor((stats.todaysCollectionAmount || 0) / 99)} pending
                       </p>
                     </div>
                     <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
@@ -534,7 +533,7 @@ export default function DashboardPage() {
 
             {/* Analytics Tabs */}
             <Tabs defaultValue="trends" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 lg:grid-cols-3 mb-6 bg-white shadow-lg rounded-xl p-1 h-auto">
+              <TabsList className="grid w-full grid-cols-2 lg:grid-cols-2 mb-6 bg-white shadow-lg rounded-xl p-1 h-auto">
                 <TabsTrigger
                   value="trends"
                   className="rounded-lg data-[state=active]:bg-purple-600 data-[state=active]:text-white text-sm sm:text-base font-semibold py-2 sm:py-3"
@@ -550,14 +549,6 @@ export default function DashboardPage() {
                   <Activity className="w-4 h-4 mr-2 hidden sm:inline" />
                   <span className="sm:hidden">Activity</span>
                   <span className="hidden sm:inline">Daily Activity</span>
-                </TabsTrigger>
-                <TabsTrigger
-                  value="revenue"
-                  className="rounded-lg data-[state=active]:bg-purple-600 data-[state=active]:text-white text-sm sm:text-base font-semibold py-2 sm:py-3"
-                >
-                  <Target className="w-4 h-4 mr-2 hidden sm:inline" />
-                  <span className="sm:hidden">Revenue</span>
-                  <span className="hidden sm:inline">Revenue Analysis</span>
                 </TabsTrigger>
               </TabsList>
 

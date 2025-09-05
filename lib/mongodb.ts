@@ -4,7 +4,12 @@ if (!process.env.MONGODB_URI) {
   throw new Error('Invalid/Missing environment variable: "MONGODB_URI"')
 }
 
+if (!process.env.MONGODB_DB_NAME) {
+  throw new Error('Invalid/Missing environment variable: "MONGODB_DB_NAME"')
+}
+
 const uri = process.env.MONGODB_URI
+const dbName = process.env.MONGODB_DB_NAME
 const options = {}
 
 let client: MongoClient
@@ -30,7 +35,7 @@ export default clientPromise
 export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db }> {
   try {
     const client = await clientPromise
-    const db = client.db("systech_ott_platform")
+    const db = client.db(dbName) // 👈 now uses env variable
     return { client, db }
   } catch (error) {
     console.error("Failed to connect to database:", error)

@@ -217,26 +217,36 @@ export async function GET(request: Request) {
 
       // Claims sheet
       const claimsHeaders = [
-        "ID",
-        "Claim ID",
-        "First Name",
-        "Last Name",
-        "Email",
-        "Phone",
-        "Address",
-        "City",
-        "State",
-        "Pincode",
-        "Activation Code",
-        "Product Name", // Added Product Name column
-        "Payment Status",
-        "Price",
-        "OTT Status",
-        "OTT Code",
-        "Created Date",
-        "Created Time",
-        "Updated Date",
-        "Updated Time",
+          "ID",
+          "Claim ID",
+          "First Name",
+          "Last Name",
+          "Email",
+          "Phone",
+          "Street Address",
+          "Address Line 2",
+          "City",
+          "State",
+          "Postal Code",
+          "Country",
+          "Purchase Type",
+          "Activation Code",
+          "Product Name", // Added Product Name column
+          "Purchase Date",
+          "Claim Submission Date",
+          "Invoice Number",
+          "Seller Name",
+          "Payment Status",
+          "Payment ID",
+          "Razorpay Order ID",
+          "Price",
+          "OTT Status",
+          "OTT Code",
+          "Bill File Name",
+          "Created Date",
+          "Created Time",
+          "Updated Date",
+          "Updated Time",
       ]
       const claimsFormatted = claimsData.map((doc) => {
         const createdDateTime = formatDateTimeIST(doc.createdAt)
@@ -246,26 +256,36 @@ export async function GET(request: Request) {
         const productName = activationCodeToProduct.get(doc.activationCode) || ""
 
         return [
-          doc._id?.toString() || "",
-          doc.claimId || "",
-          doc.firstName || "",
-          doc.lastName || "",
-          doc.email || "",
-          doc.phone || doc.phoneNumber || "",
-          doc.address || doc.streetAddress || "",
-          doc.city || "",
-          doc.state || "",
-          doc.pincode || doc.postalCode || "",
-          doc.activationCode || "",
-          productName, // Added product name from sales lookup
-          doc.paymentStatus || "",
-          price,
-          doc.ottStatus || "",
-          doc.ottCode || "",
-          createdDateTime.date,
-          createdDateTime.time,
-          updatedDateTime.date,
-          updatedDateTime.time,
+           doc._id?.toString() || "",
+            doc.claimId || "",
+            doc.firstName || "",
+            doc.lastName || "",
+            doc.email || "",
+            doc.phone || doc.phoneNumber || "",
+            doc.streetAddress || doc.address || "",
+            doc.addressLine2 || "",
+            doc.city || "",
+            doc.state || "",
+            doc.postalCode || doc.pincode || "",
+            doc.country || "",
+            doc.purchaseType || "",
+            doc.activationCode || "",
+            productName, // Added product name from sales lookup
+            doc.purchaseDate || "",
+            doc.createdAt instanceof Date ? doc.createdAt.toISOString() : doc.createdAt || "",
+            doc.invoiceNumber || "",
+            doc.sellerName || "",
+            doc.paymentStatus || "",
+            doc.paymentId || "",
+            doc.razorpayOrderId || "",
+            price,
+            doc.ottStatus || "",
+            doc.ottCode || "",
+            doc.billFileName || "",
+            createdDateTime.date,
+            createdDateTime.time,
+            updatedDateTime.date,
+            updatedDateTime.time,
         ]
       })
       const claimsSheet = XLSX.utils.aoa_to_sheet([claimsHeaders, ...claimsFormatted])
@@ -341,7 +361,7 @@ export async function GET(request: Request) {
       })
 
       const responseHeaders = new Headers()
-      responseHeaders.append("Content-Disposition", `attachment; filename="systech_ott_platform_complete_export.xlsx"`)
+      responseHeaders.append("Content-Disposition", `attachment; filename="complete_export.xlsx"`)
       responseHeaders.append("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
       return new NextResponse(blob, { headers: responseHeaders })

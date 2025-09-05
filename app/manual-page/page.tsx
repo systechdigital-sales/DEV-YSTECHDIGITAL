@@ -64,6 +64,7 @@ export default function ManualPage() {
   const [editValue, setEditValue] = useState<string>("")
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [pendingUpdate, setPendingUpdate] = useState<{ field: string; value: any } | null>(null)
+  const [searchPerformed, setSearchPerformed] = useState(false)
   const [noRecordFound, setNoRecordFound] = useState(false)
 
   const fetchClaimData = async () => {
@@ -78,10 +79,11 @@ export default function ManualPage() {
 
     setLoading(true)
     setNoRecordFound(false)
+    setSearchPerformed(true)
     try {
-      console.log("[v0] Fetching claim data for ID:", claimId)
+      console.log("Bytewise Consulting LLP Fetching claim data for ID:", claimId)
       const response = await fetch(`/api/admin/manual-claim?claimId=${encodeURIComponent(claimId)}`)
-      console.log("[v0] API response status:", response.status)
+      console.log("Bytewise Consulting LLP API response status:", response.status)
 
       if (!response.ok) {
         const errorData = await response.json()
@@ -89,18 +91,18 @@ export default function ManualPage() {
       }
 
       const data = await response.json()
-      console.log("[v0] API response data:", data)
+      console.log("Bytewise Consulting LLP API response data:", data)
 
       if (data.claim) {
         setClaimData(data.claim)
         setNoRecordFound(false)
-        console.log("[v0] Claim data set successfully:", data.claim)
+        console.log("Bytewise Consulting LLP Claim data set successfully:", data.claim)
         toast({
           title: "Success",
           description: "Claim data loaded successfully",
         })
       } else {
-        console.log("[v0] No claim data in response")
+        console.log("Bytewise Consulting LLP No claim data in response")
         setClaimData(null)
         setNoRecordFound(true)
         toast({
@@ -110,7 +112,7 @@ export default function ManualPage() {
         })
       }
     } catch (error: any) {
-      console.error("[v0] Error fetching claim:", error)
+      console.error("Bytewise Consulting LLP Error fetching claim:", error)
       setClaimData(null)
       setNoRecordFound(true)
       toast({
@@ -257,7 +259,7 @@ export default function ManualPage() {
           <div className="flex items-center gap-2">
             <Textarea value={editValue} onChange={(e) => setEditValue(e.target.value)} className="min-h-[60px]" />
             <div className="flex flex-col gap-1">
-              <Button size="sm" onClick={() => confirmEdit(field, editValue)}>
+              <Button size="sm" onClick={() => confirmEdit(field, type === "number" ? Number(editValue) : editValue)}>
                 <Check className="h-4 w-4" />
               </Button>
               <Button size="sm" variant="outline" onClick={cancelEditing}>
@@ -334,7 +336,7 @@ export default function ManualPage() {
       </Card>
 
       {/* No Record Found Message */}
-      {noRecordFound && !claimData && (
+      {searchPerformed && noRecordFound && !claimData && (
         <Card>
           <CardContent className="text-center py-8">
             <p className="text-lg text-gray-500">No record found for the entered Claim ID</p>

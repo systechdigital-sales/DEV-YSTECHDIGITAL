@@ -3,6 +3,7 @@ import { connectToDatabase } from "@/lib/mongodb"
 import { sendEmail } from "@/lib/email"
 
 export async function POST(request: NextRequest) {
+  let res ;
   try {
     const formData = await request.formData()
 
@@ -66,10 +67,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Save to database
-    await claimsCollection.insertOne(claimRecord)
+    try {
+      console.log("CLAIM INSERT STARTED")
+      res = await claimsCollection.insertOne(claimRecord)
+      if (!res.acknowledged)
+        return NextResponse.json({ success: false, message: "Failed to submit claim. Please try again." }, { status: 500 })
+      console.log("CLAIM INSERTED SUCCESSFULLY")
+    } catch (claimInsertError) {
+      console.log("CLAIM INSERT FAILED", claimInsertError)
+
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.nextUrl.origin
+      return NextResponse.redirect(`${baseUrl}/ott?error=submission_failed`)
+    }
 
     // Send order placed email
-    try {
+    try{
       await sendEmail({
         to: claimData.email,
         subject: "Order Placed Successfully - OTT Code Claim",
