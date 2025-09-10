@@ -123,16 +123,80 @@ export async function POST(request: NextRequest) {
     let successCount = 0
     let failureCount = 0
     let skippedCount = 0
+    let pendingToProcessedCount = 0
     const details: Array<{
       email: string
-      status: "success" | "failed" | "skipped"
+      status: "success" | "failed" | "skipped" | "pending_processed"
       message: string
       ottCode?: string
       step?: string
     }> = []
 
+    console.log("🔍 Step 0: Checking for pending payments that should be processed...")
+
+    const pendingClaims = await claimsCollection
+      .find({
+        paymentStatus: "pending",
+        ottStatus: "pending",
+      })
+      .toArray()
+
+    console.log(`📋 Found ${pendingClaims.length} pending claims to check`)
+
+    for (const pendingClaim of pendingClaims) {
+      try {
+        // Match records with claims table using claimId, customerEmail, customerPhone, activationCode
+        const matchingClaim = await claimsCollection.findOne({
+          $and: [
+            { claimId: pendingClaim.claimId },
+            { email: pendingClaim.email },
+            { phoneNumber: pendingClaim.phoneNumber },
+            { activationCode: pendingClaim.activationCode },
+            { paymentStatus: "paid" }, // Look for a paid version of the same claim
+          ],
+        })
+
+        if (matchingClaim) {
+          console.log(`✅ Found matching paid claim for ${pendingClaim.claimId}, updating status...`)
+
+          // Update the pending claim to paid status
+          await claimsCollection.updateOne(
+            { _id: pendingClaim._id },
+            {
+              $set: {
+                paymentStatus: "paid",
+                updatedAt: new Date(),
+                notes: {
+                  claimId: pendingClaim.claimId,
+                  customerEmail: pendingClaim.email,
+                  customerPhone: pendingClaim.phoneNumber,
+                  activationCode: pendingClaim.activationCode,
+                  processedReason: "Matched with paid claim and auto-processed",
+                  processedAt: new Date(),
+                },
+              },
+            },
+          )
+
+          pendingToProcessedCount++
+
+          details.push({
+            email: pendingClaim.email,
+            status: "pending_processed",
+            message: "Pending payment updated to paid and queued for processing",
+            step: "Payment Status Update",
+          })
+
+          console.log(`🔄 Updated pending claim ${pendingClaim.claimId} to paid status`)
+        }
+      } catch (error) {
+        console.error(`❌ Error checking pending claim ${pendingClaim.claimId}:`, error)
+      }
+    }
+
     console.log("📅 Step 1: Processing expired pending payments with verification...")
-    const expiredCutoff = new Date(Date.now() - 48 * 60 * 60 * 1000) // 48 hours ago
+
+    const expiredCutoff = new Date(Date.now() - 2 * 60 * 60 * 1000) // 2 hours ago
 
     const expiredClaims = await claimsCollection
       .find({
@@ -181,6 +245,15 @@ export async function POST(request: NextRequest) {
                 lastVerificationResult: verification.status,
                 nextVerificationAt:
                   claim.verificationAttempts + 1 < 3 ? getNextVerificationTime(claim.verificationAttempts + 2) : null,
+                notes: {
+                  claimId: claim.claimId,
+                  customerEmail: claim.email,
+                  customerPhone: claim.phoneNumber,
+                  activationCode: claim.activationCode,
+                  verificationAttempt: claim.verificationAttempts + 1,
+                  verificationStatus: verification.status,
+                  verificationTime: new Date(),
+                },
               },
             },
           )
@@ -194,6 +267,16 @@ export async function POST(request: NextRequest) {
                     paymentStatus: "paid",
                     updatedAt: new Date(),
                     verificationNote: `Payment verified as ${verification.status} on attempt ${claim.verificationAttempts + 1}`,
+                    notes: {
+                      claimId: claim.claimId,
+                      customerEmail: claim.email,
+                      customerPhone: claim.phoneNumber,
+                      activationCode: claim.activationCode,
+                      verificationSuccess: true,
+                      verificationStatus: verification.status,
+                      verificationAttempt: claim.verificationAttempts + 1,
+                      processedAt: new Date(),
+                    },
                   },
                 },
               )
@@ -227,6 +310,15 @@ export async function POST(request: NextRequest) {
                 failureReason: failureReason,
                 updatedAt: new Date(),
                 emailSent: "expired", // Mark that expired email was sent
+                notes: {
+                  claimId: claim.claimId,
+                  customerEmail: claim.email,
+                  customerPhone: claim.phoneNumber,
+                  activationCode: claim.activationCode,
+                  failureReason: failureReason,
+                  expiredAt: new Date(),
+                  verificationAttempts: claim.verificationAttempts || 0,
+                },
               },
             },
           )
@@ -258,6 +350,7 @@ export async function POST(request: NextRequest) {
         success: true,
         message: "No claims to process",
         results: {
+          pendingToProcessed: pendingToProcessedCount,
           expired: expiredCount,
           processed: 0,
           success: 0,
@@ -322,6 +415,14 @@ export async function POST(request: NextRequest) {
                   failureReason: "Invalid activation code - not found in sales records",
                   updatedAt: new Date(),
                   emailSent: "invalid_code_failed", // Mark that failure email was sent
+                  notes: {
+                    claimId: claim.claimId,
+                    customerEmail: claim.email,
+                    customerPhone: claim.phoneNumber,
+                    activationCode: claim.activationCode,
+                    failureReason: "Invalid activation code",
+                    failedAt: new Date(),
+                  },
                 },
               },
             )
@@ -357,6 +458,15 @@ export async function POST(request: NextRequest) {
                   failureReason: "Activation code already claimed",
                   updatedAt: new Date(),
                   emailSent: "duplicate_failed", // Mark that failure email was sent
+                  notes: {
+                    claimId: claim.claimId,
+                    customerEmail: claim.email,
+                    customerPhone: claim.phoneNumber,
+                    activationCode: claim.activationCode,
+                    failureReason: "Duplicate claim",
+                    claimedBy: salesRecord.claimedBy,
+                    failedAt: new Date(),
+                  },
                 },
               },
             )
@@ -441,6 +551,15 @@ export async function POST(request: NextRequest) {
                   failureReason: "No available OTT keys",
                   updatedAt: new Date(),
                   emailSent: "no_keys_failed", // Mark that failure email was sent
+                  notes: {
+                    claimId: claim.claimId,
+                    customerEmail: claim.email,
+                    customerPhone: claim.phoneNumber,
+                    activationCode: claim.activationCode,
+                    failureReason: "No available OTT keys",
+                    requestedPlatform: platform,
+                    failedAt: new Date(),
+                  },
                 },
               },
             )
@@ -489,6 +608,16 @@ export async function POST(request: NextRequest) {
                 platform: assignedPlatform,
                 updatedAt: new Date(),
                 emailSent: "success_delivered", // Mark that success email was sent
+                notes: {
+                  claimId: claim.claimId,
+                  customerEmail: claim.email,
+                  customerPhone: claim.phoneNumber,
+                  activationCode: claim.activationCode,
+                  ottCode: ottCode,
+                  assignedPlatform: assignedPlatform,
+                  deliveredAt: new Date(),
+                  processedSuccessfully: true,
+                },
               },
             },
           )
@@ -520,6 +649,16 @@ export async function POST(request: NextRequest) {
                   failureReason: "Database transaction failed",
                   updatedAt: new Date(),
                   emailSent: "transaction_failed", // Mark that failure email was sent
+                  // Added notes field for transaction failures
+                  notes: {
+                    claimId: claim.claimId,
+                    customerEmail: claim.email,
+                    customerPhone: claim.phoneNumber,
+                    activationCode: claim.activationCode,
+                    failureReason: "Database transaction failed",
+                    transactionError: transactionError.message,
+                    failedAt: new Date(),
+                  },
                 },
               },
             )
@@ -550,6 +689,16 @@ export async function POST(request: NextRequest) {
                 failureReason: `Processing error: ${claimError.message}`,
                 updatedAt: new Date(),
                 emailSent: "processing_failed", // Mark that failure email was sent
+                // Added notes field for processing failures
+                notes: {
+                  claimId: claim.claimId,
+                  customerEmail: claim.email,
+                  customerPhone: claim.phoneNumber,
+                  activationCode: claim.activationCode,
+                  failureReason: `Processing error: ${claimError.message}`,
+                  processingError: claimError.message,
+                  failedAt: new Date(),
+                },
               },
             },
           )
@@ -569,6 +718,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`\n🎯 Automation completed:`)
+    console.log(`   🔄 Pending to Processed: ${pendingToProcessedCount}`)
     console.log(`   ⏰ Expired: ${expiredCount}`)
     console.log(`   📊 Processed: ${processedCount}`)
     console.log(`   ✅ Successful: ${successCount}`)
@@ -579,6 +729,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: "Automation process completed",
       results: {
+        pendingToProcessed: pendingToProcessedCount,
         expired: expiredCount,
         processed: processedCount,
         success: successCount,
