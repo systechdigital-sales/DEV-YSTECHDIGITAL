@@ -7,6 +7,7 @@ import { Loader2, CreditCard, Shield, AlertCircle, RefreshCw, X, Lock, Star, Clo
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import PaymentCooldownDialog from "./payment-cooldown-dialog"
+import { logClient } from "@/lib/payment-helpers"
 
 declare global {
   interface Window {
@@ -299,6 +300,7 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
 
       razorpay.on("payment.failed", (response: any) => {
         console.error("Payment failed:", response.error)
+        logClient("RAZOR PAY PAYMENT FAILEDDDDD:", response.error);
         setPaymentError(`Payment failed: ${response.error.description}`)
         setShowErrorDialog(true)
         setLoading(false)
@@ -310,6 +312,7 @@ export default function PaymentClient({ claimId, customerName, customerEmail, cu
 
       razorpay.open()
     } catch (error) {
+      logClient("RAZOR PAY PAYMENT FAILED:", error);
       console.error("Payment initiation error:", error)
       setError(error instanceof Error ? error.message : "Failed to initiate payment")
       setLoading(false)

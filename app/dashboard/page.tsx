@@ -10,7 +10,6 @@ import {
   DollarSign,
   Calendar,
   ShoppingCart,
-  Key,
   RefreshCw,
   CheckCircle,
   Clock,
@@ -18,7 +17,6 @@ import {
   AlertCircle,
   BarChart3,
   Activity,
-  Target,
 } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
@@ -417,9 +415,9 @@ export default function DashboardPage() {
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
                     <div className="min-w-0 flex-1">
-                      <p className="text-yellow-100 text-sm font-medium">Total Pending Claims</p>
-                      <p className="text-2xl sm:text-3xl font-bold">{stats.pending}</p>
-                      <p className="text-yellow-200 text-xs sm:text-sm mt-1">⏳ Awaiting processing</p>
+                      <p className="text-yellow-100 text-sm font-medium">Today's Claims</p>
+                      <p className="text-2xl sm:text-3xl font-bold">{stats.todaysClaims}</p>
+                      <p className="text-yellow-200 text-xs sm:text-sm mt-1">Today's all claims</p>
                     </div>
                     <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
                       <Clock className="w-6 h-6 sm:w-8 sm:h-8" />
@@ -428,16 +426,14 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
 
-              {/* 5. Today's Claims */}
+              {/* 5. Today's Paid Claims */}
               <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg border-0 min-w-0">
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
                     <div className="min-w-0 flex-1">
-                      <p className="text-orange-100 text-sm font-medium">Today's Claims</p>
-                      <p className="text-2xl sm:text-3xl font-bold">{stats.todaysClaims}</p>
-                      <p className="text-orange-200 text-xs sm:text-sm mt-1">
-                        {Math.floor((stats.todaysCollectionAmount || 0) / 99)} paid /{" "}
-                      </p>
+                      <p className="text-orange-100 text-sm font-medium">Today's Paid Claims</p>
+                      <p className="text-2xl sm:text-3xl font-bold">{Math.floor(stats.todaysCollectionAmount / 99)}</p>
+                      <p className="text-orange-200 text-xs sm:text-sm mt-1">Paid customers today</p>
                     </div>
                     <div className="p-3 bg-white/20 rounded-full flex-shrink-0">
                       <Calendar className="w-6 h-6 sm:w-8 sm:h-8" />
@@ -484,7 +480,6 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
 
-
               <Card className="bg-red-50 border-red-200 shadow-lg min-w-0">
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center space-x-3 mb-3">
@@ -507,7 +502,29 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
 
-                            <Card className="bg-yellow-50 border-yellow-200 shadow-lg min-w-0">
+              <Card className="bg-green-50 border-green-200 shadow-lg min-w-0">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                    <h3 className="font-semibold text-green-800 truncate">Successful</h3>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-2xl font-bold text-green-900">{stats.successful}</span>
+                      <span className="text-sm text-green-600">
+                        {stats.totalClaims > 0 ? Math.round((stats.successful / stats.totalClaims) * 100) : 0}%
+                      </span>
+                    </div>
+                    <Progress
+                      value={stats.totalClaims > 0 ? (stats.successful / stats.totalClaims) * 100 : 0}
+                      className="h-2"
+                    />
+                    <p className="text-xs text-green-600">Successfully delivered</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-yellow-50 border-yellow-200 shadow-lg min-w-0">
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center space-x-3 mb-3">
                     <Clock className="w-5 h-5 text-yellow-600 flex-shrink-0" />
@@ -528,7 +545,6 @@ export default function DashboardPage() {
                   </div>
                 </CardContent>
               </Card>
-
             </div>
 
             {/* Analytics Tabs */}

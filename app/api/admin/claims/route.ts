@@ -145,8 +145,8 @@ export async function GET(request: NextRequest) {
       ottCode: claim.ottCode || "",
       paymentId: claim.paymentId || "",
       razorpayOrderId: claim.razorpayOrderId || "",
-      createdAt: claim.createdAt ? claim.createdAt.toISOString() : new Date().toISOString(),
-      updatedAt: claim.updatedAt ? claim.updatedAt.toISOString() : new Date().toISOString(),
+      createdAt: claim.createdAt ? new Date(claim.createdAt).toISOString() : new Date().toISOString(),
+      updatedAt: claim.updatedAt ? new Date(claim.updatedAt).toISOString() : new Date().toISOString(),
       amount: claim.amount || 99,
     }))
 
