@@ -502,27 +502,6 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-green-50 border-green-200 shadow-lg min-w-0">
-                <CardContent className="p-4 sm:p-6">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
-                    <h3 className="font-semibold text-green-800 truncate">Successful</h3>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-2xl font-bold text-green-900">{stats.successful}</span>
-                      <span className="text-sm text-green-600">
-                        {stats.totalClaims > 0 ? Math.round((stats.successful / stats.totalClaims) * 100) : 0}%
-                      </span>
-                    </div>
-                    <Progress
-                      value={stats.totalClaims > 0 ? (stats.successful / stats.totalClaims) * 100 : 0}
-                      className="h-2"
-                    />
-                    <p className="text-xs text-green-600">Successfully delivered</p>
-                  </div>
-                </CardContent>
-              </Card>
 
               <Card className="bg-yellow-50 border-yellow-200 shadow-lg min-w-0">
                 <CardContent className="p-4 sm:p-6">

@@ -86,6 +86,7 @@ interface SortConfig {
 }
 
 interface FilterConfig {
+  productSubCategory: string | undefined
   paymentStatus: string
   ottStatus: string
   salesStatus: string
@@ -1906,53 +1907,84 @@ Team SYSTECH DIGITAL`
                       </div>
 
                       {/* Search and Filters */}
-                      <div className="mt-4 sm:mt-6 space-y-4">
-                        <div className="flex items-center space-x-2 sm:space-x-4">
-                          <div className="flex items-center space-x-2 flex-1">
-                            <div className="relative flex-1">
-                              <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                              <Input
-                                placeholder="Search by activation code, product, category..."
-                                value={searchInput}
-                                onChange={(e) => handleSearchInputChange(e.target.value)}
-                                onKeyPress={handleSearchKeyPress}
-                                className="pl-10 text-sm"
-                              />
-                            </div>
-                            <Button
-                              onClick={handleSearch}
-                              disabled={searchLoading}
-                              size="sm"
-                              className="bg-indigo-600 hover:bg-indigo-700"
-                            >
-                              {searchLoading ? (
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                              ) : (
-                                <SearchIcon className="h-4 w-4" />
-                              )}
-                            </Button>
+                    <div className="mt-4 sm:mt-6 space-y-4">
+                      {/* Search */}
+                      <div className="flex items-center space-x-2 sm:space-x-4">
+                        <div className="flex items-center space-x-2 flex-1">
+                          <div className="relative flex-1">
+                            <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                            <Input
+                              placeholder="Search by activation code, product, category..."
+                              value={searchInput}
+                              onChange={(e) => handleSearchInputChange(e.target.value)}
+                              onKeyPress={handleSearchKeyPress}
+                              className="pl-10 text-sm"
+                            />
                           </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
-                          <div>
-                            <Label className="text-sm font-medium text-gray-700">Status</Label>
-                            <Select
-                              value={filters.salesStatus}
-                              onValueChange={(value) => handleFilterChange("salesStatus", value)}
-                            >
-                              <SelectTrigger className="text-sm">
-                                <SelectValue placeholder="All Status" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="all">All Status</SelectItem>
-                                <SelectItem value="available">Available</SelectItem>
-                                <SelectItem value="claimed">Claimed</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
+                          <Button
+                            onClick={handleSearch}
+                            disabled={searchLoading}
+                            size="sm"
+                            className="bg-indigo-600 hover:bg-indigo-700"
+                          >
+                            {searchLoading ? (
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            ) : (
+                              <SearchIcon className="h-4 w-4" />
+                            )}
+                          </Button>
                         </div>
                       </div>
+
+                      {/* Filters */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Status Filter */}
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700">Status</Label>
+                          <Select
+                            value={filters.salesStatus}
+                            onValueChange={(value) => handleFilterChange("salesStatus", value)}
+                          >
+                            <SelectTrigger className="text-sm">
+                              <SelectValue placeholder="All Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Status</SelectItem>
+                              <SelectItem value="available">Available</SelectItem>
+                              <SelectItem value="claimed">Claimed</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Product Sub Category Filter */}
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700">Product Sub Category</Label>
+                          <Select
+                            value={filters.productSubCategory}
+                            onValueChange={(value) => handleFilterChange("productSubCategory", value)}
+                          >
+                            <SelectTrigger className="text-sm">
+                              <SelectValue placeholder="All Categories" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Categories</SelectItem>
+                              <SelectItem value="Accessories">Accessories</SelectItem>
+                              <SelectItem value="Antivirus">Antivirus</SelectItem>
+                              <SelectItem value="Ipad">Ipad</SelectItem>
+                              <SelectItem value="Laptop">Laptop</SelectItem>
+                              <SelectItem value="Mac Book">Mac Book</SelectItem>
+                              <SelectItem value="Mobile Phone">Mobile Phone</SelectItem>
+                              <SelectItem value="Refrigerator">Refrigerator</SelectItem>
+                              <SelectItem value="Smart TV">Smart TV</SelectItem>
+                              <SelectItem value="Speaker">Speaker</SelectItem>
+                              <SelectItem value="Tablet">Tablet</SelectItem>
+                              <SelectItem value="Washing machine">Washing machine</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+
                     </CardHeader>
                     <CardContent className="p-0">
                       <div className="overflow-x-auto">
@@ -1967,7 +1999,6 @@ Team SYSTECH DIGITAL`
                               <SortableHeader sortKey="claimedDate">Claimed Date</SortableHeader>
                               <SortableHeader sortKey="createdAt">Created</SortableHeader>
                               <SortableHeader sortKey="updatedAt">Updated</SortableHeader>
-                              <TableHead className="font-bold text-gray-800">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -2086,7 +2117,6 @@ Team SYSTECH DIGITAL`
                               <SortableHeader sortKey="assignedDate">Assigned Date</SortableHeader>
                               <SortableHeader sortKey="createdAt">Created</SortableHeader>
                               <SortableHeader sortKey="updatedAt">Updated</SortableHeader>
-                              <TableHead className="font-bold text-gray-800">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>

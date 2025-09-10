@@ -25,7 +25,7 @@ async function logToClient(message: string, data?: any) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { amount, currency = "INR", claimId, customerEmail, customerPhone } = await request.json()
+    const { amount, currency = "INR", claimId, customerEmail, customerPhone, activationCode } = await request.json()
 
     console.log("🚀 Payment order creation started:", { amount, claimId, customerEmail, customerPhone })
     await logToClient("Payment order creation started", {
@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
       claimId,
       customerEmail,
       customerPhone,
+      activationCode
     })
 
     if (!amount || !claimId || !customerEmail || !customerPhone) {
@@ -148,6 +149,7 @@ export async function POST(request: NextRequest) {
         claimId,
         customerEmail,
         customerPhone,
+        activationCode
       },
     }
 
@@ -177,6 +179,7 @@ export async function POST(request: NextRequest) {
           customerEmail,
           customerPhone,
           claimId,
+          activationCode
         },
         $setOnInsert: {
           createdAt: now,
