@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
   try {
     console.log("🤖 Starting automation process...")
 
-    // Connect to systech_ott_platform database
+    // Connect to dev-envdatabase
     const db = await getDatabase()
     const claimsCollection = db.collection("claims")
     const salesCollection = db.collection("salesrecords")
