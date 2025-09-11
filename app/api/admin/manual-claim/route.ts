@@ -105,9 +105,9 @@ export async function GET(request: NextRequest) {
     const claimData = {
       ...claim,
       _id: claim._id.toString(),
-      createdAt: claim.createdAt?.toISOString() || new Date().toISOString(),
-      updatedAt: claim.updatedAt?.toISOString() || "",
-      claimSubmissionDate: claim.claimSubmissionDate || claim.createdAt?.toISOString() || new Date().toISOString(),
+      createdAt: claim.createdAt || new Date(),
+      updatedAt: claim.updatedAt || new Date(),
+      claimSubmissionDate: claim.claimSubmissionDate || claim.createdAt || new Date(),
       // Ensure all fields have default values
       firstName: claim.firstName || "",
       lastName: claim.lastName || "",
